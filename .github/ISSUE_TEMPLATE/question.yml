@@ -1,0 +1,24 @@
+# adapted from https://github.com/pnp/powerfx-samples/blob/main/.github/ISSUE_TEMPLATE/question.yml
+
+name: ❓ Question
+description: Ask a question about our software
+
+body:
+- type: markdown
+  attributes:
+    value: |
+
+      Thank you for asking a question! Ask us a question related to the code in this repo in the box below. 
+      
+      - Remember to include sufficient details and context.
+      - If you have multiple questions please submit them separately so we can track resolution.
+      - Screenshots are always helpful (just paste any images right here in the question)
+
+- type: textarea
+  id: question
+  attributes:
+    label: Question
+    description: What would you like to know?
+    placeholder: The more details, the better
+  validations:
+    required: true

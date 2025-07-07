@@ -1,0 +1,42 @@
+# IDE related
+*~
+.idea
+*.swp
+*.swo
+.vscode/*
+
+# data files/directories
+*.bam
+/data
+/tmp
+/lib/*/tmp
+.tox
+_local/*
+
+# project files
+.venv
+.env
+env/
+venv/
+/bin
+/etc/ssl/selfsigned-*
+*/miniconda3
+.vagrant
+.hosts.tmp
+
+# Byte-compiled
+__pycache__/
+*.pyc
+
+# coverage
+.coverage
+htmlcov/
+
+# test metadata
+geckodriver.log
+env.sh
+
+# system files
+Thumbs.db
+.DS_Store
+

@@ -1,0 +1,36 @@
+# adapted from https://github.com/pnp/powerfx-samples/blob/main/.github/ISSUE_TEMPLATE/suggestion.yml?plain=1
+
+name: 💡 Suggestion
+description: Suggest an enhancement to improve our software
+
+body:
+- type: markdown
+  attributes:
+    value: |
+
+      Thank you for your suggestion! Describe the suggestion you have for the code in this repo. 
+      
+      - All ideas are welcome - let's build something together!
+      - Remember to include sufficient details and context.
+      - If you have multiple suggestions please submit them separately so we can track resolution.
+      - Screenshots are always helpful (just paste any images right here in the suggestion)
+
+- type: textarea
+  id: suggestion
+  attributes:
+    label: Suggestion
+    description: What would you like to see improved?
+    placeholder: The more details, the better
+  validations:
+    required: true
+
+- type: dropdown
+  id: willing-to-help
+  attributes:
+    label: Are you willing to help?
+    description: Would you be willing to help us make this improvement?
+    options:
+      - "Yes"
+      - "No"
+  validations:
+    required: true
