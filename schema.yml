@@ -1,0 +1,255 @@
+openapi: 3.0.3
+info:
+  title: CanDIG-API
+  version: 0.1.0
+servers:
+  - url: /v3
+security:
+  - {}
+  - BasicAuth: []
+  - BearerAuth: []
+paths:
+  /service-info:
+    get:
+      summary: Retrieve information about this service
+      description: Returns information about the query service
+      operationId: query_operations.get_service_info
+      responses:
+        200:
+          description: Retrieve info about the Query service
+          content:
+            application/json:
+              schema:
+                type: object
+  /datasets:
+    get:
+      summary: List datasets
+      description: |
+        Gets a list of all datasets
+      operationId: dataset_operations.get
+      responses:
+        200:
+          description: Retrieved dataset information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetsBody'
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+  /datasets/{id}:
+    get:
+      summary: Retrieve a dataset according to its ID
+      description: |
+        Gets a specific dataset by ID. Granularity of the response is
+        dependent on the authorized level of access of the user
+      operationId: dataset_operations.get_by_id
+      responses:
+        200:
+          description: Retrieved dataset information
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  $ref: '#/components/schemas/DatasetAggregateBody'
+                  $ref: '#/components/schemas/DatasetRowLevelBody'
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+    post:
+      summary: Write to a dataset corresponding to the given ID
+      description: |
+        Write data into a dataset
+      operationId: dataset_operations.post_by_id
+      responses:
+        200:
+          description: Retrieved dataset information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetRowLevelBody'
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        403:
+          $ref: "#/components/responses/403ForbiddenError"
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+    delete:
+      summary: Delete a dataset corresponding to the given ID
+      description: |
+        Delete a dataset at the given ID.
+      operationId: dataset_operations.delete_by_id
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessBody'
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        403:
+          $ref: "#/components/responses/403ForbiddenError"
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+  /datasets/{id}/metadata:
+    get:
+      summary: Retrieve a dataset's metadata
+      description: |
+        Gets the metadata (e.g. description, hospital source, contact info, etc)
+        of a specific dataset by ID.
+      operationId: dataset_operations.get_metadata
+      responses:
+        200:
+          description: Retrieved dataset metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetMetadataBody'
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+    post:
+      description: |
+        Alter a dataset's metadata
+      operationId: dataset_operations.post_metadata
+      responses:
+        200:
+          description: Posted metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetMetadataBody'
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        403:
+          $ref: "#/components/responses/403ForbiddenError"
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+
+components:
+    parameters:
+        treatmentParam:
+            in: query
+            name: treatment
+            style: pipeDelimited
+            description: A pipe-separated list of treatments to look for
+            example: Bone marrow transplant|Chemotherapy
+            required: false
+            schema:
+                $ref: '#/components/schemas/Fields'
+        primarySiteParam:
+            in: query
+            name: primary_site
+            style: pipeDelimited
+            description: A pipe-separated list of affected primary sites to look for
+            example: Adrenal gland|Bladder
+            required: false
+            schema:
+                $ref: '#/components/schemas/Fields'
+        drugNameParam:
+            in: query
+            name: drug_name
+            style: pipeDelimited
+            description: A pipe-separated list of drug names to look for
+            example: FLUOROURACIL|LEUCOVORIN
+            required: false
+            schema:
+                $ref: '#/components/schemas/Fields'
+        systemicTherapyTypeParam:
+            in: query
+            name: systemic_therapy_type
+            style: pipeDelimited
+            description: A pipe-separated list of systemic therapies that we accept
+            example: Chemotherapy|Immunotherapy
+            required: false
+            schema:
+                $ref: '#/components/schemas/Fields'
+        chrParam:
+            in: query
+            name: chrom
+            description: |
+                A chromosome to search for variants within. This cannot be used with a geneParam, and must be of the format
+                chr#:start-end
+            required: false
+            schema:
+                $ref: '#/components/schemas/Field'
+        geneParam:
+            in: query
+            name: gene
+            description: A gene name to search for variants within. This cannot be used with chrParam
+            example: ZYG11A
+            required: false
+            schema:
+                $ref: '#/components/schemas/Fields'
+        assemblyParam:
+            in: query
+            name: assembly
+            description: A genomic assembly to search for variants within.
+            example: hg38
+            schema:
+                $ref: '#/components/schemas/Field'
+        excludeProgramsParam:
+            in: query
+            name: exclude_programs
+            style: pipeDelimited
+            description: A list of programs that will be excluded from results
+            example: SYNTHETIC-1
+            schema:
+                $ref: '#/components/schemas/Fields'
+        pageSizeParam:
+            in: query
+            name: page_size
+            description: The number of donors to return per page
+            example: 10
+            required: false
+            schema:
+                $ref: '#/components/schemas/IntField'
+        pageParam:
+            in: query
+            name: page
+            description: The page number to grab
+            example: 1
+            required: false
+            schema:
+                $ref: '#/components/schemas/IntField'
+        discoveryTargetServiceParam:
+            name: targetService
+            in: query
+            required: false
+            schema:
+                type: string
+                default: katsu
+        discoveryTargetPathParam:
+            name: targetPath
+            in: query
+            required: false
+            schema:
+    schemas:
+                type: string
