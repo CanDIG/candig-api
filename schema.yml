@@ -19,19 +19,52 @@ paths:
             application/json:
               schema:
                 type: object
+  
+  /beacon-search:
+    post:
+      description: Search for datasets or persons
+      operationId: beacon_operations.post_search
+      requestBody:
+        $ref: '#/components/requestBodies/BeaconRequestBody'
+      responses:
+        200:
+          description: Response completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessBody'
+        default:
+          $ref: '#/components/responses/BeaconErrorResponse'
+      tags:
+        - POST Endpoints
+  
   /datasets:
     get:
-      summary: List datasets
+      summary: List datasets. With parameters, searches through all datasets by one or more parameters.
       description: |
-        Gets a list of all datasets
-      operationId: dataset_operations.get
+        Gets a list of all datasets. When a search parameter is given, this will search through all
+        datasets instead. The granularity of the response is dependent on the authorized level
+        of access of the user
+      operationId: dataset_operations.search
+      parameters:
+          - $ref: "#/components/parameters/treatmentParam"
+          - $ref: "#/components/parameters/primarySiteParam"
+          - $ref: "#/components/parameters/drugNameParam"
+          - $ref: "#/components/parameters/chrParam"
+          - $ref: "#/components/parameters/geneParam"
+          - $ref: "#/components/parameters/assemblyParam"
+          - $ref: "#/components/parameters/excludeProgramsParam"
+          - $ref: "#/components/parameters/pageSizeParam"
+          - $ref: "#/components/parameters/pageParam"
       responses:
         200:
           description: Retrieved dataset information
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetsBody'
+                oneOf:
+                  - $ref: '#/components/schemas/DatasetAggregateBody'
+                  - $ref: '#/components/schemas/DatasetRowLevelBody'
         400:
           $ref: "#/components/responses/400BadRequestError"
         401:
@@ -40,6 +73,8 @@ paths:
           $ref: "#/components/responses/404NotFoundError"
         5XX:
           $ref: "#/components/responses/5xxServerError"
+      tags:
+        - datasets
   /datasets/{id}:
     get:
       summary: Retrieve a dataset according to its ID
@@ -71,6 +106,8 @@ paths:
           $ref: "#/components/responses/404NotFoundError"
         5XX:
           $ref: "#/components/responses/5xxServerError"
+      tags:
+        - datasets
     post:
       summary: Write to a dataset corresponding to the given ID
       description: |
@@ -100,6 +137,8 @@ paths:
           $ref: "#/components/responses/404NotFoundError"
         5XX:
           $ref: "#/components/responses/5xxServerError"
+      tags:
+        - datasets
     delete:
       summary: Delete a dataset corresponding to the given ID
       description: |
@@ -129,6 +168,8 @@ paths:
           $ref: "#/components/responses/404NotFoundError"
         5XX:
           $ref: "#/components/responses/5xxServerError"
+      tags:
+        - datasets
   /datasets/{id}/metadata:
     get:
       summary: Retrieve a dataset's metadata
@@ -158,7 +199,10 @@ paths:
           $ref: "#/components/responses/404NotFoundError"
         5XX:
           $ref: "#/components/responses/5xxServerError"
+      tags:
+        - datasets
     post:
+      summary: Alter a dataset's metadata
       description: |
         Alter a dataset's metadata
       operationId: dataset_operations.post_metadata
@@ -186,7 +230,206 @@ paths:
           $ref: "#/components/responses/404NotFoundError"
         5XX:
           $ref: "#/components/responses/5xxServerError"
+      tags:
+        - datasets
+  /datasets/statistics:
+    get:
+      summary: Grab summary statistics for the datasets.
+      description: |
+        Gets an object of statistics for all datasets.
+      operationId: dataset_operations.statistics
+      responses:
+        200:
+          description: Retrieved dataset information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetStatsBody'
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+      tags:
+        - datasets
+  /datasets/{id}/statistics:
+    get:
+      summary: Grab summary statistics for the given dataset
+      description: |
+        Gets an object of statistics for the given dataset
+      operationId: dataset_operations.statistics_by_id
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          title: Dataset Id
+          type: string
+      responses:
+        200:
+          description: Retrieved dataset information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetStatsBody'
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+      tags:
+        - datasets
+
+  /persons:
+    get:
+      summary: List persons. With parameters, searches for all persons that match the input.
+      description: |
+        Gets a list of all persons. When a search parameter is given, this will search through all
+        persons instead. The granularity of the response is dependent on the authorized level
+        of access of the user, but usually returns only summary-level information. To obtain more
+        information about a person, use the /persons/{id} endpoint.
+      operationId: person_operations.search
+      parameters:
+          - $ref: "#/components/parameters/treatmentParam"
+          - $ref: "#/components/parameters/primarySiteParam"
+          - $ref: "#/components/parameters/drugNameParam"
+          - $ref: "#/components/parameters/chrParam"
+          - $ref: "#/components/parameters/geneParam"
+          - $ref: "#/components/parameters/assemblyParam"
+          - $ref: "#/components/parameters/excludeProgramsParam"
+          - $ref: "#/components/parameters/pageSizeParam"
+          - $ref: "#/components/parameters/pageParam"
+      responses:
+        200:
+          description: Retrieved dataset information
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PersonAggregateBody'
+                  - $ref: '#/components/schemas/PersonRowLevelBody'
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        403:
+          $ref: "#/components/responses/403ForbiddenError"
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+      tags:
+        - persons
+  /persons/{id}:
+    get:
+      summary: Get all details about a person
+      description: |
+        Gets a detailed view of all information available about a person
+      operationId: person_operations.get_by_id
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          title: Person Id
+          type: string
+      responses:
+        200:
+          description: Retrieved dataset information
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PersonDetailedBody'
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        403:
+          $ref: "#/components/responses/403ForbiddenError"
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+      tags:
+        - persons
+    post:
+      summary: Insert a new person into the database.
+      description: |
+        Insert a new person into the database
+      operationId: person_operations.post
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          title: Person Id
+          type: string
+      responses:
+        200:
+          description: Updated aggregate person information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonAggregateBody'
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        403:
+          $ref: "#/components/responses/403ForbiddenError"
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+      tags:
+        - persons
+    delete:
+      summary: Delete a person from the database.
+      description: |
+        Delete a person from the database
+      operationId: person_operations.delete
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          title: Person Id
+          type: string
+      responses:
+        200:
+          description: Updated aggregate person information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonAggregateBody'
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        403:
+          $ref: "#/components/responses/403ForbiddenError"
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+      tags:
+        - persons
+
 components:
+  requestBodies:
+    BeaconRequestBody:
+      content:
+        'application/json':
+          schema:
+            type: object
+            description: Schema for the Beacon request.
+            properties:
+              meta:
+                $ref: '#/components/schemas/BeaconRequestMeta'
+              query:
+                $ref: '#/components/schemas/BeaconQuery'
+            required:
+              - meta
+              - query
   parameters:
     treatmentParam:
       in: query
@@ -316,6 +559,30 @@ components:
           application/json:
             schema:
               $ref: '#/components/schemas/Error'
+    BeaconErrorResponse:
+      description: An unsuccessful operation.
+      content:
+        application/json:
+          schema:
+            properties:
+              error:
+                description: Beacon-specific error.
+                properties:
+                  errorCode:
+                    description: Entry not found
+                    format: int32
+                    type: integer
+                  errorMessage:
+                    type: string
+                required:
+                  - errorCode
+                type: object
+              meta:
+                $ref: '#/components/schemas/BeaconResponseMeta'
+            required:
+              - meta
+              - error
+            type: object
   schemas:
     Error:
       type: object
@@ -357,9 +624,6 @@ components:
                   example: NotFound
                 message:
                   example: The requested resource could not be located
-    DatasetsBody:
-      type: object
-      # todo
     DatasetAggregateBody:
       type: object
       # todo
@@ -372,6 +636,186 @@ components:
     DatasetMetadataBody:
       type: object
       # todo
+    DatasetStatsBody:
+      type: object
+      properties:
+        person_count:
+          type: object
+        primary_sites:
+          type: object
+        dataset_count:
+          type: object
+        persons_per_dataset:
+          type: object
+        treatment_type_count:
+          type: object
+        age_at_diagnosis:
+          type: object
+        completeness:
+          type: object
+    PersonRowLevelBody:
+      type: object
+      # todo
+    PersonAggregateBody:
+      type: object
+      # todo
+    PersonDetailedBody:
+      type: object
+      # todo
+    BeaconResponseMeta:
+      description: Information about the response that could be relevant for the Beacon client in order to interpret the results.
+      properties:
+        apiVersion:
+          $ref: '#/components/schemas/ApiVersion'
+        beaconId:
+          $ref: '#/components/schemas/BeaconId'
+        receivedRequestSummary:
+          $ref: '#/components/schemas/BeaconReceivedRequestSummary'
+        returnedGranularity:
+          $ref: '#/components/schemas/Granularity'
+        returnedSchemas:
+          $ref: '#/components/schemas/ListOfSchemas'
+      required:
+        - beaconId
+        - apiVersion
+        - returnedSchemas
+        - returnedGranularity
+        - receivedRequestSummary
+      type: object
+    BeaconId:
+      description: The Id of a Beacon. Usually a reversed domain string, but any URI is acceptable. The purpose of this attribute is, in the context of a Beacon network, to disambiguate responses coming from different Beacons.
+      type: string
+    BeaconQuery:
+      description: Parameters to limit the list of returned results.
+      type: object
+      properties:
+        includeResultsetResponses:
+          $ref: '#/components/schemas/IncludeResultsetResponses'
+        pagination:
+          $ref: '#/components/schemas/PaginationRequest'
+        requestParameters:
+          $ref: '#/components/schemas/RequestParameters'
+        requestedGranularity:
+          $ref: '#/components/schemas/Granularity'
+    BeaconReceivedRequestSummary:
+      description: >-
+        Section of the response that summarize the request received as it has
+        been interpreted by the Beacon server. This summary can help to identify
+        differences between the incoming request and its interpretation or processing,
+        e.g. in the response granularity or pagination.
+        The required properties include those that should be part of every request.
+      type: object
+      properties:
+        apiVersion:
+          $ref: '#/components/schemas/ApiVersion'
+        requestedSchemas:
+          $ref: '#/components/schemas/ListOfSchemas'
+        requestParameters:
+          $ref: '#/components/schemas/RequestParameters'
+        includeResultsetResponses:
+          $ref: '#/components/schemas/IncludeResultsetResponses'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        requestedGranularity:
+          $ref: '#/components/schemas/Granularity'
+      required:
+        - apiVersion
+        - requestedSchemas
+        - pagination
+        - requestedGranularity
+    Granularity:
+      default: boolean
+      description: |-
+        Level of detail of the response:
+        * `boolean`: returns true/false' responses * `count`: adds the total number of positive results found * `aggregated`: returns summary, aggregated or distribution like responses * `record`: returns details for every row. In cases where a Beacon prefers to return records with fewer than allattributes, different strategies have to be considered w/o adding them to the current design, e.g.:
+            - keeping non-mandatory attributes empty
+            - Beacon to provide a minimal record definition
+      enum:
+        - boolean
+        - count
+        - aggregated
+        - record
+      type: string
+    IncludeResultsetResponses:
+      default: HIT
+      description: Indicator of whether responses from every Resultset should be included in the response to this request or just the ones with positive, negative results or no details at all. If null (not specified), the default value of 'HIT' is assumed. This parameter allows for returning boolean/counting results although the Beacon instance is capable to return record level details.
+      enum:
+        - ALL
+        - HIT
+        - MISS
+        - NONE
+      type: string
+    PageSize:
+      default: 10
+      description: Size of the page. Use `0` to return all the results or the maximum allowed by the Beacon, if there is any.
+      example: 10
+      minimum: 0
+      type: integer
+    PageToken:
+      description: A hash or similar that allows the server to retrieve a "page", e.g. (a subset of) a query response.
+      example: ab0sc&fe1dd
+      type: string
+    Pagination:
+      description: Pagination that has been applied on the results.
+      properties:
+        currentPage:
+          $ref: '#/components/schemas/PageToken'
+        pageSize:
+          $ref: '#/components/schemas/PageSize'
+        nextPage:
+          $ref: '#/components/schemas/PageToken'
+        previousPage:
+          $ref: '#/components/schemas/PageToken'
+        skip:
+          $ref: '#/components/schemas/Skip'
+      type: object
+    PaginationRequest:
+      description: Pagination to apply on the results.
+      properties:
+        page:
+          $ref: '#/components/schemas/PageToken'
+        pageSize:
+          $ref: '#/components/schemas/PageSize'
+        skip:
+          $ref: '#/components/schemas/Skip'
+    RequestParameters:
+      type: object
+      # todo
+    Skip:
+      default: 0
+      description: |
+        * In the request: number of pages to skip
+        * In the response: number of pages that has been skipped
+      example: 0
+      minimum: 0
+      type: integer
+    BeaconRequestMeta:
+      description: Meta section of the Beacon request. It includes request context details relevant for the Beacon server when processing the request.
+      properties:
+        apiVersion:
+          $ref: '#/components/schemas/ApiVersion'
+        requestedSchemas:
+          $ref: '#/components/schemas/ListOfSchemas'
+      required:
+        - apiVersion
+      type: object
+    ApiVersion:
+      description: Version of API, e.g. in request or response. Beacon uses a Github-style, "v"-prefixed semantic versioning format.
+      type: string
+    SchemasPerEntity:
+      description: Schema to be used for the requested entry type in the response.
+      properties:
+        entityType:
+          example: Individual
+          type: string
+        schema:
+          type: string
+      type: object
+    ListOfSchemas:
+      description: Set of schemas to be used in the response to a request.
+      items:
+        $ref: '#/components/schemas/SchemasPerEntity'
+      type: array
     Fields:
       type: array
       description: Acceptable requested fields for querying
