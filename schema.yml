@@ -6,8 +6,6 @@ servers:
   - url: /v3
 security:
   - {}
-  - BasicAuth: []
-  - BearerAuth: []
 paths:
   /service-info:
     get:
@@ -49,6 +47,13 @@ paths:
         Gets a specific dataset by ID. Granularity of the response is
         dependent on the authorized level of access of the user
       operationId: dataset_operations.get_by_id
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          title: Dataset Id
+          type: string
       responses:
         200:
           description: Retrieved dataset information
@@ -56,8 +61,8 @@ paths:
             application/json:
               schema:
                 oneOf:
-                  $ref: '#/components/schemas/DatasetAggregateBody'
-                  $ref: '#/components/schemas/DatasetRowLevelBody'
+                  - $ref: '#/components/schemas/DatasetAggregateBody'
+                  - $ref: '#/components/schemas/DatasetRowLevelBody'
         400:
           $ref: "#/components/responses/400BadRequestError"
         401:
@@ -71,6 +76,13 @@ paths:
       description: |
         Write data into a dataset
       operationId: dataset_operations.post_by_id
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          title: Dataset Id
+          type: string
       responses:
         200:
           description: Retrieved dataset information
@@ -93,8 +105,16 @@ paths:
       description: |
         Delete a dataset at the given ID.
       operationId: dataset_operations.delete_by_id
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          title: Dataset Id
+          type: string
       responses:
         200:
+          description: Response completed successfully
           content:
             application/json:
               schema:
@@ -116,6 +136,13 @@ paths:
         Gets the metadata (e.g. description, hospital source, contact info, etc)
         of a specific dataset by ID.
       operationId: dataset_operations.get_metadata
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          title: Dataset Id
+          type: string
       responses:
         200:
           description: Retrieved dataset metadata
@@ -135,6 +162,13 @@ paths:
       description: |
         Alter a dataset's metadata
       operationId: dataset_operations.post_metadata
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          title: Dataset Id
+          type: string
       responses:
         200:
           description: Posted metadata
@@ -152,104 +186,202 @@ paths:
           $ref: "#/components/responses/404NotFoundError"
         5XX:
           $ref: "#/components/responses/5xxServerError"
-
 components:
-    parameters:
-        treatmentParam:
-            in: query
-            name: treatment
-            style: pipeDelimited
-            description: A pipe-separated list of treatments to look for
-            example: Bone marrow transplant|Chemotherapy
-            required: false
+  parameters:
+    treatmentParam:
+      in: query
+      name: treatment
+      style: pipeDelimited
+      description: A pipe-separated list of treatments to look for
+      example: Bone marrow transplant|Chemotherapy
+      required: false
+      schema:
+        $ref: '#/components/schemas/Fields'
+    primarySiteParam:
+      in: query
+      name: primary_site
+      style: pipeDelimited
+      description: A pipe-separated list of affected primary sites to look for
+      example: Adrenal gland|Bladder
+      required: false
+      schema:
+        $ref: '#/components/schemas/Fields'
+    drugNameParam:
+      in: query
+      name: drug_name
+      style: pipeDelimited
+      description: A pipe-separated list of drug names to look for
+      example: FLUOROURACIL|LEUCOVORIN
+      required: false
+      schema:
+        $ref: '#/components/schemas/Fields'
+    systemicTherapyTypeParam:
+      in: query
+      name: systemic_therapy_type
+      style: pipeDelimited
+      description: A pipe-separated list of systemic therapies that we accept
+      example: Chemotherapy|Immunotherapy
+      required: false
+      schema:
+        $ref: '#/components/schemas/Fields'
+    chrParam:
+      in: query
+      name: chrom
+      description: |
+        A chromosome to search for variants within. This cannot be used with a geneParam, and must be of the format
+        chr#:start-end
+      required: false
+      schema:
+        $ref: '#/components/schemas/Field'
+    geneParam:
+      in: query
+      name: gene
+      description: A gene name to search for variants within. This cannot be used with chrParam
+      example: ZYG11A
+      required: false
+      schema:
+        $ref: '#/components/schemas/Fields'
+    assemblyParam:
+      in: query
+      name: assembly
+      description: A genomic assembly to search for variants within.
+      example: hg38
+      schema:
+        $ref: '#/components/schemas/Field'
+    excludeProgramsParam:
+      in: query
+      name: exclude_programs
+      style: pipeDelimited
+      description: A list of programs that will be excluded from results
+      example: SYNTHETIC-1
+      schema:
+        $ref: '#/components/schemas/Fields'
+    pageSizeParam:
+      in: query
+      name: page_size
+      description: The number of donors to return per page
+      example: 10
+      required: false
+      schema:
+        $ref: '#/components/schemas/IntField'
+    pageParam:
+      in: query
+      name: page
+      description: The page number to grab
+      example: 1
+      required: false
+      schema:
+        $ref: '#/components/schemas/IntField'
+    discoveryTargetServiceParam:
+      name: targetService
+      in: query
+      required: false
+      schema:
+        type: string
+        default: katsu
+    discoveryTargetPathParam:
+      name: targetPath
+      in: query
+      required: false
+      schema:
+        type: string
+  responses:
+    400BadRequestError:
+      description: The request was not processed, as the request parameters did not adhere to the specification
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BadRequestError'
+    401UnauthorizedError:
+      description: The request was not processed, as the request was missing an authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BadRequestError'
+    403ForbiddenError:
+      description: The request was not processed, as the user in the given authentication token does not have sufficient privileges to proceed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BadRequestError'
+    404NotFoundError:
+        description: The request was not processed, as the requested object was not found
+        content:
+          application/json:
             schema:
-                $ref: '#/components/schemas/Fields'
-        primarySiteParam:
-            in: query
-            name: primary_site
-            style: pipeDelimited
-            description: A pipe-separated list of affected primary sites to look for
-            example: Adrenal gland|Bladder
-            required: false
+              $ref: '#/components/schemas/NotFoundError'
+    5xxServerError:
+        description: Unspecified server error encountered
+        content:
+          application/json:
             schema:
-                $ref: '#/components/schemas/Fields'
-        drugNameParam:
-            in: query
-            name: drug_name
-            style: pipeDelimited
-            description: A pipe-separated list of drug names to look for
-            example: FLUOROURACIL|LEUCOVORIN
-            required: false
-            schema:
-                $ref: '#/components/schemas/Fields'
-        systemicTherapyTypeParam:
-            in: query
-            name: systemic_therapy_type
-            style: pipeDelimited
-            description: A pipe-separated list of systemic therapies that we accept
-            example: Chemotherapy|Immunotherapy
-            required: false
-            schema:
-                $ref: '#/components/schemas/Fields'
-        chrParam:
-            in: query
-            name: chrom
-            description: |
-                A chromosome to search for variants within. This cannot be used with a geneParam, and must be of the format
-                chr#:start-end
-            required: false
-            schema:
-                $ref: '#/components/schemas/Field'
-        geneParam:
-            in: query
-            name: gene
-            description: A gene name to search for variants within. This cannot be used with chrParam
-            example: ZYG11A
-            required: false
-            schema:
-                $ref: '#/components/schemas/Fields'
-        assemblyParam:
-            in: query
-            name: assembly
-            description: A genomic assembly to search for variants within.
-            example: hg38
-            schema:
-                $ref: '#/components/schemas/Field'
-        excludeProgramsParam:
-            in: query
-            name: exclude_programs
-            style: pipeDelimited
-            description: A list of programs that will be excluded from results
-            example: SYNTHETIC-1
-            schema:
-                $ref: '#/components/schemas/Fields'
-        pageSizeParam:
-            in: query
-            name: page_size
-            description: The number of donors to return per page
-            example: 10
-            required: false
-            schema:
-                $ref: '#/components/schemas/IntField'
-        pageParam:
-            in: query
-            name: page
-            description: The page number to grab
-            example: 1
-            required: false
-            schema:
-                $ref: '#/components/schemas/IntField'
-        discoveryTargetServiceParam:
-            name: targetService
-            in: query
-            required: false
-            schema:
-                type: string
-                default: katsu
-        discoveryTargetPathParam:
-            name: targetPath
-            in: query
-            required: false
-            schema:
-    schemas:
-                type: string
+              $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      properties:
+        query:
+          type: object
+          description: Error object container
+          properties:
+            error:
+              type: string
+              description: Name/type of the error that occurred
+              example: ServerError
+            message:
+              type: string
+              description: Message explaining why the error occurred
+              example: An unspecified server error occurred
+          required:
+            - error
+            - message
+      required:
+        - query
+    BadRequestError:
+      allOf:
+        - $ref: "#/components/schemas/Error"
+        - properties:
+            query:
+              properties:
+                error:
+                  example: InvalidInput
+                message:
+                  example: "FOO is not an acceptable field"
+    NotFoundError:
+      allOf:
+        - $ref: "#/components/schemas/Error"
+        - properties:
+            query:
+              properties:
+                error:
+                  example: NotFound
+                message:
+                  example: The requested resource could not be located
+    DatasetsBody:
+      type: object
+      # todo
+    DatasetAggregateBody:
+      type: object
+      # todo
+    DatasetRowLevelBody:
+      type: object
+      # todo
+    SuccessBody:
+      type: object
+      # todo
+    DatasetMetadataBody:
+      type: object
+      # todo
+    Fields:
+      type: array
+      description: Acceptable requested fields for querying
+      items:
+        type: string
+      example: [Bone marrow transplant, Chemotherapy]
+    Field:
+      type: string
+      description: Acceptable requested string for querying
+    IntField:
+      type: integer
+      description: Acceptable integer for querying
+    
