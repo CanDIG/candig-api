@@ -20,61 +20,28 @@ paths:
               schema:
                 type: object
   
-  /beacon-search:
-    post:
-      description: Search for datasets or persons
-      operationId: beacon_operations.post_search
-      requestBody:
-        $ref: '#/components/requestBodies/BeaconRequestBody'
-      responses:
-        200:
-          description: Response completed successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessBody'
-        default:
-          $ref: '#/components/responses/BeaconErrorResponse'
-      tags:
-        - POST Endpoints
-  
   /datasets:
     get:
-      summary: List datasets. With parameters, searches through all datasets by one or more parameters.
+      summary: List datasets.
       description: |
-        Gets a list of all datasets. When a search parameter is given, this will search through all
-        datasets instead. The granularity of the response is dependent on the authorized level
-        of access of the user
-      operationId: dataset_operations.search
-      parameters:
-          - $ref: "#/components/parameters/treatmentParam"
-          - $ref: "#/components/parameters/primarySiteParam"
-          - $ref: "#/components/parameters/drugNameParam"
-          - $ref: "#/components/parameters/chrParam"
-          - $ref: "#/components/parameters/geneParam"
-          - $ref: "#/components/parameters/assemblyParam"
-          - $ref: "#/components/parameters/excludeProgramsParam"
-          - $ref: "#/components/parameters/pageSizeParam"
-          - $ref: "#/components/parameters/pageParam"
+        Gets a list of all datasets.
+      operationId: dataset_operations.list_all
       responses:
         200:
           description: Retrieved dataset information
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: '#/components/schemas/DatasetAggregateBody'
-                  - $ref: '#/components/schemas/DatasetRowLevelBody'
+                $ref: '#/components/schemas/DatasetAggregateBody'
         400:
           $ref: "#/components/responses/400BadRequestError"
         401:
           $ref: "#/components/responses/401UnauthorizedError"
-        404:
-          $ref: "#/components/responses/404NotFoundError"
         5XX:
           $ref: "#/components/responses/5xxServerError"
       tags:
-        - datasets
+        - Datasets
+    
   /datasets/{id}:
     get:
       summary: Retrieve a dataset according to its ID
@@ -107,11 +74,12 @@ paths:
         5XX:
           $ref: "#/components/responses/5xxServerError"
       tags:
-        - datasets
-    post:
-      summary: Write to a dataset corresponding to the given ID
+        - Datasets
+    put:
+      summary: Create a dataset corresponding to the given ID
       description: |
-        Write data into a dataset
+        Create a dataset corresponding to the given ID. If the dataset already exists, it will be
+        replaced.
       operationId: dataset_operations.post_by_id
       parameters:
       - in: path
@@ -138,7 +106,7 @@ paths:
         5XX:
           $ref: "#/components/responses/5xxServerError"
       tags:
-        - datasets
+        - Datasets
     delete:
       summary: Delete a dataset corresponding to the given ID
       description: |
@@ -169,7 +137,7 @@ paths:
         5XX:
           $ref: "#/components/responses/5xxServerError"
       tags:
-        - datasets
+        - Datasets
   /datasets/{id}/metadata:
     get:
       summary: Retrieve a dataset's metadata
@@ -200,12 +168,12 @@ paths:
         5XX:
           $ref: "#/components/responses/5xxServerError"
       tags:
-        - datasets
-    post:
+        - Datasets
+    patch:
       summary: Alter a dataset's metadata
       description: |
         Alter a dataset's metadata
-      operationId: dataset_operations.post_metadata
+      operationId: dataset_operations.patch_metadata
       parameters:
       - in: path
         name: id
@@ -231,10 +199,10 @@ paths:
         5XX:
           $ref: "#/components/responses/5xxServerError"
       tags:
-        - datasets
+        - Datasets
   /datasets/statistics:
     get:
-      summary: Grab summary statistics for the datasets.
+      summary: Grab summary statistics for all datasets.
       description: |
         Gets an object of statistics for all datasets.
       operationId: dataset_operations.statistics
@@ -250,7 +218,7 @@ paths:
         5XX:
           $ref: "#/components/responses/5xxServerError"
       tags:
-        - datasets
+        - Datasets
   /datasets/{id}/statistics:
     get:
       summary: Grab summary statistics for the given dataset
@@ -276,27 +244,23 @@ paths:
         5XX:
           $ref: "#/components/responses/5xxServerError"
       tags:
-        - datasets
+        - Datasets
 
-  /persons:
+  /datasets/{dataset_id}/persons:
     get:
-      summary: List persons. With parameters, searches for all persons that match the input.
+      summary: List persons.
       description: |
-        Gets a list of all persons. When a search parameter is given, this will search through all
-        persons instead. The granularity of the response is dependent on the authorized level
-        of access of the user, but usually returns only summary-level information. To obtain more
-        information about a person, use the /persons/{id} endpoint.
-      operationId: person_operations.search
+        Gets a list of all persons. The granularity of the result is dependent on the user's 
+        authorization level, but in general this returns only summary-level information. To obtain more
+        information about a person, use the /datasets/{dataset_id}/persons/{id} endpoint.
+      operationId: person_operations.list
       parameters:
-          - $ref: "#/components/parameters/treatmentParam"
-          - $ref: "#/components/parameters/primarySiteParam"
-          - $ref: "#/components/parameters/drugNameParam"
-          - $ref: "#/components/parameters/chrParam"
-          - $ref: "#/components/parameters/geneParam"
-          - $ref: "#/components/parameters/assemblyParam"
-          - $ref: "#/components/parameters/excludeProgramsParam"
-          - $ref: "#/components/parameters/pageSizeParam"
-          - $ref: "#/components/parameters/pageParam"
+      - in: path
+        name: dataset_id
+        required: true
+        schema:
+          title: Dataset Id
+          type: string
       responses:
         200:
           description: Retrieved dataset information
@@ -317,14 +281,20 @@ paths:
         5XX:
           $ref: "#/components/responses/5xxServerError"
       tags:
-        - persons
-  /persons/{id}:
+        - Persons
+  /datasets/{dataset_id}/persons/{id}:
     get:
       summary: Get all details about a person
       description: |
         Gets a detailed view of all information available about a person
       operationId: person_operations.get_by_id
       parameters:
+      - in: path
+        name: dataset_id
+        required: true
+        schema:
+          title: Dataset Id
+          type: string
       - in: path
         name: id
         required: true
@@ -350,13 +320,19 @@ paths:
         5XX:
           $ref: "#/components/responses/5xxServerError"
       tags:
-        - persons
-    post:
-      summary: Insert a new person into the database.
+        - Persons
+    put:
+      summary: Insert a new person into the database, or replace an existing person.
       description: |
-        Insert a new person into the database
+        Insert a new person into the database, or replace an existing person
       operationId: person_operations.post
       parameters:
+      - in: path
+        name: dataset_id
+        required: true
+        schema:
+          title: Dataset Id
+          type: string
       - in: path
         name: id
         required: true
@@ -381,7 +357,44 @@ paths:
         5XX:
           $ref: "#/components/responses/5xxServerError"
       tags:
-        - persons
+        - Persons
+    patch:
+      summary: Alter an existing person in the database.
+      description: |
+        Alter an existing person in the database
+      operationId: person_operations.patch_user
+      parameters:
+      - in: path
+        name: dataset_id
+        required: true
+        schema:
+          title: Dataset Id
+          type: string
+      - in: path
+        name: id
+        required: true
+        schema:
+          title: Person Id
+          type: string
+      responses:
+        200:
+          description: Updated aggregate person information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonAggregateBody'
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        403:
+          $ref: "#/components/responses/403ForbiddenError"
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+      tags:
+        - Persons
     delete:
       summary: Delete a person from the database.
       description: |
@@ -389,6 +402,12 @@ paths:
       operationId: person_operations.delete
       parameters:
       - in: path
+        name: dataset_id
+        required: true
+        schema:
+          title: Dataset Id
+          type: string
+      - in: path
         name: id
         required: true
         schema:
@@ -412,7 +431,7 @@ paths:
         5XX:
           $ref: "#/components/responses/5xxServerError"
       tags:
-        - persons
+        - Persons
 
 components:
   requestBodies:
@@ -727,7 +746,10 @@ components:
       default: boolean
       description: |-
         Level of detail of the response:
-        * `boolean`: returns true/false' responses * `count`: adds the total number of positive results found * `aggregated`: returns summary, aggregated or distribution like responses * `record`: returns details for every row. In cases where a Beacon prefers to return records with fewer than allattributes, different strategies have to be considered w/o adding them to the current design, e.g.:
+        * `boolean`: returns true/false' responses
+        * `count`: adds the total number of positive results found
+        * `aggregated`: returns summary, aggregated or distribution like responses
+        * `record`: returns details for every row. In cases where a Beacon prefers to return records with fewer than all attributes, different strategies have to be considered w/o adding them to the current design, e.g.:
             - keeping non-mandatory attributes empty
             - Beacon to provide a minimal record definition
       enum:
