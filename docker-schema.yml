@@ -12,7 +12,7 @@ paths:
       description: Get a Beacon response for datasets
       operationId: beacon_operations.post
       requestBody:
-        $ref: '#/components/requestBodies/BeaconRequestBody'
+        $ref: raw.githubusercontent.com/ga4gh-beacon/beacon-v2/main/framework/json/requests/beaconRequestBody.json
       responses:
         '200':
           $ref: '#/components/responses/ResultsOKResponse'
@@ -39,7 +39,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/responses/BeaconFilteringTermsResponse'
+                $ref: https://raw.githubusercontent.com/ga4gh-beacon/beacon-v2/main/framework/json/responses/beaconFilteringTermsResponse.json
         default:
           description: An unsuccessful operation
           content:
@@ -52,10 +52,7 @@ paths:
       tags:
         - Datasets
       requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/requestBodies/BeaconRequestBody'
+        $ref: '#/components/requestBodies/BeaconRequestBody'
         required: true
       responses:
         '200':
@@ -63,7 +60,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/responses/BeaconFilteringTermsResponse'
+                $ref: https://raw.githubusercontent.com/ga4gh-beacon/beacon-v2/main/framework/json/requests/beaconRequestBody.json
         default:
           description: An unsuccessful operation
           content:
@@ -81,68 +78,6 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/infoOKResponse'
-        default:
-          description: An unsuccessful operation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
-  /configuration:
-    get:
-      description: TBD
-      operationId: getBeaconConfiguration
-      tags:
-        - Configuration
-      responses:
-        '200':
-          description: Successful operation.
-          content:
-            application/json:
-              schema:
-                description: Response of a request for information about a Beacon
-                $ref: ./responses/beaconConfigurationResponse.yaml
-        default:
-          description: An unsuccessful operation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
-  /map:
-    get:
-      description: TBD
-      operationId: getBeaconMap
-      tags:
-        - Configuration
-      parameters: []
-      responses:
-        '200':
-          description: Successful operation.
-          content:
-            application/json:
-              schema:
-                description: Response of a request for information about a Beacon
-                $ref: '#/components/responses/BeaconMapResponse'
-        default:
-          description: An unsuccessful operation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
-  /entry_types:
-    get:
-      description: TBD
-      operationId: getEntryTypes
-      tags:
-        - Configuration
-      parameters: []
-      responses:
-        '200':
-          description: Successful operation.
-          content:
-            application/json:
-              schema:
-                description: Response of a request for information about a Beacon
-                $ref: '#/components/responses/BeaconEntryTypesResponse'
         default:
           description: An unsuccessful operation.
           content:
@@ -219,6 +154,13 @@ components:
               - meta
               - error
             type: object
+    infoOKResponse:
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            description: Response of a request for information about a Beacon
+            $ref: https://raw.githubusercontent.com/ga4gh-beacon/beacon-v2/main/framework/json/responses/beaconInfoResponse.json
   schemas:
     BeaconEntryTypesResponse:
       type: object
@@ -231,14 +173,30 @@ components:
           description: >-
             Information about the response that could be relevant for the Beacon
             client in order to interpret the results.
-          $ref: ./sections/beaconInformationalResponseMeta.yaml
+          $ref: '#/components/schemas/BeaconInformationalResponseMeta'
         response:
           description: >-
             Returning the Beacon Entry Types.
-          $ref: ../configuration/entryTypesSchema.yaml
+          $ref: '#/components/schemas/BeaconEntryTypes'
       required:
         - meta
         - response
+      additionalProperties: true
+    BeaconInformationalResponseMeta:
+      description: >-
+        Meta information about the response.
+      type: object
+      properties:
+        beaconId:
+          $ref: '#/components/schemas/BeaconId'
+        apiVersion:
+          $ref: '#/components/schemas/ApiVersion'
+        returnedSchemas:
+          $ref: '#/components/schemas/ListOfSchemas'
+      required:
+        - beaconId
+        - apiVersion
+        - returnedSchemas
       additionalProperties: true
     BeaconEntryTypes:
       description: Schema for the Entry Types list.
@@ -246,18 +204,14 @@ components:
       properties:
         entryTypes:
           description: List of entry types.
-          $ref: '#/$defs/EntryTypes'
-      $defs:
-        EntryTypes:
-          description: This is a dictionary of the entry types implemented in this Beacon
-            instance.
-          additionalProperties:
-            type: object
-            $ref: ./entryTypeDefinition.yaml
-          minProperties: 1
-      required:
-        - entryTypes
-      additionalProperties: true
+          $ref: '#/components/schemas/EntryTypes'
+    EntryTypes:
+      description: This is a dictionary of the entry types implemented in this Beacon
+        instance.
+      additionalProperties:
+        type: object
+        $ref: 'https://raw.githubusercontent.com/ga4gh-beacon/beacon-v2/main/framework/src/configuration/entryTypeDefinition.yaml'
+      minProperties: 1
     BeaconFilteringTermsResponse:
       description: >-
         Filtering terms and ontology resources utilised in this Beacon.
@@ -571,6 +525,27 @@ components:
           minItems: 0
       required:
         - resultSets
+      additionalProperties: true
+    BeaconMapResponse:
+      type: object
+      description: >-
+        A `beaconMapResponse` provides information about the beacon instance such as the
+        different endpoints supported by this implementation of the Beacon API. This response
+        is aimed to allow Beacon clients such as web front ends and Beacon network aggregators
+        to evaluate which access patterns can be implemented against individual beacons.
+      properties:
+        meta:
+          description: >-
+            Information about the response that could be relevant for the Beacon
+            client in order to interpret the results.
+          $ref: '#/components/schemas/BeaconInformationalResponseMeta'
+        response:
+          description: >-
+            Returning the Beacon Map.
+          $ref: ../configuration/beaconMapSchema.yaml
+      required:
+        - meta
+        - response
       additionalProperties: true
     ResultsetInstance:
       type: object
