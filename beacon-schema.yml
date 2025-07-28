@@ -67,7 +67,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/responses/BeaconErrorResponse'
-  /info:
+  /datasets/info:
     parameters:
       - $ref: '#/components/parameters/requestedSchema'
     get:
@@ -78,6 +78,68 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/infoOKResponse'
+        default:
+          description: An unsuccessful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/BeaconErrorResponse'
+  /datasets/configuration:
+    get:
+      description: Returns some configuration aspects and the definition of the entry types (e.g. genomic variants, biosamples, cohorts, individuals and runs) implemented in this specific Beacon server or instance.
+      operationId: getBeaconConfiguration
+      tags:
+        - Informational endpoints
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                description: Response of a request for information about a Beacon
+                $ref: '#/components/schemas/BeaconConfigurationResponse'
+        default:
+          description: An unsuccessful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/BeaconErrorResponse'
+  /datasets/map:
+    get:
+      description: Returns a map (like a web sitemap) of the different endpoints implemented in this Beacon instance.
+      operationId: getBeaconMap
+      tags:
+        - Informational endpoints
+      parameters: []
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                description: Response of a request for information about a Beacon
+                $ref: '#/components/schemas/BeaconMapResponse'
+        default:
+          description: An unsuccessful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/BeaconErrorResponse'
+  /datasets/entry_types:
+    get:
+      description: Return the section of the configuration that describes the entry types in this Beacon.
+      operationId: getEntryTypes
+      tags:
+        - Informational endpoints
+      parameters: []
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                description: Response of a request for information about a Beacon
+                $ref: '#/components/schemas/BeaconEntryTypesResponse'
         default:
           description: An unsuccessful operation.
           content:
@@ -162,6 +224,84 @@ components:
             description: Response of a request for information about a Beacon
             $ref: '#/components/schemas/BeaconInfoResponse'
   schemas:
+    BeaconConfigurationResponse:
+      type: object
+      description: >-
+        The `beaconConfigurationResponse` returns information about configuration
+        parameters of a given beacon instance such as maturity or security attributes
+        or supported entry types. It is directed towards Beacon clients like web pages
+        or network aggregators.
+      properties:
+        meta:
+          description: >-
+            Information about the response that could be relevant for the Beacon
+            client in order to interpret the results.
+          $ref: '#/components/schemas/BeaconInformationalResponseMeta'
+        response:
+          description: >-
+            Returning the Beacon configuration.
+          $ref: '#/components/schemas/BeaconConfigurationSchema'
+      required:
+        - meta
+        - response
+      additionalProperties: true
+    BeaconConfigurationSchema:
+      title: Beacon Configuration
+      description: >-
+        The Beacon configuration reports several attributes of the beacon instance related
+        to security, maturity and available entry types.
+        Where appropriate the details returned in `service-info` should mirror the ones in this configuration.
+      type: object
+      properties:
+        $schema:
+          $ref: '#/components/schemas/Schema'
+        maturityAttributes:
+          description: Declares the level of maturity of the Beacon instance.
+          type: object
+          properties:
+            productionStatus:
+              description: >-
+                * `DEV`: Service potentially unstable, _i.e._ potentially not real data,
+                  inconsistent availability; data should not be used in production setups   
+                * `TEST`: Service is stable but data should be considered synthetic  
+                * `PROD`: Service stable with real world data  
+              type: string
+              enum:
+                - DEV
+                - TEST
+                - PROD
+        securityAttributes:
+          description: >-
+            Configuration of the security aspects of the Beacon. By default,
+            a Beacon that does not declare the configuration settings would return `boolean`
+            (true/false) responses, and only if the user is authenticated and explicitly
+            authorized to access the Beacon resources. Although this is the safest set of
+            settings, it is not recommended unless the Beacon shares very sensitive information.
+            Non sensitive Beacons should preferably opt for a `record` and `PUBLIC` combination.
+          type: object
+          properties:
+            defaultGranularity:
+              description: Default granularity. Some responses could return higher detail,
+                but this would be the granularity by default.
+              $ref: '#/components/schemas/Granularity'
+            securityLevels:
+              description: All access levels supported by the Beacon. Any combination is
+                valid, as every option would apply to different parts of the Beacon.
+              type: array
+              items:
+                enum:
+                  - PUBLIC
+                  - REGISTERED
+                  - CONTROLLED
+              default:
+                - CONTROLLED
+        entryTypes:
+          $ref: '#/components/schemas/EntryTypes'
+      required:
+        - schema
+        - maturityAttributes
+        - entryTypes
+      additionalProperties: true
     BeaconEntryTypesResponse:
       type: object
       description: >-
