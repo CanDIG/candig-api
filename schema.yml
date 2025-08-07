@@ -94,7 +94,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetRowLevelBody'
+                $ref: '#/components/schemas/DatasetSingleNoPeopleBody'
         400:
           $ref: "#/components/responses/400BadRequestError"
         401:
@@ -517,6 +517,12 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/DatasetSingleNoMetadataBody"
+    DatasetSingleNoPeopleBody:
+      properties:
+        id:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/DatasetMetadataBody"
     DatasetSingleBody:
       properties:
         id:
