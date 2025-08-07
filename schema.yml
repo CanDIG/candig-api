@@ -63,8 +63,8 @@ paths:
             application/json:
               schema:
                 oneOf:
-                  - $ref: '#/components/schemas/DatasetAggregateBody'
-                  - $ref: '#/components/schemas/DatasetRowLevelBody'
+                  - $ref: '#/components/schemas/DatasetSingleNoMetadataBody'
+                  - $ref: '#/components/schemas/DatasetSingleBody'
         400:
           $ref: "#/components/responses/400BadRequestError"
         401:
@@ -506,26 +506,31 @@ components:
                   example: NotFound
                 message:
                   example: The requested resource could not be located
+    DatasetSingleNoMetadataBody:
+      type: object
+      properties:
+        id:
+          type: string
+        count:
+          type: integer
     DatasetAggregateBody:
       type: array
       items:
-        properties:
-          id:
-            type: string
-          count:
-            type: integer
+        $ref: "#/components/schemas/DatasetSingleNoMetadataBody"
+    DatasetSingleBody:
+      properties:
+        id:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/PersonRowLevelBody"
+        metadata:
+          $ref: "#/components/schemas/DatasetMetadataBody"
     DatasetRowLevelBody:
       type: array
       items:
-        properties:
-          id:
-            type: string
-          results:
-            type: array
-            items:
-              $ref: "#/components/schemas/PersonRowLevelBody"
-          metadata:
-            $ref: "#/components/schemas/DatasetMetadataBody"
+        $ref: "#/components/schemas/DatasetSingleBody"
     SuccessBody:
       type: object
       properties:
