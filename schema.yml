@@ -80,7 +80,7 @@ paths:
       description: |
         Create a dataset corresponding to the given ID. If the dataset already exists, it will be
         replaced.
-      operationId: dataset_operations.post_by_id
+      operationId: dataset_operations.put_by_id
       parameters:
       - in: path
         name: id
