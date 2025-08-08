@@ -521,7 +521,7 @@ components:
       properties:
         id:
           type: string
-        metadata:
+        dataset_info:
           $ref: "#/components/schemas/DatasetMetadataBody"
     DatasetSingleBody:
       properties:
@@ -531,7 +531,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PersonRowLevelBody"
-        metadata:
+        dataset_info:
           $ref: "#/components/schemas/DatasetMetadataBody"
     DatasetRowLevelBody:
       type: array
