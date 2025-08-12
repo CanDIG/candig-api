@@ -62,9 +62,7 @@ paths:
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: '#/components/schemas/DatasetSingleNoMetadataBody'
-                  - $ref: '#/components/schemas/DatasetSingleBody'
+                  $ref: '#/components/schemas/DatasetSingleNoMetadataBody'
         400:
           $ref: "#/components/responses/400BadRequestError"
         401:
