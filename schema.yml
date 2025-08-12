@@ -79,6 +79,8 @@ paths:
         Create a dataset corresponding to the given ID. If the dataset already exists, it will be
         replaced.
       operationId: dataset_operations.put_by_id
+      requestBody:
+        $ref: '#/components/requestBodies/DatasetSingleRequestBody'
       parameters:
       - in: path
         name: id
@@ -337,6 +339,8 @@ paths:
         schema:
           title: Person Id
           type: string
+      requestBody:
+        $ref: '#/components/requestBodies/PersonSingleRequestBody'
       responses:
         200:
           description: Updated aggregate person information
@@ -374,6 +378,8 @@ paths:
         schema:
           title: Person Id
           type: string
+      requestBody:
+        $ref: '#/components/requestBodies/PersonSingleRequestBody'
       responses:
         200:
           description: Updated aggregate person information
@@ -463,6 +469,25 @@ components:
           application/json:
             schema:
               $ref: '#/components/schemas/Error'
+  requestBodies:
+    DatasetSingleRequestBody:
+      description: A full dataset, including all persons within it
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DatasetSingleBody'
+        text/csv:
+          schema:
+            # Don't validate here -- we'll validate it and return an error later
+            type: string
+    PersonSingleRequestBody:
+      description: All details about one person
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PersonDetailedBody'
   schemas:
     Error:
       type: object
@@ -525,7 +550,7 @@ components:
       properties:
         id:
           type: string
-        results:
+        persons:
           type: array
           items:
             $ref: "#/components/schemas/PersonRowLevelBody"
