@@ -62,7 +62,7 @@ paths:
           content:
             application/json:
               schema:
-                  $ref: '#/components/schemas/DatasetSingleNoMetadataBody'
+                  $ref: '#/components/schemas/DatasetSingleNoInfoBody'
         400:
           $ref: "#/components/responses/400BadRequestError"
         401:
@@ -138,13 +138,13 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
-  /datasets/{id}/metadata:
+  /datasets/{id}/info:
     get:
-      summary: Retrieve a dataset's metadata
+      summary: Retrieve a dataset's info
       description: |
-        Gets the metadata (e.g. description, hospital source, contact info, etc)
+        Gets the info (e.g. description, hospital source, contact info, etc)
         of a specific dataset by ID.
-      operationId: dataset_operations.get_metadata
+      operationId: dataset_operations.get_info
       parameters:
       - in: path
         name: id
@@ -154,11 +154,11 @@ paths:
           type: string
       responses:
         200:
-          description: Retrieved dataset metadata
+          description: Retrieved dataset info
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetMetadataBody'
+                $ref: '#/components/schemas/DatasetInfoBody'
         400:
           $ref: "#/components/responses/400BadRequestError"
         401:
@@ -170,10 +170,10 @@ paths:
       tags:
         - Datasets
     patch:
-      summary: Alter a dataset's metadata
+      summary: Alter a dataset's info
       description: |
-        Alter a dataset's metadata
-      operationId: dataset_operations.patch_metadata
+        Alter a dataset's info
+      operationId: dataset_operations.patch_info
       parameters:
       - in: path
         name: id
@@ -183,11 +183,11 @@ paths:
           type: string
       responses:
         200:
-          description: Posted metadata
+          description: Posted info
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetMetadataBody'
+                $ref: '#/components/schemas/DatasetInfoBody'
         400:
           $ref: "#/components/responses/400BadRequestError"
         401:
@@ -419,11 +419,11 @@ paths:
           type: string
       responses:
         200:
-          description: Updated aggregate person information
+          description: Person deleted successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PersonAggregateBody'
+                $ref: '#/components/schemas/SuccessBody'
         400:
           $ref: "#/components/responses/400BadRequestError"
         401:
@@ -529,7 +529,7 @@ components:
                   example: NotFound
                 message:
                   example: The requested resource could not be located
-    DatasetSingleNoMetadataBody:
+    DatasetSingleNoInfoBody:
       type: object
       properties:
         id:
@@ -539,13 +539,13 @@ components:
     DatasetAggregateBody:
       type: array
       items:
-        $ref: "#/components/schemas/DatasetSingleNoMetadataBody"
+        $ref: "#/components/schemas/DatasetSingleNoInfoBody"
     DatasetSingleNoPeopleBody:
       properties:
         id:
           type: string
-        dataset_info:
-          $ref: "#/components/schemas/DatasetMetadataBody"
+        info:
+          $ref: "#/components/schemas/DatasetInfoBody"
     DatasetSingleBody:
       properties:
         id:
@@ -554,8 +554,8 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PersonRowLevelBody"
-        dataset_info:
-          $ref: "#/components/schemas/DatasetMetadataBody"
+        info:
+          $ref: "#/components/schemas/DatasetInfoBody"
     DatasetRowLevelBody:
       type: array
       items:
@@ -566,29 +566,14 @@ components:
         message:
           type: string
           default: "Operation completed successfully."
-    DatasetMetadataBody:
+    DatasetInfoBody:
       type: object
       properties:
-        cohort_definition_id:
-          description: This is the identifier given to the cohort, usually by the ATLAS application
+        dataset_name:
+          description: A short description of the dataset 
           type: string
-        cohort_definition_name:
-          description: A short description of the cohort 
-          type: string
-        cohort_definition_description:
-          description: A complete description of the cohort. 
-          type: string
-        definition_type_concept_id:
-          description: Type defining what kind of Cohort Definition the record represents and how the syntax may be executed.
-          type: integer
-        cohort_definition_syntax:
-          description: Syntax or code to operationalize the Cohort Definition.
-          type: string
-        subject_concept_id:
-          description: This field contains a Concept that represents the domain of the subjects that are members of the cohort (e.g., Person, Provider, Visit).
-          type: integer
-        cohort_initiation_date:
-          description: A date to indicate when the Cohort was initiated in the COHORT table.
+        dataset_description:
+          description: A complete description of the dataset. 
           type: string
     DatasetStatsBody:
       type: object
