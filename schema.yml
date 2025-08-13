@@ -580,22 +580,11 @@ components:
       properties:
         person_count:
           type: integer
-        primary_sites:
-          type: object
         dataset_count:
           type: integer
-          # What is this for?
         persons_per_dataset:
           type: object
           description: Keys are dataset IDs, values are the number of Persons
-        treatment_type_count:
-          type: object
-          description: Keys are treatment types, values are the number of Persons
-        age_at_diagnosis:
-          type: object
-          description: Keys are age ranges, values are the number of Persons
-        completeness:
-          type: object
     PersonRowLevelBody:
       type: array
       items:
