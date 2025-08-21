@@ -1,0 +1,3 @@
+connexion[swagger-ui,uvicorn]
+SQLAlchemy[asyncio]
+asyncpg
