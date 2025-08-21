@@ -1,0 +1,1304 @@
+openapi: 3.0.3
+info:
+  title: CanDIG-API
+  version: 0.1.0
+servers:
+  - url: /v3
+security:
+  - {}
+paths:
+  /datasets:
+    post:
+      description: Get a Beacon response for datasets
+      operationId: beacon_operations.post
+      requestBody:
+        $ref: '#/components/requestBodies/BeaconRequestBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/ResultsOKResponse'
+        default:
+          description: An unsuccessful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/BeaconErrorResponse'
+      tags:
+        - Datasets
+  /datasets/filtering_terms:
+    get:
+      parameters:
+        - $ref: '#/components/parameters/skip'
+        - $ref: '#/components/parameters/limit'
+      description: Get the list of filtering terms that could be used with datasets.
+      operationId: beacon_operations.get_filtering_terms
+      tags:
+        - Datasets
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BeaconFilteringTermsResponse'
+        default:
+          description: An unsuccessful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/BeaconErrorResponse'
+    post:
+      description: Get the list of filtering terms that could be used with datasets.
+      operationId: beacon_operations.post_filtering_terms
+      tags:
+        - Datasets
+      requestBody:
+        $ref: '#/components/requestBodies/BeaconRequestBody'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/requestBodies/BeaconRequestBody'
+        default:
+          description: An unsuccessful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/BeaconErrorResponse'
+  /datasets/info:
+    parameters:
+      - $ref: '#/components/parameters/requestedSchema'
+    get:
+      description: Get information about the beacon
+      operationId: getBeaconInfoRoot
+      tags:
+        - Informational endpoints
+      responses:
+        '200':
+          $ref: '#/components/responses/infoOKResponse'
+        default:
+          description: An unsuccessful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/BeaconErrorResponse'
+  /datasets/configuration:
+    get:
+      description: Returns some configuration aspects and the definition of the entry types (e.g. genomic variants, biosamples, cohorts, individuals and runs) implemented in this specific Beacon server or instance.
+      operationId: getBeaconConfiguration
+      tags:
+        - Informational endpoints
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                description: Response of a request for information about a Beacon
+                $ref: '#/components/schemas/BeaconConfigurationResponse'
+        default:
+          description: An unsuccessful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/BeaconErrorResponse'
+  /datasets/map:
+    get:
+      description: Returns a map (like a web sitemap) of the different endpoints implemented in this Beacon instance.
+      operationId: getBeaconMap
+      tags:
+        - Informational endpoints
+      parameters: []
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                description: Response of a request for information about a Beacon
+                $ref: '#/components/schemas/BeaconMapResponse'
+        default:
+          description: An unsuccessful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/BeaconErrorResponse'
+  /datasets/entry_types:
+    get:
+      description: Return the section of the configuration that describes the entry types in this Beacon.
+      operationId: getEntryTypes
+      tags:
+        - Informational endpoints
+      parameters: []
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                description: Response of a request for information about a Beacon
+                $ref: '#/components/schemas/BeaconEntryTypesResponse'
+        default:
+          description: An unsuccessful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/BeaconErrorResponse'
+components:
+  parameters:
+    requestedSchema:
+      name: requestedSchema
+      description: Schema to be used to format the `result` field in the resposne.
+        The response will use Beacon format.
+      in: query
+      required: false
+      schema:
+        type: string
+      example: ga4gh-service-info-v1.0
+    skip:
+      name: skip
+      in: query
+      schema:
+        $ref: '#/components/schemas/Skip'
+    limit:
+      name: limit
+      in: query
+      schema:
+        $ref: '#/components/schemas/Limit'
+  requestBodies:
+    BeaconRequestBody:
+      content:
+        'application/json':
+          schema:
+            type: object
+            description: Schema for the Beacon request.
+            properties:
+              meta:
+                $ref: '#/components/schemas/BeaconRequestMeta'
+              query:
+                $ref: '#/components/schemas/BeaconQuery'
+            required:
+              - meta
+              - query
+  responses:
+    ResultsOKResponse:
+      description: Successful operation.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/BeaconBooleanResponse'
+              - $ref: '#/components/schemas/BeaconCountResponse'
+              - $ref: '#/components/schemas/BeaconResultsetsResponse'
+    BeaconErrorResponse:
+      description: An unsuccessful operation.
+      content:
+        application/json:
+          schema:
+            properties:
+              error:
+                description: Beacon-specific error.
+                properties:
+                  errorCode:
+                    description: Entry not found
+                    format: int32
+                    type: integer
+                  errorMessage:
+                    type: string
+                required:
+                  - errorCode
+                type: object
+              meta:
+                $ref: '#/components/schemas/BeaconResponseMeta'
+            required:
+              - meta
+              - error
+            type: object
+    infoOKResponse:
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            description: Response of a request for information about a Beacon
+            $ref: '#/components/schemas/BeaconInfoResponse'
+  schemas:
+    BeaconConfigurationResponse:
+      type: object
+      description: >-
+        The `beaconConfigurationResponse` returns information about configuration
+        parameters of a given beacon instance such as maturity or security attributes
+        or supported entry types. It is directed towards Beacon clients like web pages
+        or network aggregators.
+      properties:
+        meta:
+          description: >-
+            Information about the response that could be relevant for the Beacon
+            client in order to interpret the results.
+          $ref: '#/components/schemas/BeaconInformationalResponseMeta'
+        response:
+          description: >-
+            Returning the Beacon configuration.
+          $ref: '#/components/schemas/BeaconConfigurationSchema'
+      required:
+        - meta
+        - response
+      additionalProperties: true
+    BeaconConfigurationSchema:
+      title: Beacon Configuration
+      description: >-
+        The Beacon configuration reports several attributes of the beacon instance related
+        to security, maturity and available entry types.
+        Where appropriate the details returned in `service-info` should mirror the ones in this configuration.
+      type: object
+      properties:
+        $schema:
+          $ref: '#/components/schemas/Schema'
+        maturityAttributes:
+          description: Declares the level of maturity of the Beacon instance.
+          type: object
+          properties:
+            productionStatus:
+              description: >-
+                * `DEV`: Service potentially unstable, _i.e._ potentially not real data,
+                  inconsistent availability; data should not be used in production setups   
+                * `TEST`: Service is stable but data should be considered synthetic  
+                * `PROD`: Service stable with real world data  
+              type: string
+              enum:
+                - DEV
+                - TEST
+                - PROD
+        securityAttributes:
+          description: >-
+            Configuration of the security aspects of the Beacon. By default,
+            a Beacon that does not declare the configuration settings would return `boolean`
+            (true/false) responses, and only if the user is authenticated and explicitly
+            authorized to access the Beacon resources. Although this is the safest set of
+            settings, it is not recommended unless the Beacon shares very sensitive information.
+            Non sensitive Beacons should preferably opt for a `record` and `PUBLIC` combination.
+          type: object
+          properties:
+            defaultGranularity:
+              description: Default granularity. Some responses could return higher detail,
+                but this would be the granularity by default.
+              $ref: '#/components/schemas/Granularity'
+            securityLevels:
+              description: All access levels supported by the Beacon. Any combination is
+                valid, as every option would apply to different parts of the Beacon.
+              type: array
+              items:
+                enum:
+                  - PUBLIC
+                  - REGISTERED
+                  - CONTROLLED
+              default:
+                - CONTROLLED
+        entryTypes:
+          $ref: '#/components/schemas/EntryTypes'
+      required:
+        - schema
+        - maturityAttributes
+        - entryTypes
+      additionalProperties: true
+    BeaconEntryTypesResponse:
+      type: object
+      description: >-
+        The `beaconEntryTypesResponse` provides information about the entry types
+        served through a beacon, including their definitions and pointers to their
+        schemas.
+      properties:
+        meta:
+          description: >-
+            Information about the response that could be relevant for the Beacon
+            client in order to interpret the results.
+          $ref: '#/components/schemas/BeaconInformationalResponseMeta'
+        response:
+          description: >-
+            Returning the Beacon Entry Types.
+          $ref: '#/components/schemas/BeaconEntryTypes'
+      required:
+        - meta
+        - response
+      additionalProperties: true
+    BeaconInformationalResponseMeta:
+      description: >-
+        Meta information about the response.
+      type: object
+      properties:
+        beaconId:
+          $ref: '#/components/schemas/BeaconId'
+        apiVersion:
+          $ref: '#/components/schemas/ApiVersion'
+        returnedSchemas:
+          $ref: '#/components/schemas/ListOfSchemas'
+      required:
+        - beaconId
+        - apiVersion
+        - returnedSchemas
+      additionalProperties: true
+    BeaconEntryTypes:
+      description: Schema for the Entry Types list.
+      type: object
+      properties:
+        entryTypes:
+          description: List of entry types.
+          $ref: '#/components/schemas/EntryTypes'
+    EntryTypes:
+      description: This is a dictionary of the entry types implemented in this Beacon
+        instance.
+      additionalProperties:
+        type: object
+        $ref: '#/components/schemas/EntryTypesDefinition'
+      minProperties: 1
+    EntryTypesDefinition:
+      description: >-
+        Definition of an element or scope of the element, to describe each type of entry type included
+        in a beacon.
+        The `id` attribute is the key that should be used in other parts of the data model
+        to allow Beacon clients to identify the different parts (e.g. endpoints, filtering
+        terms, request parameters, etc.) that are relvant for an entry type.
+      type: object
+      properties:
+        $schema:
+          $ref: '#/components/schemas/Schema'
+        id:
+          type: string
+          description: A unique identifier of the element.
+          example:
+            - biosample
+            - individual
+            - dataset
+        name:
+          type: string
+          description: A distinctive name for the element.
+        description:
+          type: string
+          description: A textual description for the element.
+        ontologyTermForThisType:
+          $ref: '#/components/schemas/OntologyTerm'
+          examples:
+            - id: EFO:0000542
+              label: individual
+            - id: OBI:0000747
+              label: material sample
+        partOfSpecification:
+          description: This is label to group together entry types that are part of the
+            same specification.
+          type: string
+          example: Beacon v2.0
+        defaultSchema:
+          description: Description of the default schema used for this concept.
+          $ref: '#/components/schemas/ReferenceToAnSchema'
+        additionallySupportedSchemas:
+          description: List of additional schemas that could be used for this concept in
+            this instance of Beacon.
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferenceToAnSchema'
+        aCollectionOf:
+          description: If the entry type is a collection of other entry types, (e.g. a Dataset
+            is a collection of Records), then this attribute must list the entry types that
+            could be included. One collection type could be defined as included more than
+            one entry type (e.g. a Dataset could include Individuals or Genomic Variants),
+            in such cases the entries are alternative, meaning that a given instance of
+            this entry type could be of only one of the types (e.g. a given Dataset contains
+            Individuals, while another Dataset could contain Genomic Variants, but not both
+            at once).
+          type: array
+          items:
+            $ref: '#/components/schemas/BasicElement'
+        nonFilteredQueriesAllowed:
+          $ref: '#/components/schemas/NonFilteredQueriesAllowed'
+      required:
+        - id
+        - name
+        - partOfSpecification
+        - defaultSchema
+      additionalProperties: true
+    NonFilteredQueriesAllowed:
+      description: >-
+        Switch that declares if this Beacon instance, for a given entry type,
+        admits queries that does not include any element that restrict returning all
+        the results, like filters, parameters, ids, etc. The default value is 'true'
+        for backward compatibility and for clarity in the request-response dialog.
+      type: boolean
+      default: true
+    ReferenceToAnSchema:
+      title: An annotated URL address or a file reference
+      description: Definition of an annotated URL address or a file reference.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/ElementWithDescription'
+        - type: object
+          properties:
+            referenceToSchemaDefinition:
+              type: string
+            schemaVersion:
+              type: string
+              description: this version reference is only used for readability in the client.
+                The 'referenceToSchemaDefinition' property is the only source for determining
+                the actual schema used.
+          required:
+            - referenceToSchemaDefinition
+      additionalProperties: true
+    ElementWithDescription:
+      title: Basic Element including a description
+      description: Definition of the basic element extended with a description.
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/BasicElement'
+        - type: object
+          properties:
+            description:
+              type: string
+              description: A textual description for the element.
+    BasicElement:
+      title: Basic Element
+      description: Definition of the basic element, which is root for most other objects.
+      type: object
+      properties:
+        id:
+          type: string
+          description: A (unique) identifier of the element.
+        name:
+          type: string
+          description: A distinctive name for the element.
+      required:
+        - id
+        - name
+      additionalProperties: true
+    BeaconFilteringTermsResponse:
+      description: >-
+        Filtering terms and ontology resources utilised in this Beacon.
+      type: object
+      properties:
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Resource'
+        filteringTerms:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilteringTermInResponse'
+    FilteringTermInResponse:
+      type: object
+      description: >-
+        Entities can be filtered using this term.
+      required:
+        - type
+        - id
+      properties:
+        type:
+          type: string
+          description: >-
+            Either "custom", "alphanumeric" or ontology/terminology full name.
+            TODO: An ontology ... with a registered prefix does not need a full name
+            so one may better use CURIE to indicate that the resource can be retrieved
+            from the id. This also will allow to provide an enum here.
+          example: 
+            - "Human Phenotype Ontology"
+            - alphanumeric
+        id:
+          description: >-
+            The field id in the case of numeric or alphanumeric fields, or
+            the term id in the case of ontology or custom terms. CURIE syntax in the
+            case of an ontology term.
+          type: string
+          example:
+            - 'NCIT:C8936'
+            - HP:0008773
+        label:
+          description: >-
+            This would be the "preferred Label" in the case of an ontology term.
+          type: string
+          example:
+            - 'B Lymphoblastic Leukemia/Lymphoma'
+            - 'Aplasia/Hypoplasia of the middle ear'
+        scopes:
+          description: >- 
+            Entry types affected by this filter.
+          example: 
+            - 
+              - individual 
+              - biosample 
+              - analysis 
+              - run 
+              - genomicVariation 
+            - 
+              - biosample
+          type: array
+          items:
+            type: string
+        values:
+          description: >- 
+            Optional list of possible values for alphanumeric filters
+          example: 
+            - 
+              - benign 
+              - likely benign 
+              - pathogenic 
+            - 
+              - pathogenic
+          type: array
+          items:
+            type: string
+          minItems: 1
+    Resource:
+      type: object
+      description: >-
+        Description of an ontology resource defined externally to this beacon
+        implementation, such as MeSH or EFO, based on the phenopackets resource object
+        (https://phenopacket-schema.readthedocs.io/en/latest/resource.html)
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          description: >-
+            Preferably OBO ID representing the resource; alternatively a URI pointing
+            towards the definitions may be used if not in OBO.
+          example:
+            - hp
+        name:
+          type: string
+          description: >-
+            The name of the ontology referred to by the id element
+          example:
+            - Human Phenotype Ontology
+        url:
+          type: string
+          description: >-
+            Uniform Resource Locator of the resource
+          example:
+            - https://purl.obolibrary.org/obo/hp.owl
+        version:
+          type: string
+          description: >-
+            The version of the resource or ontology used to make the annotation
+          example:
+            - 17-06-2019
+        nameSpacePrefix:
+          type: string
+          description: >-
+            The prefix used in the CURIE of an OntologyClass
+          example:
+            - HP
+        iriPrefix:
+          type: string
+          description: The full Internationalized Resource Identifier (IRI) prefix
+          example:
+            - https://purl.obolibrary.org/obo/HP_
+    BeaconInfoResponse:
+      type: object
+      description: >-
+        The `beaconInfoResponse` provides metadata describing a Beacon instance, such
+        as its name, the organization responsible for the Beacon, contact information,
+        site logo and alternative URLs and importantly the beacon's API version. It is
+        based on the GA4GH `service-info` standard.
+      
+        The content of the `beaconInfoResponse` can be used by clients such as web front
+        ends or beacon aggregators to evaluate potential access patterns and to display
+        information about the beacon.
+      properties:
+        meta:
+          description: >-
+            Information about the response that could be relevant for the Beacon
+            client in order to interpret the results.
+          $ref: '#/components/schemas/BeaconInformationalResponseMeta'
+        response:
+          description: >-
+            Metadata describing a Beacon instance.
+          $ref: '#/components/schemas/BeaconInfoResults'
+      required:
+        - meta
+        - response
+      additionalProperties: true
+    BeaconInfoResults:
+      description: >-
+        Metadata describing a Beacon instance.
+      type: object
+      required:
+        - id
+        - name
+        - apiVersion
+        - environment
+        - organization
+      properties:
+        id:
+          $ref: '#/components/schemas/BeaconId'
+        name:
+          type: string
+          description: >-
+            Name of the Beacon.
+        apiVersion:
+          $ref: '#/components/schemas/ApiVersion'
+        environment:
+          type: string
+          description: "Environment the service is running in. Use this to distinguish\n\
+            between production, development and testing/staging deployments."
+          enum:
+            - prod
+            - test
+            - dev
+            - staging
+          example:
+            - dev
+        organization:
+          $ref: '#/components/schemas/BeaconOrganization'
+        description:
+          type: string
+          description: >-
+            Description of the Beacon.
+        version:
+          description: >-
+            TODO: This is a legacy use / duplication?
+          $ref: '#/components/schemas/ApiVersion'
+        welcomeUrl:
+          type: string
+          description: >-
+            URL to the welcome page for this Beacon (RFC 3986 format).
+          example: https://example.org/wiki/Main_Page
+        alternativeUrl:
+          type: string
+          description: >-
+            Alternative URL to the API, e.g. a restricted version of this Beacon
+            (RFC 3986 format).
+          example:
+            - https://example.org/beacon/authenticated
+        createDateTime:
+          type: string
+          description: >-
+            The date/time the Beacon was created (ISO 8601 format).
+          example:
+            - 2014-07-19
+            - 2017-01-17T20:33:40Z
+        updateDateTime:
+          type: string
+          description: >-
+            The time the Beacon was updated in (ISO 8601 format).
+          example:
+            - 2014-07-19
+            - 2017-01-17T20:33:40Z
+        info:
+          description: >-
+            Additional unspecified metadata about the Beacon service.
+          $ref: '#/components/schemas/Info'
+      additionalProperties: true
+    BeaconOrganization:
+      description: >-
+        Organization owning the Beacon.
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          description: >-
+            Unique identifier of the organization.
+        name:
+          type: string
+          description: >-
+            Name of the organization.
+        description:
+          type: string
+          description: >-
+            Description of the organization.
+        address:
+          type: string
+          description: >-
+            Address of the organization.
+        welcomeUrl:
+          type: string
+          description: >-
+            URL of the website of the organization (RFC 3986 format).
+        contactUrl:
+          type: string
+          description: >-
+            URL with the contact for the Beacon operator/maintainer, e.g.
+            link to a contact form (RFC 3986 format) or an email (RFC 2368 format).
+        logoUrl:
+          type: string
+          description: >-
+            URL to the logo (PNG/JPG/SVG format) of the organization (RFC
+            3986 format).
+        info:
+          description: Additional unspecified metadata about the host Organization.
+          $ref: '#/components/schemas/Info'
+    BeaconBooleanResponse:
+      description: >-
+        Complete definition for a minimal response that provides *only* an aggregate
+        Boolean `"exists": true` or `"exists": false` answer to the query.  
+      
+        Additional information - which should not consist of record-level information -
+        can be provided through `beaconHandovers`.  
+      type: object
+      properties:
+        meta:
+          $ref: '#/components/schemas/BeaconResponseMeta'
+        responseSummary:
+          description: >-
+            Boolean (true/false) response section.
+          $ref: '#/components/schemas/BeaconBooleanResponseSection'
+        info:
+          description: >-
+            Additional details that could be of interest. Provided to clearly
+            enclose any attribute that is not part of the Beacon specification.
+          $ref: '#/components/schemas/Info'
+        beaconHandovers:
+          description: >-
+            List of handovers that apply to the whole response, not to any resultset
+            or result in particular.
+          $ref: '#/components/schemas/ListOfHandovers'
+      required:
+        - meta
+        - responseSummary
+    BeaconBooleanResponseSection:
+      description: Boolean (true/false) response section.
+      type: object
+      required:
+        - exists
+      properties:
+        exists:
+          $ref: '#/components/schemas/Exists'
+    BeaconCountResponse:
+      description: >-
+        Complete definition for a minimal response that provides an aggregate Boolean
+        `"exists": true` or `"exists": false` answer to the query as well as the count
+        of the matched records.
+      
+        Additional information - which should not consist of record-level information -
+        can be provided through `beaconHandovers`.  
+      type: object
+      properties:
+        meta:
+          description: >-
+            Information about the response that could be relevant for the Beacon
+            client in order to interpret the results.
+          $ref: '#/components/schemas/BeaconResponseMeta'
+        responseSummary:
+          description: >-
+            Response summary, including Boolean and optionally results count.
+            $ref: '#/components/schemas/beaconCountResponseSection'
+        info:
+          description: >-
+            Additional details that could be of interest. Provided to clearly
+            enclose any attribute that is not part of the Beacon specification.
+          $ref: '#/components/schemas/Info'
+        beaconHandovers:
+          description: >-
+            List of handovers that apply to the whole response, not to any resultset
+            or result in particular.
+          $ref: '#/components/schemas/ListOfHandovers'
+      required:
+        - meta
+        - responseSummary
+    BeaconResultsetsResponse:
+      description: >-
+        A `beaconResultsetsResponse` returns the results of a query against a beacon
+        or beacon aggregator. Beyond the `responseSummary` for overall matches the
+        response contains details about the matches in individual **collections** in
+        the beacon or beacon network. This type of response is required when serving
+        a request with a "record" level `responseGranularity`, and `beaconResultsets`
+        typically contain a list of records matched by the query.
+      
+        The types of `beaconResultsets` objects are defined in the beacon's configuration;
+        e.g. if using the Beacon v2+ default model the types `dataset` and `cohort` are
+        supported as result sets.    
+      type: object
+      properties:
+        meta:
+          description: >-
+            Information about the response that could be relevant for the Beacon
+            client in order to interpret the results.
+          $ref: '#/components/schemas/BeaconResponseMeta'
+        responseSummary:
+          description: >-
+            Response summary, including Boolean and optionally results count.
+          $ref: '#/components/schemas/BeaconSummaryResponseSection'
+        info:
+          description: >-
+            Additional details that could be of interest. Provided to clearly
+            enclose any attribute that is not part of the Beacon specification.
+          $ref: '#/components/schemas/Info'
+        beaconHandovers:
+          description: >-
+            List of handovers that apply to the whole response, not to any resultset
+            or result in particular.
+          $ref: '#/components/schemas/ListOfHandovers'
+        response:
+          description: >-
+            Response for queries that recovers any result.
+          $ref: '#/components/schemas/BeaconResultsets'
+      required:
+        - meta
+        - responseSummary
+        - response
+      additionalProperties: true
+    BeaconSummaryResponseSection:
+      description: Beacon results summary section.
+      type: object
+      properties:
+        exists:
+          $ref: '#/components/schemas/Exists'
+        numTotalResults:
+          $ref: '#/components/schemas/NumTotalResults'
+      required:
+        - exists
+    BeaconResponseMeta:
+      description: Information about the response that could be relevant for the Beacon client in order to interpret the results.
+      properties:
+        apiVersion:
+          $ref: '#/components/schemas/ApiVersion'
+        beaconId:
+          $ref: '#/components/schemas/BeaconId'
+        receivedRequestSummary:
+          $ref: '#/components/schemas/BeaconReceivedRequestSummary'
+        returnedGranularity:
+          $ref: '#/components/schemas/Granularity'
+        returnedSchemas:
+          $ref: '#/components/schemas/ListOfSchemas'
+      required:
+        - beaconId
+        - apiVersion
+        - returnedSchemas
+        - returnedGranularity
+        - receivedRequestSummary
+      type: object
+    BeaconId:
+      description: The Id of a Beacon. Usually a reversed domain string, but any URI is acceptable. The purpose of this attribute is, in the context of a Beacon network, to disambiguate responses coming from different Beacons.
+      type: string
+    BeaconQuery:
+      description: Parameters to limit the list of returned results.
+      type: object
+      properties:
+        includeResultsetResponses:
+          $ref: '#/components/schemas/IncludeResultsetResponses'
+        pagination:
+          $ref: '#/components/schemas/PaginationRequest'
+        requestParameters:
+          $ref: '#/components/schemas/RequestParameters'
+        requestedGranularity:
+          $ref: '#/components/schemas/Granularity'
+    BeaconReceivedRequestSummary:
+      description: >-
+        Section of the response that summarize the request received as it has
+        been interpreted by the Beacon server. This summary can help to identify
+        differences between the incoming request and its interpretation or processing,
+        e.g. in the response granularity or pagination.
+        The required properties include those that should be part of every request.
+      type: object
+      properties:
+        apiVersion:
+          $ref: '#/components/schemas/ApiVersion'
+        requestedSchemas:
+          $ref: '#/components/schemas/ListOfSchemas'
+        requestParameters:
+          $ref: '#/components/schemas/RequestParameters'
+        includeResultsetResponses:
+          $ref: '#/components/schemas/IncludeResultsetResponses'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+        requestedGranularity:
+          $ref: '#/components/schemas/Granularity'
+      required:
+        - apiVersion
+        - requestedSchemas
+        - pagination
+        - requestedGranularity
+    BeaconResultsets:
+      description: Sets of results to be returned as query response.
+      type: object
+      properties:
+        resultSets:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultsetInstance'
+          minItems: 0
+      required:
+        - resultSets
+      additionalProperties: true
+    BeaconMapResponse:
+      type: object
+      description: >-
+        A `beaconMapResponse` provides information about the beacon instance such as the
+        different endpoints supported by this implementation of the Beacon API. This response
+        is aimed to allow Beacon clients such as web front ends and Beacon network aggregators
+        to evaluate which access patterns can be implemented against individual beacons.
+      properties:
+        meta:
+          description: >-
+            Information about the response that could be relevant for the Beacon
+            client in order to interpret the results.
+          $ref: '#/components/schemas/BeaconInformationalResponseMeta'
+        response:
+          description: >-
+            Returning the Beacon Map.
+          $ref: '#/components/schemas/BeaconMapSchema'
+      required:
+        - meta
+        - response
+      additionalProperties: true
+    BeaconMapSchema:
+      title: Beacon Map
+      description: Map of a Beacon, its entry types and endpoints. It isconceptually similar
+        to a website sitemap.
+      type: object
+      properties:
+        schema:
+          $ref: '#/components/schemas/Schema'
+        endpointSets:
+          description: List of enpoints included in this Beacon instance. This is list is
+            meant to inform Beacon clients, e.g. a Beacon Network, about the available endpoints,
+            it is not used to generate any automatic list, but could be used for Beacon
+            validation purposes.
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/Endpoint'
+          minProperties: 1
+      required:
+        - endpointSets
+      additionalProperties: true
+    Endpoint:
+      type: object
+      properties:
+        entryType:
+          description: ''
+          type: string
+        openAPIEndpointsDefinition:
+          description: Reference to the file that includes the OpenAPI definition of
+            the endpoints implemented in this Beacon instance. The referenced file MUST
+            BE a valid OpenAPI definition file, as it is expected that the Beacon clients
+            (e.g. a Beacon Network) should be able to parse it to discover additional
+            details on the supported verbs, parameters, etc.
+          type: string
+        rootUrl:
+          description: The base url for this entry type. Returns a list of entries.
+            It is added here for convenience of the Beacon clients, so they don't need
+            to parse the OpenAPI endpoints definition to get that base endpoint. Also,
+            in very simple Beacons, that endpoint could be the only one implemented,
+            together with ´singleEntryUrl`, in which case the whole map of endpoints
+            is found in the current Map.
+          type: string
+          format: uri
+        singleEntryUrl:
+          description: Optional, but recommended. Returns only one instance of this
+            entry, identified by an `id`. It is added here for convenience of the Beacon
+            clients, so they don't need to parse the OpenAPI endpoints definition to
+            get that base endpoint. Also, in very simple Beacons, that endpoint could
+            be the only one implemented, together with ´rootUrl`, in which case the
+            whole map of endpoints is found in the current Map.
+          type: string
+          format: uri-template
+        endpoints:
+          description: Optional. A list describing additional endpoints implemented
+            by this Beacon instance for that entry type. Additional details on the endpoint
+            parameters, supported HTTP verbs, etc. could be obtained by parsing the
+            OpenAPI definition referenced in the `openAPIEndpointsDefinition` attribute.
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/RelatedEndpoint'
+          minProperties: 0
+      required:
+        - entryType
+        - rootUrl
+    RelatedEndpoint:
+      type: object
+      properties:
+        url:
+          description: Endpoint URL
+          type: string
+          format: uri-template
+        returnedEntryType:
+          description: Which entry type is returned by querying this endpoint. It MUST
+            match one of the entry types defined in the Beacon configuration file (`beaconConfiguration.json`).
+          type: string
+      required:
+        - url
+        - returnedEntryType
+    Schema:
+      type: string
+      description: >-
+        Refers to the JSON Schema which describes the set of valid attributes
+        for this particular document type. This attribute is mostly used in schemas
+        that should be tested in Beacon implementations.
+      additionalProperties: true
+    ApiVersion:
+      description: >-
+        Version of API, e.g. in request or response. Beacon uses a Github-style,
+        "v"-prefixed semantic versioning format.
+      type: string
+      example:
+        - v2.0.1
+        - v0.3
+    ResultsetInstance:
+      type: object
+      properties:
+        id:
+          description: id of the resultset
+          type: string
+          example: datasetA
+        setType:
+          description: >-
+            Entry type of resultSet. It SHOULD MATCH an entry type declared
+            as collection in the Beacon configuration.
+          type: string
+          default: dataset
+        exists:
+          type: boolean
+        resultsCount:
+          description: >-
+            Precise or approximate number of results in this Resultset.
+          type: integer
+        countAdjustedTo:
+          $ref: '#/components/schemas/CountAdjustedTo'
+        countPrecision:
+          $ref: '#/components/schemas/CountPrecision'
+        resultsHandovers:
+          description: >-
+            List of handover objects that apply to this resultset, not to the whole
+            Beacon or to a result in particular.
+          $ref: '#/components/schemas/ListOfHandovers'
+        info:
+          $ref: '#/components/schemas/Info'
+        results:
+          type: array
+          items:
+            type: object
+          minItems: 0
+      required:
+        - id
+        - setType
+        - exists
+      additionalProperties: true
+    CountAdjustedTo:
+      description: >-
+        For counts with intentional (e.g. due to privacy concerns) or technical
+        derived imprecision this parameter offers an option to declare the range
+        or limits for the true results.
+        If present, CountPrecision states the type of adjustment.
+      example:
+        - - "1"
+          - "5"
+        - - "<5"
+      type: array
+      minItems: 1
+      maxItems: 2
+      items:
+        type: string # or integer?
+        minimum: 1
+    CountPrecision:
+      description: >-
+        For counts with intentional (e.g. due to privacy concerns) or technical
+        derived imprecision this parameter offers an option to declare the number's precision.
+        If present, CountAdjustedTo provides more details.
+        The 3 possible options are:
+        - exact >-
+          A value that is precise.
+        - imprecise >-
+          A value that is not guaranteed to be precise.
+        - rounded >-
+          A value that has been (floor or ceiling) rounded to a given value.
+      enum:
+        - exact
+        - imprecise
+        - rounded
+      default: imprecise
+      type: string
+    Granularity:
+      default: boolean
+      description: |-
+        Level of detail of the response:
+        * `boolean`: returns true/false' responses
+        * `count`: adds the total number of positive results found
+        * `aggregated`: returns summary, aggregated or distribution like responses
+        * `record`: returns details for every row. In cases where a Beacon prefers to return records with fewer than all attributes, different strategies have to be considered w/o adding them to the current design, e.g.:
+            - keeping non-mandatory attributes empty
+            - Beacon to provide a minimal record definition
+      enum:
+        - boolean
+        - count
+        - aggregated
+        - record
+      type: string
+    Exists:
+      description: Indicator of whether any record was observed in any of the collections
+        queried. This should be non-null.
+      type: boolean
+    IncludeResultsetResponses:
+      default: HIT
+      description: Indicator of whether responses from every Resultset should be included in the response to this request or just the ones with positive, negative results or no details at all. If null (not specified), the default value of 'HIT' is assumed. This parameter allows for returning boolean/counting results although the Beacon instance is capable to return record level details.
+      enum:
+        - ALL
+        - HIT
+        - MISS
+        - NONE
+      type: string
+    PageSize:
+      default: 10
+      description: Size of the page. Use `0` to return all the results or the maximum allowed by the Beacon, if there is any.
+      example: 10
+      minimum: 0
+      type: integer
+    PageToken:
+      description: A hash or similar that allows the server to retrieve a "page", e.g. (a subset of) a query response.
+      example: ab0sc&fe1dd
+      type: string
+    Pagination:
+      description: Pagination that has been applied on the results.
+      properties:
+        currentPage:
+          $ref: '#/components/schemas/PageToken'
+        pageSize:
+          $ref: '#/components/schemas/PageSize'
+        nextPage:
+          $ref: '#/components/schemas/PageToken'
+        previousPage:
+          $ref: '#/components/schemas/PageToken'
+        skip:
+          $ref: '#/components/schemas/Skip'
+      type: object
+    PaginationRequest:
+      description: Pagination to apply on the results.
+      properties:
+        page:
+          $ref: '#/components/schemas/PageToken'
+        pageSize:
+          $ref: '#/components/schemas/PageSize'
+        skip:
+          $ref: '#/components/schemas/Skip'
+    RequestParameters:
+      type: object
+      # todo
+    Skip:
+      default: 0
+      description: |
+        * In the request: number of pages to skip
+        * In the response: number of pages that has been skipped
+      example: 0
+      minimum: 0
+      type: integer
+    Limit:
+      description: >-
+        Size of the page.
+        Use `0` to return all the results or the maximum allowed by the Beacon, if there is any.
+      type: integer
+      minimum: 0
+      default: 10
+      example: 10
+    BeaconRequestMeta:
+      description: Meta section of the Beacon request. It includes request context details relevant for the Beacon server when processing the request.
+      properties:
+        apiVersion:
+          $ref: '#/components/schemas/ApiVersion'
+        requestedSchemas:
+          $ref: '#/components/schemas/ListOfSchemas'
+      required:
+        - apiVersion
+      type: object
+    SchemasPerEntity:
+      description: Schema to be used for the requested entry type in the response.
+      properties:
+        entityType:
+          example: Individual
+          type: string
+        schema:
+          type: string
+      type: object
+    ListOfSchemas:
+      description: Set of schemas to be used in the response to a request.
+      items:
+        $ref: '#/components/schemas/SchemasPerEntity'
+      type: array
+    Info:
+      description: >-
+        Placeholder to allow the Beacon to return any additional information that
+        is necessary or could be of interest in relation to the query or the entry
+        returned.
+        It is recommended to encapsulate additional informations in this attribute
+        instead of directly adding attributes at the same level than the others in
+        order to avoid collision in the names of attributes in future versions of
+        the specification.
+      type: object
+    ListOfHandovers:
+      description: Set of handovers to be added in one section the response.
+      type: array
+      items:
+        description: Requested schema to be used for individuals in the response.
+        $ref: '#/components/schemas/Handover'
+    Handover:
+      type: object
+      description: >-
+        A handover is a typed link for attaching actionable links to results,
+        non purely informational, requests. The goal of the handovers is to list
+        the different actions available, e.g.:
+  
+        * a link to a request access page
+        * linking to a file for download, e.g. a VCF file
+  
+        Another common scenario is to provide a fast summary response (e.g.
+        BeconCountResponse) and to provide access to different endpoints for the
+        entities matched by the query using temporary access tokens in the handover
+        URLs.
+      required:
+        - handoverType
+        - url
+      properties:
+        handoverType:
+          $ref: '#/components/schemas/HandoverType'
+        note:
+          type: string
+          description: >-
+            An optional text including considerations on the handover link
+            provided.
+          example: This handover link provides access to a summarized VCF.
+        url:
+          type: string
+          format: uri
+          description: >-
+            URL endpoint to where the handover process could progress, in
+            RFC3986 format
+          example: https://api.mygenomeservice.org/Handover/9dcc48d7-fc88-11e8-9110-b0c592dbf8c0/
+    HandoverType:
+      description: >-
+        Handover type, as an Ontology_term object with CURIE syntax for the `id`
+        value. Use "CUSTOM:123455" CURIE-style `id` when no ontology is available.
+      $ref: '#/components/schemas/OntologyTerm'
+      examples:
+        - id: EDAM:2572
+          label: BAM
+        - id: EDAM:3016
+          label: VCF
+        - id: CUSTOM:pgxseg
+          label: genomic variants in .pgxseg file format
+    OntologyTerm:
+      description: Definition of an ontology term.
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/CURIE'
+        label:
+          type: string
+          description: The text that describes the term. By default it could be the preferred
+            text of the term, but is it acceptable to customize it for a clearer description
+            and understanding of the term in an specific context.
+      required:
+        - id
+      additionalProperties: true
+    CURIE:
+      pattern: ^\w[^:]+:.+$
+      type: string
+      description: >-
+        Definition of an identifier in the CURIE `prefix:local-part` format which
+        is the default type of e.g. ontology term `id` values (used e.g. for filters
+        or external identifiers).
+    NumTotalResults:
+      description: >-
+        Total number of results. NOT the number of results returned in this
+        batch (after pagination) but the total obtained by the query.
+      type: integer
+      minimum: 0
+      example:
+        - 123
