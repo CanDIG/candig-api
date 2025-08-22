@@ -24,3 +24,5 @@ WORKDIR /app/candig-api
 RUN chown -R candig:candig /app/candig-api
 
 USER candig
+
+CMD ["uvicorn", "--host", "0.0.0.0", "--port", "8008", "src.app:app"]
