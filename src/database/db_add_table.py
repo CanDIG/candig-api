@@ -21,7 +21,7 @@ class Dataset(Base):
     __table_args__ = {'schema': settings.CANDIG_SCHEMA}
 
     dataset_id = Column(Integer, primary_key=True, autoincrement=True)
-    dataset_source_value = Column(String(64), unique=True, nullable=False)
+    dataset_source_value = Column(String(128), unique=True, nullable=False)
     dataset_info = Column(String, nullable=False)
 
     person_mappings = relationship("PersonInDataset", back_populates="dataset", cascade="all, delete-orphan")
