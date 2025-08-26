@@ -3,7 +3,7 @@ info:
   title: CanDIG-API
   version: 0.1.0
 servers:
-  - url: /v3
+  - url: /v1
 security:
   - {}
 paths:
