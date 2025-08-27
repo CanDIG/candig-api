@@ -11,6 +11,11 @@ from .api import query_operations
 # from .api import person_operations
 from .database.db_setup import create_database_tables
 
+from candigv2_logging.logging import CanDIGLogger, initialize  # type: ignore
+
+initialize()
+logger = CanDIGLogger(__file__)
+
 sys.modules['query_operations'] = query_operations
 # sys.modules['dataset_operations'] = dataset_operations
 # sys.modules['person_operations'] = person_operations
