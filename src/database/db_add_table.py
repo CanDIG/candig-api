@@ -20,16 +20,18 @@ class Dataset(Base):
     __tablename__ = 'dataset'
     __table_args__ = {'schema': settings.CANDIG_SCHEMA}
 
-    dataset_id = Column(Integer, primary_key=True, autoincrement=True)
-    dataset_source_value = Column(String(128), unique=True, nullable=False)
-    dataset_info = Column(String, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_value = Column(String(128), unique=True, nullable=False)
+    info = Column(JSON, nullable=False)
 
     person_mappings = relationship("PersonInDataset", back_populates="dataset", cascade="all, delete-orphan")
 
 class PersonInDataset(Base):
     __tablename__ = 'person_in_dataset'
 
-    dataset_id = Column(Integer, ForeignKey(f'{settings.CANDIG_SCHEMA}.dataset.dataset_id'), nullable=False)
+    dataset_id = Column(
+        Integer, ForeignKey(f"{settings.CANDIG_SCHEMA}.dataset.id"), nullable=False
+    )
     person_id = Column(Integer, unique=True, nullable=False)
 
     __table_args__ = (
