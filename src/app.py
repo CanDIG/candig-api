@@ -24,7 +24,8 @@ app = AsyncApp(__name__, specification_dir='../')
 
 app.add_api("schema.yml", validate_responses=True)
 
+# create additional schema and tables required for candig-api
+create_database_tables()
 
 if __name__ == "__main__":
-    create_database_tables()
     app.run(port=8080, reload=False)
