@@ -3,7 +3,7 @@ info:
   title: CanDIG-API
   version: 0.1.0
 servers:
-  - url: /v1
+  - url: /v3
 security:
   - {}
 paths:
@@ -41,30 +41,6 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
-    put:
-      summary: Create a new dataset.
-      description: |
-        Creates a new dataset with the provided source_value, info, and optionally persons.
-      operationId: dataset_operations.create
-      requestBody:
-        $ref: "#/components/requestBodies/DatasetSingleRequestBody"
-      responses:
-        201:
-          description: Dataset created successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DatasetSingleNoPeopleBody"
-        400:
-          $ref: "#/components/responses/400BadRequestError"
-        401:
-          $ref: "#/components/responses/401UnauthorizedError"
-        409:
-          $ref: "#/components/responses/409ConflictError"
-        5XX:
-          $ref: "#/components/responses/5xxServerError"
-      tags:
-        - Datasets
   /datasets/statistics:
     get:
       summary: Grab summary statistics for all datasets.
@@ -98,7 +74,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Retrieved dataset information
@@ -117,9 +93,10 @@ paths:
       tags:
         - Datasets
     put:
-      summary: Update a dataset corresponding to the given ID
+      summary: Create a dataset corresponding to the given ID
       description: |
-        Update a dataset corresponding to the given ID. The dataset must already exist.
+        Create a dataset corresponding to the given ID. If the dataset already exists, it will be
+        replaced.
       operationId: dataset_operations.put_by_id
       requestBody:
         $ref: "#/components/requestBodies/DatasetSingleRequestBody"
@@ -129,10 +106,10 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
-          description: Updated dataset information
+          description: Retrieved dataset information
           content:
             application/json:
               schema:
@@ -160,7 +137,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Response completed successfully
@@ -193,7 +170,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Retrieved dataset info
@@ -222,7 +199,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       requestBody:
         description: Dataset info to update
         required: true
@@ -262,7 +239,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Retrieved dataset information
@@ -291,14 +268,14 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Retrieved dataset information
           content:
             application/json:
               schema:
-                anyOf:
+                oneOf:
                   - $ref: "#/components/schemas/PersonAggregateBody"
                   - $ref: "#/components/schemas/PersonRowLevelBody"
         400:
@@ -307,37 +284,6 @@ paths:
           $ref: "#/components/responses/401UnauthorizedError"
         403:
           $ref: "#/components/responses/403ForbiddenError"
-        404:
-          $ref: "#/components/responses/404NotFoundError"
-        5XX:
-          $ref: "#/components/responses/5xxServerError"
-      tags:
-        - Persons
-    put:
-      summary: Create a new person in the dataset.
-      description: |
-        Creates a new person in the specified dataset with the provided information.
-      operationId: person_operations.create
-      parameters:
-        - in: path
-          name: dataset_id
-          required: true
-          schema:
-            title: Dataset Id
-            type: integer
-      requestBody:
-        $ref: "#/components/requestBodies/PersonSingleRequestNoIdBody"
-      responses:
-        201:
-          description: Person created successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PersonDetailedBody"
-        400:
-          $ref: "#/components/responses/400BadRequestError"
-        401:
-          $ref: "#/components/responses/401UnauthorizedError"
         404:
           $ref: "#/components/responses/404NotFoundError"
         5XX:
@@ -356,13 +302,13 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
         - in: path
           name: id
           required: true
           schema:
             title: Person Id
-            type: integer
+            type: string
       responses:
         200:
           description: Retrieved dataset information
@@ -384,23 +330,23 @@ paths:
       tags:
         - Persons
     put:
-      summary: Update an existing person.
+      summary: Insert a new person into the database, or replace an existing person.
       description: |
-        Update an existing person
-      operationId: person_operations.put
+        Insert a new person into the database, or replace an existing person
+      operationId: person_operations.post
       parameters:
         - in: path
           name: dataset_id
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
         - in: path
           name: id
           required: true
           schema:
             title: Person Id
-            type: integer
+            type: string
       requestBody:
         $ref: "#/components/requestBodies/PersonSingleRequestBody"
       responses:
@@ -409,7 +355,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PersonDetailedBody"
+                $ref: "#/components/schemas/PersonAggregateBody"
         400:
           $ref: "#/components/responses/400BadRequestError"
         401:
@@ -433,13 +379,13 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
         - in: path
           name: id
           required: true
           schema:
             title: Person Id
-            type: integer
+            type: string
       requestBody:
         $ref: "#/components/requestBodies/PersonSingleRequestBody"
       responses:
@@ -448,7 +394,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PersonDetailedBody"
+                $ref: "#/components/schemas/PersonAggregateBody"
         400:
           $ref: "#/components/responses/400BadRequestError"
         401:
@@ -472,13 +418,13 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
         - in: path
           name: id
           required: true
           schema:
             title: Person Id
-            type: integer
+            type: string
       responses:
         200:
           description: Person deleted successfully
@@ -498,7 +444,7 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Persons
-        
+
 components:
   responses:
     400BadRequestError:
@@ -525,12 +471,6 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/NotFoundError"
-    409ConflictError:
-      description: The request was not processed, as it conflicts with the current state of the resource
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ConflictError"
     5xxServerError:
       description: Unspecified server error encountered
       content:
@@ -556,13 +496,6 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/PersonDetailedBody"
-    PersonSingleRequestNoIdBody:
-      description: All details about one person without id
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/PersonBaseBody"
   schemas:
     Error:
       type: object
@@ -604,22 +537,10 @@ components:
                   example: NotFound
                 message:
                   example: The requested resource could not be located
-    ConflictError:
-      allOf:
-        - $ref: "#/components/schemas/Error"
-        - properties:
-            query:
-              properties:
-                error:
-                  example: Conflict
-                message:
-                  example: The request conflicts with the current state of the resource
     DatasetSingleNoInfoBody:
       type: object
       properties:
         id:
-          type: integer
-        source_value:
           type: string
         count:
           type: integer
@@ -628,28 +549,21 @@ components:
       items:
         $ref: "#/components/schemas/DatasetSingleNoInfoBody"
     DatasetSingleNoPeopleBody:
-      type: object
       properties:
         id:
-          type: integer
-        source_value:
           type: string
         info:
           $ref: "#/components/schemas/DatasetInfoBody"
     DatasetSingleBody:
-      type: object
       properties:
-        source_value:
+        id:
           type: string
-          description: The source value for the dataset
         persons:
           type: array
           items:
-            $ref: "#/components/schemas/PersonDetailedBody"
+            $ref: "#/components/schemas/PersonRowLevelBody"
         info:
           $ref: "#/components/schemas/DatasetInfoBody"
-      required:
-        - source_value
     DatasetRowLevelBody:
       type: array
       items:
@@ -663,11 +577,12 @@ components:
     DatasetInfoBody:
       type: object
       properties:
+        dataset_name:
+          description: A short description of the dataset
+          type: string
         dataset_description:
           description: A complete description of the dataset.
           type: string
-      additionalProperties: true
-      description: Dataset information object that can contain various metadata fields
     DatasetStatsBody:
       type: object
       properties:
@@ -692,9 +607,12 @@ components:
       items:
         type: integer
         description: Person ID.
-    PersonBaseBody:
+    PersonDetailedBody:
       type: object
       properties:
+        person_id:
+          description: Any person linkage that needs to occur to uniquely identify Persons ought to be done prior to writing this table. This identifier can be the original id from the source data provided if it is an integer, otherwise it can be an autogenerated number. It is assumed that every person with a different unique identifier is in fact a different person and should be treated independently.
+          type: integer
         gender_concept_id:
           description: Use the gender or sex value present in the data under the assumption that it is the biological sex at birth. If the source data captures gender identity it should be stored in the OBSERVATION table. Accepted gender concepts. Please refer to the THEMIS repository for detailed conventions on how to populate this field. This field is meant to capture the biological sex at birth of the Person. This field should not be used to study gender identity issues.
           type: integer
@@ -753,17 +671,7 @@ components:
           type: integer
           nullable: true
       required:
+        - person_id
         - gender_concept_id
         - race_concept_id
         - ethnicity_concept_id
-
-    PersonDetailedBody:
-      allOf:
-        - $ref: "#/components/schemas/PersonBaseBody"
-        - type: object
-          properties:
-            person_id:
-              description: Any person linkage that needs to occur to uniquely identify Persons ought to be done prior to writing this table. This identifier can be the original id from the source data provided if it is an integer, otherwise it can be an autogenerated number. It is assumed that every person with a different unique identifier is in fact a different person and should be treated independently.
-              type: integer
-          required:
-            - person_id

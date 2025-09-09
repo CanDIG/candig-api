@@ -1,0 +1,4 @@
+connexion[swagger-ui,uvicorn]
+SQLAlchemy[asyncio]
+asyncpg
+candigv2-logging@git+https://github.com/CanDIG/candigv2-logging.git@v1.0.1 # CANDIG logging wrapper
