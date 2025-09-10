@@ -645,7 +645,9 @@ components:
         persons:
           type: array
           items:
-            $ref: "#/components/schemas/PersonDetailedBody"
+            anyOf:
+              - $ref: "#/components/schemas/PersonBaseBody"
+              - $ref: "#/components/schemas/PersonDetailedBody"
         info:
           $ref: "#/components/schemas/DatasetInfoBody"
       required:
