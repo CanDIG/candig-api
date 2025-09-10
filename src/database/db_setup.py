@@ -14,7 +14,7 @@ from candigv2_logging.logging import CanDIGLogger  # type: ignore
 
 logger = CanDIGLogger(__file__)
 
-async def create_tables_async():
+async def create_tables():
     """
     Create database schemas and tables from models
     """
@@ -69,9 +69,9 @@ async def create_tables_async():
         if conn:
             await conn.close()
 
-async def update_person_id_to_identity():
+async def update_person_table():
     """
-    Update person_id to use IDENTITY (auto-increment)
+    Update person_id to use IDENTITY (auto-increment) and drop all FK constraints
     """
     conn = None
     try:
@@ -85,6 +85,28 @@ async def update_person_id_to_identity():
             logger.warning(f"Table '{schema_name}.{table_name}' does not exist. Skipping identity update.")
             return
         
+        # Get all foreign key constraints on the person table
+        fk_constraints_query = """
+        SELECT constraint_name 
+        FROM information_schema.table_constraints 
+        WHERE table_schema = $1 AND table_name = $2 AND constraint_type = 'FOREIGN KEY'
+        """
+        fk_constraints = await conn.fetch(fk_constraints_query, schema_name, table_name)
+        
+        # Drop all foreign key constraints
+        if fk_constraints:
+            logger.info(f"Found {len(fk_constraints)} foreign key constraints to drop...")
+            for constraint in fk_constraints:
+                constraint_name = constraint['constraint_name']
+                drop_fk_query = f"ALTER TABLE {schema_name}.{table_name} DROP CONSTRAINT {constraint_name}"
+                try:
+                    await conn.execute(drop_fk_query)
+                    logger.info(f"Dropped FK constraint: {constraint_name}")
+                except asyncpg.exceptions.PostgresError as e:
+                    logger.warning(f"Failed to drop FK constraint {constraint_name}: {e}")
+        else:
+            logger.info("No foreign key constraints found on person table.")
+        
         # Check if person_id column already has identity
         identity_check_query = """
         SELECT is_identity 
@@ -94,7 +116,7 @@ async def update_person_id_to_identity():
         is_identity = await conn.fetchval(identity_check_query, schema_name, table_name)
         
         if is_identity == 'YES':
-            logger.info(f"Column person_id in {schema_name}.{table_name} already has identity. Skipping.")
+            logger.info(f"Column person_id in {schema_name}.{table_name} already has identity. Skipping identity update.")
             return
         
         logger.info(f"Updating person_id column in {schema_name}.{table_name} to use IDENTITY...")
@@ -117,7 +139,7 @@ async def update_person_id_to_identity():
                 else:
                     raise
         
-        logger.info(f"Successfully updated person_id column to use IDENTITY")
+        logger.info(f"Successfully updated person_id column to use IDENTITY and dropped all FK constraints")
         
     except (
         asyncpg.exceptions.CannotConnectNowError,
