@@ -122,7 +122,7 @@ paths:
         Update a dataset corresponding to the given ID. The dataset must already exist.
       operationId: dataset_operations.put_by_id
       requestBody:
-        $ref: "#/components/requestBodies/DatasetSingleRequestBody"
+        $ref: "#/components/requestBodies/DatasetSinglePutRequestBody"
       parameters:
         - in: path
           name: id
@@ -549,6 +549,17 @@ components:
           schema:
             # Don't validate here -- we'll validate it and return an error later
             type: string
+    DatasetSinglePutRequestBody:
+      description: A full dataset, including all persons within it
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/DatasetSinglePutBody"
+        text/csv:
+          schema:
+            # Don't validate here -- we'll validate it and return an error later
+            type: string
     PersonSingleRequestBody:
       description: All details about one person
       required: true
@@ -646,6 +657,22 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PersonBaseBody"
+        info:
+          $ref: "#/components/schemas/DatasetInfoBody"
+      required:
+        - source_value
+    DatasetSinglePutBody:
+      type: object
+      properties:
+        source_value:
+          type: string
+          description: The source value for the dataset
+        persons:
+          type: array
+          items:
+            anyOf:
+              - $ref: "#/components/schemas/PersonBaseBody"
+              - $ref: "#/components/schemas/PersonDetailedBody"
         info:
           $ref: "#/components/schemas/DatasetInfoBody"
       required:
