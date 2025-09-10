@@ -99,12 +99,25 @@ async def update_person_id_to_identity():
         
         logger.info(f"Updating person_id column in {schema_name}.{table_name} to use IDENTITY...")
         alter_queries = [
-            f"ALTER TABLE {schema_name}.{table_name} DROP COLUMN person_id",
-            f"ALTER TABLE {schema_name}.{table_name} ADD COLUMN person_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
+            # First, drop the default constraint if it exists
+            f"ALTER TABLE {schema_name}.{table_name} ALTER COLUMN person_id DROP DEFAULT",
+            # Add identity to the existing column
+            f"ALTER TABLE {schema_name}.{table_name} ALTER COLUMN person_id ADD GENERATED ALWAYS AS IDENTITY"
         ]
         
         for query in alter_queries:
-            await conn.execute(query)
+            try:
+                await conn.execute(query)
+                logger.info(f"Executed: {query}")
+            except asyncpg.exceptions.PostgresError as e:
+                # If dropping default fails (no default exists), that's okay
+                if "does not exist" in str(e) and "DROP DEFAULT" in query:
+                    logger.info("No default constraint to drop, continuing...")
+                    continue
+                else:
+                    raise
+        
+        logger.info(f"Successfully updated person_id column to use IDENTITY")
         
     except (
         asyncpg.exceptions.CannotConnectNowError,
