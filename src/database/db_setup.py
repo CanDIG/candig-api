@@ -98,16 +98,9 @@ async def update_person_id_to_identity():
             return
         
         logger.info(f"Updating person_id column in {schema_name}.{table_name} to use IDENTITY...")
-        
-        # Get the current maximum value to set the identity start value
-        max_id_query = f"SELECT COALESCE(MAX(person_id), 0) FROM {schema_name}.{table_name}"
-        max_id = await conn.fetchval(max_id_query)
-        next_id = max_id + 1
         alter_queries = [
-            f"ALTER TABLE {schema_name}.{table_name} ADD COLUMN person_id_new BIGINT GENERATED ALWAYS AS IDENTITY (START WITH {next_id})",
-            f"UPDATE {schema_name}.{table_name} SET person_id_new = person_id WHERE person_id IS NOT NULL",
             f"ALTER TABLE {schema_name}.{table_name} DROP COLUMN person_id",
-            f"ALTER TABLE {schema_name}.{table_name} RENAME COLUMN person_id_new TO person_id"
+            f"ALTER TABLE {schema_name}.{table_name} ADD COLUMN person_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
         ]
         
         for query in alter_queries:
