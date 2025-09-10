@@ -10,7 +10,7 @@ from connexion import AsyncApp
 from .api import query_operations
 from .api import dataset_operations
 from .api import person_operations
-from .database.db_setup import create_tables_async, update_person_id_to_identity
+from .database.db_setup import create_tables, update_person_table
 
 from candigv2_logging.logging import CanDIGLogger, initialize  # type: ignore
 
@@ -28,8 +28,8 @@ async def lifespan(app):
     """
     # Startup
     logger.info("Application starting up...")
-    await create_tables_async()
-    await update_person_id_to_identity()
+    await create_tables()
+    await update_person_table()
     logger.info("Application startup complete.")
     
     yield
