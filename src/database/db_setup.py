@@ -68,4 +68,62 @@ async def create_tables_async():
     finally:
         if conn:
             await conn.close()
-            logger.info("Setup connection closed.")
+
+async def update_person_id_to_identity():
+    """
+    Update person_id to use IDENTITY (auto-increment)
+    """
+    conn = None
+    try:
+        conn = await asyncpg.connect(dsn=settings.DATABASE_URI)
+        
+        schema_name = settings.CDM_SCHEMA
+        table_name = "person"
+        
+        table_exists_query = f"SELECT to_regclass('{schema_name}.{table_name}')"
+        if await conn.fetchval(table_exists_query) is None:
+            logger.warning(f"Table '{schema_name}.{table_name}' does not exist. Skipping identity update.")
+            return
+        
+        # Check if person_id column already has identity
+        identity_check_query = """
+        SELECT is_identity 
+        FROM information_schema.columns 
+        WHERE table_schema = $1 AND table_name = $2 AND column_name = 'person_id'
+        """
+        is_identity = await conn.fetchval(identity_check_query, schema_name, table_name)
+        
+        if is_identity == 'YES':
+            logger.info(f"Column person_id in {schema_name}.{table_name} already has identity. Skipping.")
+            return
+        
+        logger.info(f"Updating person_id column in {schema_name}.{table_name} to use IDENTITY...")
+        
+        # Get the current maximum value to set the identity start value
+        max_id_query = f"SELECT COALESCE(MAX(person_id), 0) FROM {schema_name}.{table_name}"
+        max_id = await conn.fetchval(max_id_query)
+        next_id = max_id + 1
+        alter_queries = [
+            f"ALTER TABLE {schema_name}.{table_name} ADD COLUMN person_id_new BIGINT GENERATED ALWAYS AS IDENTITY (START WITH {next_id})",
+            f"UPDATE {schema_name}.{table_name} SET person_id_new = person_id WHERE person_id IS NOT NULL",
+            f"ALTER TABLE {schema_name}.{table_name} DROP COLUMN person_id",
+            f"ALTER TABLE {schema_name}.{table_name} RENAME COLUMN person_id_new TO person_id"
+        ]
+        
+        for query in alter_queries:
+            await conn.execute(query)
+        
+    except (
+        asyncpg.exceptions.CannotConnectNowError,
+        ConnectionRefusedError,
+        OSError,
+    ) as e:
+        logger.error("FATAL: Could not connect to database for person_id update.")
+        logger.error(f"Error: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"FATAL: An error occurred during person_id identity update: {e}")
+        raise
+    finally:
+        if conn:
+            await conn.close()
