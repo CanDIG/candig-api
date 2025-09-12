@@ -441,7 +441,14 @@ paths:
             title: Person Id
             type: integer
       requestBody:
-        $ref: "#/components/requestBodies/PersonSingleRequestBody"
+        description: Partial person data to update
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              description: Partial person object with any fields to update
       responses:
         200:
           description: Updated aggregate person information
