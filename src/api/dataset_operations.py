@@ -144,6 +144,7 @@ async def create(body: dict):
             return dataset, 201
 
         except ProblemException:
+            await session.rollback()
             raise
         except Exception as e:
             await session.rollback()
@@ -448,6 +449,7 @@ async def put_by_id(id: int, body: dict):
             return dataset, 200
 
         except ProblemException:
+            await session.rollback()
             raise
         except Exception as e:
             await session.rollback()
@@ -506,6 +508,7 @@ async def delete_by_id(id: int):
                     detail=f"Dataset with ID '{id}' not found.",
                 )
         except ProblemException:
+            await session.rollback()
             raise
         except Exception as e:
             await session.rollback()
