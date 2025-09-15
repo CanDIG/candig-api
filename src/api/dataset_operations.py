@@ -243,7 +243,7 @@ async def put_by_id(id: int, body: dict):
                         
                         # Check if person exists before updating
                         check_person_exists_sql = text("""
-                            SELECT 1 FROM omop.person WHERE person_id = :person_id
+                            SELECT 1 FROM omop.person WHERE person_id = :person_id LIMIT 1
                         """)
                         person_exists = await session.execute(
                             check_person_exists_sql, {"person_id": person_id}
@@ -325,7 +325,7 @@ async def put_by_id(id: int, body: dict):
                         # Link person to this dataset
                         check_link_sql = text("""
                             SELECT 1 FROM candig.person_in_dataset 
-                            WHERE person_id = :person_id AND dataset_id = :dataset_id
+                            WHERE person_id = :person_id AND dataset_id = :dataset_id LIMIT 1
                         """)
                         link_exists = await session.execute(
                             check_link_sql, {"person_id": person_id, "dataset_id": id}
