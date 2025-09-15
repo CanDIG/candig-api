@@ -1,50 +1,28 @@
-ARG venv_python
-ARG alpine_version
-FROM python:${venv_python}-alpine${alpine_version}
+ARG venv_python=3.12
+FROM python:${venv_python}
 
-LABEL Maintainer="CanDIG Project"
-LABEL "candigv2"="<name_of_app>"
+LABEL Maintainer="CanDIG Team"
+LABEL "candigv3"="candig-api"
 
 USER root
 
-RUN addgroup -S candig && adduser -S candig -G candig
+RUN groupadd -r candig && useradd -r -g candig candig
 
-RUN apk update
+RUN mkdir -p /home/candig && chown -R candig:candig /home/candig
 
-# add or remove packages that should be installed in the running machine
-RUN apk add --no-cache \
-	autoconf \
-	automake \
-	make \
-	gcc \
-	perl \
-	bash \
-	build-base \
-	musl-dev \
-	zlib-dev \
-	bzip2-dev \
-	xz-dev \
-	libcurl \
-	linux-headers \
-	curl \
-	curl-dev \
-	yaml-dev \
-	pcre-dev \
-	git \
-	sqlite
+RUN mkdir /app
+WORKDIR /app
 
-COPY requirements.txt /app/<relevant path>/requirements.txt
+COPY requirements.txt /app/requirements.txt
 
-RUN pip install --no-cache-dir -r /app/<relevant path>/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . /app/<relevant path>
+COPY . /app/candig-api
 
-WORKDIR /app/<relevant path>
+WORKDIR /app/candig-api
 
-RUN chown -R candig:candig /app/<relevant path>
+RUN chown -R candig:candig /app/candig-api
 
 USER candig
 
-RUN touch initial_setup
-
-ENTRYPOINT ["bash", "entrypoint.sh"]
+CMD ["uvicorn", "--host", "0.0.0.0", "--port", "8000", "src.app:app"]
