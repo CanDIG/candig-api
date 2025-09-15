@@ -144,6 +144,7 @@ async def create(body: dict):
             return dataset, 201
 
         except ProblemException:
+            await session.rollback()
             raise
         except Exception as e:
             await session.rollback()
@@ -222,13 +223,39 @@ async def put_by_id(id: int, body: dict):
             existing_dataset.source_value = body["source_value"]
             existing_dataset.info = body.get("info", {})
 
+            # Get all existing person_ids for this dataset
+            existing_persons_stmt = select(PersonInDataset.person_id).where(
+                PersonInDataset.dataset_id == id
+            )
+            existing_persons_result = await session.execute(existing_persons_stmt)
+            existing_person_ids = {row[0] for row in existing_persons_result.fetchall()}
+
             # Handle persons if provided
             persons = body.get("persons", [])
+            provided_person_ids = set()
+
             if persons:
                 for person_data in persons:
                     person_id = person_data.get("person_id")
 
                     if person_id:
+                        provided_person_ids.add(person_id)
+                        
+                        # Check if person exists before updating
+                        check_person_exists_sql = text("""
+                            SELECT 1 FROM omop.person WHERE person_id = :person_id LIMIT 1
+                        """)
+                        person_exists = await session.execute(
+                            check_person_exists_sql, {"person_id": person_id}
+                        )
+                        
+                        if not person_exists.fetchone():
+                            raise ProblemException(
+                                status=400,
+                                title="Bad Request",
+                                detail=f"Person with id {person_id} does not exist",
+                            )
+                        
                         # Update existing person
                         birth_datetime = None
                         if person_data.get("birth_datetime"):
@@ -298,7 +325,7 @@ async def put_by_id(id: int, body: dict):
                         # Link person to this dataset
                         check_link_sql = text("""
                             SELECT 1 FROM candig.person_in_dataset 
-                            WHERE person_id = :person_id AND dataset_id = :dataset_id
+                            WHERE person_id = :person_id AND dataset_id = :dataset_id LIMIT 1
                         """)
                         link_exists = await session.execute(
                             check_link_sql, {"person_id": person_id, "dataset_id": id}
@@ -375,6 +402,7 @@ async def put_by_id(id: int, body: dict):
                         # Get the auto-generated person_id from the db
                         result = await session.execute(insert_person_sql, person_params)
                         new_person_id = result.fetchone()[0]
+                        provided_person_ids.add(new_person_id)
 
                         # Link new person to dataset
                         insert_person_dataset_sql = text("""
@@ -385,6 +413,30 @@ async def put_by_id(id: int, body: dict):
                             insert_person_dataset_sql,
                             {"person_id": new_person_id, "dataset_id": id},
                         )
+
+            # Delete persons that exist in the database but not in the request body
+            persons_to_delete = existing_person_ids - provided_person_ids
+            
+            if persons_to_delete:
+                # Delete from person_in_dataset table first
+                delete_person_dataset_sql = text("""
+                    DELETE FROM candig.person_in_dataset 
+                    WHERE person_id = ANY(:person_ids) AND dataset_id = :dataset_id
+                """)
+                await session.execute(
+                    delete_person_dataset_sql, 
+                    {"person_ids": list(persons_to_delete), "dataset_id": id}
+                )
+
+                # Delete the persons from omop.person table
+                delete_persons_sql = text("""
+                    DELETE FROM omop.person 
+                    WHERE person_id = ANY(:person_ids)
+                """)
+                await session.execute(
+                    delete_persons_sql, 
+                    {"person_ids": list(persons_to_delete)}
+                )
 
             await session.commit()
 
@@ -397,6 +449,7 @@ async def put_by_id(id: int, body: dict):
             return dataset, 200
 
         except ProblemException:
+            await session.rollback()
             raise
         except Exception as e:
             await session.rollback()
@@ -455,6 +508,7 @@ async def delete_by_id(id: int):
                     detail=f"Dataset with ID '{id}' not found.",
                 )
         except ProblemException:
+            await session.rollback()
             raise
         except Exception as e:
             await session.rollback()
