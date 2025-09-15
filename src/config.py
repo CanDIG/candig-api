@@ -17,9 +17,7 @@ class Settings:
     _DB_HOST: str = os.getenv("DB_HOST", "localhost")
     _DB_PORT: str = os.getenv("DB_PORT", "5432")
     _DB_NAME: str = os.getenv("DB_NAME", "candig_api")
-
-    OMOP_SCHEMA = "omop"
-    CANDIG_SCHEMA = "candig"
+    CANDIG_SCHEMA: str = os.getenv("CANDIG_SCHEMA", "candig")
 
     @property
     def DATABASE_URI(self) -> str:
