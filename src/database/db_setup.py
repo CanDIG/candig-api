@@ -71,7 +71,7 @@ async def create_tables():
 
 async def update_person_table():
     """
-    Update person_id to use IDENTITY (auto-increment) and drop all FK constraints
+    Update person_id to use IDENTITY (auto-increment)
     """
     conn = None
     try:
@@ -84,28 +84,6 @@ async def update_person_table():
         if await conn.fetchval(table_exists_query) is None:
             logger.warning(f"Table '{schema_name}.{table_name}' does not exist. Skipping identity update.")
             return
-        
-        # Get all foreign key constraints on the person table
-        fk_constraints_query = """
-        SELECT constraint_name 
-        FROM information_schema.table_constraints 
-        WHERE table_schema = $1 AND table_name = $2 AND constraint_type = 'FOREIGN KEY'
-        """
-        fk_constraints = await conn.fetch(fk_constraints_query, schema_name, table_name)
-        
-        # Drop all foreign key constraints
-        if fk_constraints:
-            logger.info(f"Found {len(fk_constraints)} foreign key constraints to drop...")
-            for constraint in fk_constraints:
-                constraint_name = constraint['constraint_name']
-                drop_fk_query = f"ALTER TABLE {schema_name}.{table_name} DROP CONSTRAINT {constraint_name}"
-                try:
-                    await conn.execute(drop_fk_query)
-                    logger.info(f"Dropped FK constraint: {constraint_name}")
-                except asyncpg.exceptions.PostgresError as e:
-                    logger.warning(f"Failed to drop FK constraint {constraint_name}: {e}")
-        else:
-            logger.info("No foreign key constraints found on person table.")
         
         # Check if person_id column already has identity
         identity_check_query = """
@@ -139,7 +117,7 @@ async def update_person_table():
                 else:
                     raise
         
-        logger.info(f"Successfully updated person_id column to use IDENTITY and dropped all FK constraints")
+        logger.info(f"Successfully updated person_id column to use IDENTITY")
         
     except (
         asyncpg.exceptions.CannotConnectNowError,
