@@ -117,6 +117,7 @@ async def get_by_id(dataset_id: int, id: int):
         FROM {settings.CDM_SCHEMA}.person p
         INNER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid ON p.person_id = pid.person_id
         WHERE pid.dataset_id = :dataset_id AND p.person_id = :person_id
+        LIMIT 1
     """)
     
     async for session in get_db_session():
@@ -173,7 +174,7 @@ async def create(dataset_id: int, body: dict):
     
     # First check if the dataset exists
     check_dataset_sql = text(f"""
-        SELECT id FROM {settings.CANDIG_SCHEMA}.dataset WHERE id = :dataset_id
+        SELECT id FROM {settings.CANDIG_SCHEMA}.dataset WHERE id = :dataset_id LIMIT 1
     """)
     
     # Insert into person table and return all fields
@@ -308,7 +309,7 @@ async def put(dataset_id: int, id: int, body: dict):
     
     # First check if the dataset exists
     check_dataset_sql = text(f"""
-        SELECT id FROM {settings.CANDIG_SCHEMA}.dataset WHERE id = :dataset_id
+        SELECT id FROM {settings.CANDIG_SCHEMA}.dataset WHERE id = :dataset_id LIMIT 1
     """)
     
     # Check if person exists in the dataset
@@ -316,7 +317,7 @@ async def put(dataset_id: int, id: int, body: dict):
         SELECT p.person_id
         FROM {settings.CDM_SCHEMA}.person p
         INNER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid ON p.person_id = pid.person_id
-        WHERE pid.dataset_id = :dataset_id AND p.person_id = :person_id
+        WHERE pid.dataset_id = :dataset_id AND p.person_id = :person_id LIMIT 1
     """)
     
     # Update person table
@@ -479,7 +480,7 @@ async def delete(dataset_id: str, id: str):
         SELECT p.person_id
         FROM {settings.CDM_SCHEMA}.person p
         INNER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid ON p.person_id = pid.person_id
-        WHERE pid.dataset_id = :dataset_id AND p.person_id = :person_id
+        WHERE pid.dataset_id = :dataset_id AND p.person_id = :person_id LIMIT 1
     """)
     
     # Delete from person_in_dataset first since we cannot use DELETE CASCADE
@@ -547,7 +548,7 @@ async def patch_user(dataset_id: str, id: str, body: dict):
         SELECT p.person_id
         FROM {settings.CDM_SCHEMA}.person p
         INNER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid ON p.person_id = pid.person_id
-        WHERE pid.dataset_id = :dataset_id AND p.person_id = :person_id
+        WHERE pid.dataset_id = :dataset_id AND p.person_id = :person_id LIMIT 1
     """)
     
     # Update person table
@@ -615,7 +616,7 @@ async def patch_user(dataset_id: str, id: str, body: dict):
             
             # Get current person data first to use as defaults for fields not provided
             get_current_sql = text(f"""
-                SELECT * FROM {settings.CDM_SCHEMA}.person WHERE person_id = :person_id
+                SELECT * FROM {settings.CDM_SCHEMA}.person WHERE person_id = :person_id LIMIT 1
             """)
             current_result = await session.execute(get_current_sql, {"person_id": int(id)})
             current_person = current_result.fetchone()
