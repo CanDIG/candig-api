@@ -4,7 +4,6 @@ info:
   version: 0.1.0
 servers:
   - url: /v1
-  - url: /v1
 security:
   - {}
 paths:
@@ -66,30 +65,7 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
-    put:
-      summary: Create a new dataset.
-      description: |
-        Creates a new dataset with the provided source_value, info, and optionally persons.
-      operationId: dataset_operations.create
-      requestBody:
-        $ref: "#/components/requestBodies/DatasetSingleRequestBody"
-      responses:
-        201:
-          description: Dataset created successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DatasetSingleNoPeopleBody"
-        400:
-          $ref: "#/components/responses/400BadRequestError"
-        401:
-          $ref: "#/components/responses/401UnauthorizedError"
-        409:
-          $ref: "#/components/responses/409ConflictError"
-        5XX:
-          $ref: "#/components/responses/5xxServerError"
-      tags:
-        - Datasets
+        
   /datasets/statistics:
     get:
       summary: Grab summary statistics for all datasets.
@@ -124,7 +100,6 @@ paths:
           schema:
             title: Dataset Id
             type: integer
-            type: integer
       responses:
         200:
           description: Retrieved dataset information
@@ -144,9 +119,7 @@ paths:
         - Datasets
     put:
       summary: Update a dataset corresponding to the given ID
-      summary: Update a dataset corresponding to the given ID
       description: |
-        Update a dataset corresponding to the given ID. The dataset must already exist.
         Update a dataset corresponding to the given ID. The dataset must already exist.
       operationId: dataset_operations.put_by_id
       requestBody:
@@ -158,10 +131,8 @@ paths:
           schema:
             title: Dataset Id
             type: integer
-            type: integer
       responses:
         200:
-          description: Updated dataset information
           description: Updated dataset information
           content:
             application/json:
@@ -191,7 +162,6 @@ paths:
           schema:
             title: Dataset Id
             type: integer
-            type: integer
       responses:
         200:
           description: Response completed successfully
@@ -211,6 +181,7 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
+        
   /datasets/{id}/info:
     get:
       summary: Retrieve a dataset's info
@@ -224,7 +195,6 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
             type: integer
       responses:
         200:
@@ -254,7 +224,6 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
             type: integer
       requestBody:
         description: Dataset info to update
@@ -295,7 +264,6 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
             type: integer
       responses:
         200:
@@ -378,6 +346,7 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Persons
+        
   /datasets/{dataset_id}/persons/{id}:
     get:
       summary: Get all details about a person
@@ -572,18 +541,13 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ConflictError"
-    409ConflictError:
-      description: The request was not processed, as it conflicts with the current state of the resource
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/ConflictError"
     5xxServerError:
       description: Unspecified server error encountered
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+            
   requestBodies:
     DatasetSingleRequestBody:
       description: A full dataset, including all persons within it
@@ -621,6 +585,7 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/PersonBaseBody"
+            
   schemas:
     Error:
       type: object
@@ -642,6 +607,7 @@ components:
             - message
       required:
         - query
+        
     BadRequestError:
       allOf:
         - $ref: "#/components/schemas/Error"
@@ -652,6 +618,7 @@ components:
                   example: InvalidInput
                 message:
                   example: "FOO is not an acceptable field"
+                  
     NotFoundError:
       allOf:
         - $ref: "#/components/schemas/Error"
@@ -662,6 +629,7 @@ components:
                   example: NotFound
                 message:
                   example: The requested resource could not be located
+                  
     ConflictError:
       allOf:
         - $ref: "#/components/schemas/Error"
@@ -672,43 +640,32 @@ components:
                   example: Conflict
                 message:
                   example: The request conflicts with the current state of the resource
-    ConflictError:
-      allOf:
-        - $ref: "#/components/schemas/Error"
-        - properties:
-            query:
-              properties:
-                error:
-                  example: Conflict
-                message:
-                  example: The request conflicts with the current state of the resource
+                  
     DatasetSingleNoInfoBody:
       type: object
       properties:
         id:
           type: integer
         source_value:
-          type: integer
-        source_value:
           type: string
         count:
           type: integer
+          
     DatasetAggregateBody:
       type: array
       items:
         $ref: "#/components/schemas/DatasetSingleNoInfoBody"
+        
     DatasetSingleNoPeopleBody:
-      type: object
       type: object
       properties:
         id:
           type: integer
         source_value:
-          type: integer
-        source_value:
           type: string
         info:
           $ref: "#/components/schemas/DatasetInfoBody"
+          
     DatasetSingleBody:
       type: object
       properties:
@@ -723,13 +680,12 @@ components:
           $ref: "#/components/schemas/DatasetInfoBody"
       required:
         - source_value
+        
     DatasetSinglePutBody:
       type: object
       properties:
         source_value:
-        source_value:
           type: string
-          description: The source value for the dataset
           description: The source value for the dataset
         persons:
           type: array
@@ -741,18 +697,19 @@ components:
           $ref: "#/components/schemas/DatasetInfoBody"
       required:
         - source_value
-      required:
-        - source_value
+        
     DatasetRowLevelBody:
       type: array
       items:
         $ref: "#/components/schemas/DatasetSingleBody"
+        
     SuccessBody:
       type: object
       properties:
         message:
           type: string
           default: "Operation completed successfully."
+          
     DatasetInfoBody:
       type: object
       properties:
@@ -761,8 +718,7 @@ components:
           type: string
       additionalProperties: true
       description: Dataset information object that can contain various metadata fields
-      additionalProperties: true
-      description: Dataset information object that can contain various metadata fields
+      
     DatasetStatsBody:
       type: object
       properties:
@@ -773,20 +729,24 @@ components:
         persons_per_dataset:
           type: object
           description: Keys are dataset IDs, values are the number of Persons
+          
     IndividualDatasetStatsBody:
       type: object
       properties:
         person_count:
           type: integer
+          
     PersonRowLevelBody:
       type: array
       items:
         $ref: "#/components/schemas/PersonDetailedBody"
+        
     PersonAggregateBody:
       type: array
       items:
         type: integer
         description: Person ID.
+        
     PersonBaseBody:
       type: object
       properties:
