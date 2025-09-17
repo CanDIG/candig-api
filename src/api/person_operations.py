@@ -4,7 +4,9 @@ from ..database.db_add_table import PersonInDataset
 from ..database.db_operation import get_db_session
 from datetime import datetime
 from ..config import settings
+from candigv2_logging.logging import CanDIGLogger
 
+logger = CanDIGLogger(__file__)
 
 async def list(dataset_id: int):
     """Lists all person for a given dataset"""
@@ -22,7 +24,7 @@ async def list(dataset_id: int):
                 
                 return person_ids, 200
             except Exception as e:
-                print(f"Database Error in person.list: {str(e)}")
+                logger.error(f"Database Error in person.list: {str(e)}")
                 raise ProblemException(
                     status=500,
                     title="Database Error",
@@ -84,7 +86,7 @@ async def list(dataset_id: int):
                 
                 return persons, 200
             except Exception as e:
-                print(f"Database Error in person.list (detailed): {str(e)}")
+                logger.error(f"Database Error in person.list (detailed): {str(e)}")
                 raise ProblemException(
                     status=500,
                     title="Database Error",
@@ -161,7 +163,7 @@ async def get_by_id(dataset_id: int, id: int):
         except ProblemException:
             raise
         except Exception as e:
-            print(f"Database Error in person.get_by_id: {str(e)}")
+            logger.error(f"Database Error in person.get_by_id: {str(e)}")
             raise ProblemException(
                 status=500,
                 title="Database Error",
@@ -297,7 +299,7 @@ async def create(dataset_id: int, body: dict):
             raise
         except Exception as e:
             await session.rollback()
-            print(f"Database Error in person.create: {str(e)}")
+            logger.error(f"Database Error in person.create: {str(e)}")
             raise ProblemException(
                 status=500,
                 title="Database Error",
@@ -464,7 +466,7 @@ async def put(dataset_id: int, id: int, body: dict):
             )
         except Exception as e:
             await session.rollback()
-            print(f"Database Error in person.put: {str(e)}")
+            logger.error(f"Database Error in person.put: {str(e)}")
             raise ProblemException(
                 status=500,
                 title="Database Error",
@@ -532,7 +534,7 @@ async def delete(dataset_id: str, id: str):
             raise
         except Exception as e:
             await session.rollback()
-            print(f"Database Error in person.delete: {str(e)}")
+            logger.error(f"Database Error in person.delete: {str(e)}")
             raise ProblemException(
                 status=500,
                 title="Database Error",
@@ -685,7 +687,7 @@ async def patch_user(dataset_id: str, id: str, body: dict):
             )
         except Exception as e:
             await session.rollback()
-            print(f"Database Error in person.patch_user: {str(e)}")
+            logger.error(f"Database Error in person.patch_user: {str(e)}")
             raise ProblemException(
                 status=500,
                 title="Database Error",
