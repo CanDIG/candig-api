@@ -4,6 +4,7 @@ from datetime import datetime
 from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 
 from ..database.db_add_table import Dataset, PersonInDataset
 from ..database.db_operation import get_db_session
@@ -50,7 +51,7 @@ async def list_all():
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail="An error occurred while fetching datasets from the database.",
+                detail=f"An error occurred while fetching datasets from the database. Details: {e}",
             )
 
 
@@ -147,13 +148,26 @@ async def create(body: dict):
         except ProblemException:
             await session.rollback()
             raise
+        except IntegrityError as e:
+            await session.rollback()
+            logger.error(f"Database Integrity Error in dataset.put_by_id: {str(e)}")
+            extra_details = ""
+            if "foreignkeyviolationerror" in str(e).lower():
+                extra_details += "A foreign key to another table may be invalid in your input.\n"
+            if "uniqueviolationerror" in str(e).lower():
+                extra_details += "The dataset id or person id in your input may not be unique.\n"
+            raise ProblemException(
+                status=500,
+                title="Database Integrity Error",
+                detail=f"Uploading the given dataset led to a violation of database integrity constraints.\n{extra_details}Error details: {e}",
+            )
         except Exception as e:
             await session.rollback()
             logger.error(f"Database Error in dataset.create: {str(e)}")
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail="An error occurred while creating the dataset in the database.",
+                detail=f"An error occurred while creating the dataset in the database. Details: {e}",
             )
 
 
@@ -452,6 +466,19 @@ async def put_by_id(id: int, body: dict):
         except ProblemException:
             await session.rollback()
             raise
+        except IntegrityError as e:
+            await session.rollback()
+            logger.error(f"Database Integrity Error in dataset.put_by_id: {str(e)}")
+            extra_details = ""
+            if "foreignkeyviolationerror" in str(e).lower():
+                extra_details += "A foreign key to another table may be invalid in your input.\n"
+            if "uniqueviolationerror" in str(e).lower():
+                extra_details += "The dataset id or person id in your input may not be unique.\n"
+            raise ProblemException(
+                status=500,
+                title="Database Integrity Error",
+                detail=f"Uploading the given dataset led to a violation of database integrity constraints.\n{extra_details}Error details: {e}",
+            )
         except Exception as e:
             await session.rollback()
             logger.error(f"Database Error in dataset.put_by_id: {str(e)}")
@@ -511,6 +538,17 @@ async def delete_by_id(id: int):
         except ProblemException:
             await session.rollback()
             raise
+        except IntegrityError as e:
+            await session.rollback()
+            logger.error(f"Database Integrity Error in dataset.put_by_id: {str(e)}")
+            extra_details = ""
+            if "foreignkeyviolationerror" in str(e).lower():
+                extra_details += "A foreign key to another table may be preventing this deletion.\n"
+            raise ProblemException(
+                status=500,
+                title="Database Integrity Error",
+                detail=f"Uploading the given dataset led to a violation of database integrity constraints.\n{extra_details}Error details: {e}",
+            )
         except Exception as e:
             await session.rollback()
             logger.error(f"Database Error in dataset.delete_by_id: {str(e)}")
@@ -550,7 +588,7 @@ async def get_info(id: int):
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail="An error occurred while fetching the dataset from the database.",
+                detail=f"An error occurred while fetching the dataset from the database: {e}",
             )
 
 
@@ -587,7 +625,7 @@ async def patch_info(id: int, body: dict):
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail="An error occurred while updating the dataset info in the database",
+                detail=f"An error occurred while updating the dataset info in the database. Error: {e}",
             )
 
 
@@ -635,7 +673,7 @@ async def statistics():
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail="An error occurred while fetching dataset statistics from the database.",
+                detail=f"An error occurred while fetching dataset statistics from the database. Error: {e}",
             )
 
 
@@ -680,5 +718,5 @@ async def statistics_by_id(id: int):
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail="An error occurred while fetching dataset statistics from the database.",
+                detail=f"An error occurred while fetching dataset statistics from the database. Error: {e}",
             )
