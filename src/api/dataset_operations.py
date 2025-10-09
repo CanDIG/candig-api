@@ -155,7 +155,7 @@ async def create(body: dict):
             if "foreignkeyviolationerror" in str(e).lower():
                 extra_details += "Foreign key invalid.\n"
             if "uniqueviolationerror" in str(e).lower():
-                extra_details += "Unique value required.\n"
+                extra_details += "Value should be unique.\n"
             
             error_msg = str(e)
             if "DETAIL:" in error_msg:
@@ -477,7 +477,7 @@ async def put_by_id(id: int, body: dict):
             if "foreignkeyviolationerror" in str(e).lower():
                 extra_details += "Foreign key invalid.\n"
             if "uniqueviolationerror" in str(e).lower():
-                extra_details += "Unique value required.\n"
+                extra_details += "Value should be unique.\n"
             
             error_msg = str(e)
             if "DETAIL:" in error_msg:
