@@ -13,7 +13,7 @@ from ..config import settings
 
 async_engine = create_async_engine(
     settings.DATABASE_URI.replace("postgresql://", "postgresql+asyncpg://"),
-    echo=True,  # set False to hide SQL output
+    echo=False,  # set False to hide SQL output
 )
 
 async_session_factory = async_sessionmaker(
