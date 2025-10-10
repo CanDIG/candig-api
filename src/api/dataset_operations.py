@@ -5,10 +5,11 @@ from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
-
-from ..database.db_add_table import Dataset, PersonInDataset
-from ..database.db_operation import get_db_session
+from src.api.helpers import TABLE_CONFIG, IdMapper, create_record
+from src.database.db_add_tables import Dataset, PersonInDataset
+from src.database.db_operations import get_db_session
 from ..config import settings  # Import settings
+import re
 
 logger = CanDIGLogger(__file__)
 
@@ -156,7 +157,7 @@ async def create(body: dict):
                 extra_details += "Foreign key invalid.\n"
             if "uniqueviolationerror" in str(e).lower():
                 extra_details += "Value should be unique.\n"
-            
+
             error_msg = str(e)
             if "DETAIL:" in error_msg:
                 error_msg = error_msg.split("DETAIL:", 1)[1].split("\n", 1)[0].strip()
@@ -259,7 +260,7 @@ async def put_by_id(id: int, body: dict):
 
                     if person_id:
                         provided_person_ids.add(person_id)
-                        
+
                         # Check if person exists before updating
                         check_person_exists_sql = text(f"""
                             SELECT 1 FROM {settings.CDM_SCHEMA}.person WHERE person_id = :person_id LIMIT 1
@@ -267,14 +268,14 @@ async def put_by_id(id: int, body: dict):
                         person_exists = await session.execute(
                             check_person_exists_sql, {"person_id": person_id}
                         )
-                        
+
                         if not person_exists.fetchone():
                             raise ProblemException(
                                 status=400,
                                 title="Bad Request",
                                 detail=f"Person with id {person_id} does not exist",
                             )
-                        
+
                         # Update existing person
                         birth_datetime = None
                         if person_data.get("birth_datetime"):
@@ -435,7 +436,7 @@ async def put_by_id(id: int, body: dict):
 
             # Delete persons that exist in the database but not in the request body
             persons_to_delete = existing_person_ids - provided_person_ids
-            
+
             if persons_to_delete:
                 # Delete from person_in_dataset table first
                 delete_person_dataset_sql = text(f"""
@@ -443,8 +444,8 @@ async def put_by_id(id: int, body: dict):
                     WHERE person_id = ANY(:person_ids) AND dataset_id = :dataset_id
                 """)
                 await session.execute(
-                    delete_person_dataset_sql, 
-                    {"person_ids": list(persons_to_delete), "dataset_id": id}
+                    delete_person_dataset_sql,
+                    {"person_ids": list(persons_to_delete), "dataset_id": id},
                 )
 
                 # Delete the persons from omop.person table
@@ -453,8 +454,7 @@ async def put_by_id(id: int, body: dict):
                     WHERE person_id = ANY(:person_ids)
                 """)
                 await session.execute(
-                    delete_persons_sql, 
-                    {"person_ids": list(persons_to_delete)}
+                    delete_persons_sql, {"person_ids": list(persons_to_delete)}
                 )
 
             await session.commit()
@@ -478,7 +478,7 @@ async def put_by_id(id: int, body: dict):
                 extra_details += "Foreign key invalid.\n"
             if "uniqueviolationerror" in str(e).lower():
                 extra_details += "Value should be unique.\n"
-            
+
             error_msg = str(e)
             if "DETAIL:" in error_msg:
                 error_msg = error_msg.split("DETAIL:", 1)[1].split("\n", 1)[0].strip()
@@ -716,4 +716,126 @@ async def statistics_by_id(id: int):
                 status=500,
                 title="Database Error",
                 detail=f"An error occurred while fetching dataset statistics from the database.",
+            )
+
+
+async def insert_from_moh(body: dict):
+    """
+    Creates a complete set of linked OMOP records from a nested payload.
+
+    This refactored function orchestrates the creation process by:
+    1. Identifying the person record and creating it first.
+    2. Looping through the rest of the payload.
+    3. Delegating record creation to a generic helper function (_process_and_create_record)
+       which uses a central configuration (TABLE_CONFIG).
+    """
+    id_mapper = IdMapper()
+    return_obj = []
+
+    PATTERNS = {
+        "donor": r"^\$\.donors\[\d+\]$",
+        "primary_diagnosis": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\]$",
+        "specimen": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].specimens\[\d+\]$",
+        "treatment": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].treatments\[\d+\]$",
+        "systemic_therapy": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].treatments\[\d+\].systemic_therapies\[\d+\]$",
+        "surgery": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].treatments\[\d+\].surgeries\[\d+\]$",
+        "radiation": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].treatments\[\d+\].radiations\[\d+\]$",
+        "biomarker": r"^\$\.donors\[\d+\].biomarkers\[\d+\]$",
+    }
+
+    async for session in get_db_session():
+        try:
+            new_dataset_id = None
+            for key in body.keys():
+                items = body[key]
+                if re.match(PATTERNS["donor"], key):
+                    # First pass: Find and create the dataset
+                    for field in items:
+                        if field.get("omop_table") == "dataset" and not field.get(
+                            "skip_errors"
+                        ):
+                            # Check if dataset already exists in id_mapper
+                            dataset_id_obj = field.get("omop_record").get("id")
+                            existing_dataset_id = id_mapper.get_id(dataset_id_obj)
+
+                            if not existing_dataset_id:
+                                new_dataset = await create_record(
+                                    session, id_mapper, field, "dataset"
+                                )
+                                new_dataset_id = new_dataset["id"]
+                                return_obj.append(new_dataset)
+                            break
+
+                    if new_dataset_id is None:
+                        raise ProblemException(
+                            400,
+                            "Bad Request",
+                            "Payload must contain one valid 'dataset' record at the donor level.",
+                        )
+
+                    for field in items:
+                        if field.get("omop_table") == "person" and not field.get(
+                            "skip_errors"
+                        ):
+                            new_person = await create_record(
+                                session, id_mapper, field, "person"
+                            )
+                            new_person_id = new_person["person_id"]
+                            return_obj.append(new_person)
+                            break
+
+                        if new_person_id is None:
+                            raise ProblemException(
+                                400,
+                                "Bad Request",
+                                "Payload must contain one valid 'person' record at the donor level.",
+                            )
+
+                    # Second pass: Process all other tables at the donor level
+                    for field in items:
+                        table_name = field.get("omop_table")
+                        if (
+                            table_name != "person"
+                            and table_name != "dataset"
+                            and table_name in TABLE_CONFIG
+                            and not field.get("skip_errors")
+                        ):
+                            new_record = await create_record(
+                                session, id_mapper, field, table_name
+                            )
+                            return_obj.append(new_record)
+
+                else:  # process others tables
+                    # Check if the key matches any patterns (excluding donor)
+                    is_known_pattern = any(
+                        re.match(pattern, key)
+                        for name, pattern in PATTERNS.items()
+                        if name not in ["donor", "dataset"]
+                    )
+                    if is_known_pattern:
+                        for field in items:
+                            table_name = field.get("omop_table")
+                            if table_name in TABLE_CONFIG and not field.get(
+                                "skip_errors"
+                            ):
+                                new_record = await create_record(
+                                    session, id_mapper, field, table_name
+                                )
+                                return_obj.append(new_record)
+
+            await session.commit()
+            logger.info("Successfully created all records and committed transaction.")
+            return {"records": return_obj}, 201
+
+        except ProblemException:
+            await session.rollback()
+            logger.error("Rolling back transaction due to a ProblemException.")
+            raise
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"An unexpected error occurred in create_full: {str(e)}")
+            raise ProblemException(
+                status=500,
+                title="Processing Error",
+                detail="An internal error occurred while processing the payload.",
             )
