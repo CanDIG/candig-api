@@ -4,9 +4,11 @@ from datetime import datetime
 from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 
 from ..database.db_add_table import Dataset, PersonInDataset
 from ..database.db_operation import get_db_session
+from ..config import settings  # Import settings
 
 logger = CanDIGLogger(__file__)
 
@@ -49,7 +51,7 @@ async def list_all():
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail="An error occurred while fetching datasets from the database.",
+                detail=f"An error occurred while fetching datasets from the database. Details: {e}",
             )
 
 
@@ -75,8 +77,8 @@ async def create(body: dict):
                             person_data["birth_datetime"].replace("Z", "+00:00")
                         )
 
-                    insert_person_sql = text("""
-                        INSERT INTO omop.person (
+                    insert_person_sql = text(f"""
+                        INSERT INTO {settings.CDM_SCHEMA}.person (
                             gender_concept_id, year_of_birth, month_of_birth, 
                             day_of_birth, birth_datetime, race_concept_id, ethnicity_concept_id,
                             location_id, provider_id, care_site_id, person_source_value,
@@ -124,8 +126,8 @@ async def create(body: dict):
                     person_id = result.fetchone()[0]
 
                     # Link person to dataset
-                    insert_person_dataset_sql = text("""
-                        INSERT INTO candig.person_in_dataset (person_id, dataset_id)
+                    insert_person_dataset_sql = text(f"""
+                        INSERT INTO {settings.CANDIG_SCHEMA}.person_in_dataset (person_id, dataset_id)
                         VALUES (:person_id, :dataset_id)
                     """)
                     await session.execute(
@@ -146,13 +148,30 @@ async def create(body: dict):
         except ProblemException:
             await session.rollback()
             raise
+        except IntegrityError as e:
+            await session.rollback()
+            logger.error(f"Database Integrity Error in dataset.put_by_id: {str(e)}")
+            extra_details = ""
+            if "foreignkeyviolationerror" in str(e).lower():
+                extra_details += "Foreign key invalid.\n"
+            if "uniqueviolationerror" in str(e).lower():
+                extra_details += "Value should be unique.\n"
+            
+            error_msg = str(e)
+            if "DETAIL:" in error_msg:
+                error_msg = error_msg.split("DETAIL:", 1)[1].split("\n", 1)[0].strip()
+            raise ProblemException(
+                status=400,
+                title="Database Integrity Error",
+                detail=f"Violation of database integrity constraints.\n{extra_details}Error details: {error_msg}",
+            )
         except Exception as e:
             await session.rollback()
             logger.error(f"Database Error in dataset.create: {str(e)}")
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail="An error occurred while creating the dataset in the database.",
+                detail=f"An error occurred while creating the dataset in the database",
             )
 
 
@@ -242,8 +261,8 @@ async def put_by_id(id: int, body: dict):
                         provided_person_ids.add(person_id)
                         
                         # Check if person exists before updating
-                        check_person_exists_sql = text("""
-                            SELECT 1 FROM omop.person WHERE person_id = :person_id LIMIT 1
+                        check_person_exists_sql = text(f"""
+                            SELECT 1 FROM {settings.CDM_SCHEMA}.person WHERE person_id = :person_id LIMIT 1
                         """)
                         person_exists = await session.execute(
                             check_person_exists_sql, {"person_id": person_id}
@@ -263,8 +282,8 @@ async def put_by_id(id: int, body: dict):
                                 person_data["birth_datetime"].replace("Z", "+00:00")
                             )
 
-                        update_person_sql = text("""
-                            UPDATE omop.person SET
+                        update_person_sql = text(f"""
+                            UPDATE {settings.CDM_SCHEMA}.person SET
                                 gender_concept_id = :gender_concept_id,
                                 year_of_birth = :year_of_birth,
                                 month_of_birth = :month_of_birth,
@@ -323,8 +342,8 @@ async def put_by_id(id: int, body: dict):
                         await session.execute(update_person_sql, person_params)
 
                         # Link person to this dataset
-                        check_link_sql = text("""
-                            SELECT 1 FROM candig.person_in_dataset 
+                        check_link_sql = text(f"""
+                            SELECT 1 FROM {settings.CANDIG_SCHEMA}.person_in_dataset 
                             WHERE person_id = :person_id AND dataset_id = :dataset_id LIMIT 1
                         """)
                         link_exists = await session.execute(
@@ -332,8 +351,8 @@ async def put_by_id(id: int, body: dict):
                         )
 
                         if not link_exists.fetchone():
-                            insert_person_dataset_sql = text("""
-                                INSERT INTO candig.person_in_dataset (person_id, dataset_id)
+                            insert_person_dataset_sql = text(f"""
+                                INSERT INTO {settings.CANDIG_SCHEMA}.person_in_dataset (person_id, dataset_id)
                                 VALUES (:person_id, :dataset_id)
                             """)
                             await session.execute(
@@ -349,8 +368,8 @@ async def put_by_id(id: int, body: dict):
                                 person_data["birth_datetime"].replace("Z", "+00:00")
                             )
 
-                        insert_person_sql = text("""
-                            INSERT INTO omop.person (
+                        insert_person_sql = text(f"""
+                            INSERT INTO {settings.CDM_SCHEMA}.person (
                                 gender_concept_id, year_of_birth, month_of_birth, 
                                 day_of_birth, birth_datetime, race_concept_id, ethnicity_concept_id,
                                 location_id, provider_id, care_site_id, person_source_value,
@@ -405,8 +424,8 @@ async def put_by_id(id: int, body: dict):
                         provided_person_ids.add(new_person_id)
 
                         # Link new person to dataset
-                        insert_person_dataset_sql = text("""
-                            INSERT INTO candig.person_in_dataset (person_id, dataset_id)
+                        insert_person_dataset_sql = text(f"""
+                            INSERT INTO {settings.CANDIG_SCHEMA}.person_in_dataset (person_id, dataset_id)
                             VALUES (:person_id, :dataset_id)
                         """)
                         await session.execute(
@@ -419,8 +438,8 @@ async def put_by_id(id: int, body: dict):
             
             if persons_to_delete:
                 # Delete from person_in_dataset table first
-                delete_person_dataset_sql = text("""
-                    DELETE FROM candig.person_in_dataset 
+                delete_person_dataset_sql = text(f"""
+                    DELETE FROM {settings.CANDIG_SCHEMA}.person_in_dataset 
                     WHERE person_id = ANY(:person_ids) AND dataset_id = :dataset_id
                 """)
                 await session.execute(
@@ -429,8 +448,8 @@ async def put_by_id(id: int, body: dict):
                 )
 
                 # Delete the persons from omop.person table
-                delete_persons_sql = text("""
-                    DELETE FROM omop.person 
+                delete_persons_sql = text(f"""
+                    DELETE FROM {settings.CDM_SCHEMA}.person 
                     WHERE person_id = ANY(:person_ids)
                 """)
                 await session.execute(
@@ -451,6 +470,23 @@ async def put_by_id(id: int, body: dict):
         except ProblemException:
             await session.rollback()
             raise
+        except IntegrityError as e:
+            await session.rollback()
+            logger.error(f"Database Integrity Error in dataset.put_by_id: {str(e)}")
+            extra_details = ""
+            if "foreignkeyviolationerror" in str(e).lower():
+                extra_details += "Foreign key invalid.\n"
+            if "uniqueviolationerror" in str(e).lower():
+                extra_details += "Value should be unique.\n"
+            
+            error_msg = str(e)
+            if "DETAIL:" in error_msg:
+                error_msg = error_msg.split("DETAIL:", 1)[1].split("\n", 1)[0].strip()
+            raise ProblemException(
+                status=400,
+                title="Database Integrity Error",
+                detail=f"Violation of database integrity constraints.\n{extra_details}Error details: {error_msg}",
+            )
         except Exception as e:
             await session.rollback()
             logger.error(f"Database Error in dataset.put_by_id: {str(e)}")
@@ -489,8 +525,8 @@ async def delete_by_id(id: int):
 
                 # Delete persons
                 if person_ids:
-                    delete_persons_sql = text("""
-                        DELETE FROM omop.person 
+                    delete_persons_sql = text(f"""
+                        DELETE FROM {settings.CDM_SCHEMA}.person 
                         WHERE person_id = ANY(:person_ids)
                     """)
                     await session.execute(
@@ -549,7 +585,7 @@ async def get_info(id: int):
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail="An error occurred while fetching the dataset from the database.",
+                detail=f"An error occurred while fetching the dataset from the database: {e}",
             )
 
 
@@ -586,7 +622,7 @@ async def patch_info(id: int, body: dict):
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail="An error occurred while updating the dataset info in the database",
+                detail=f"An error occurred while updating the dataset info in the database.",
             )
 
 
@@ -634,7 +670,7 @@ async def statistics():
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail="An error occurred while fetching dataset statistics from the database.",
+                detail=f"An error occurred while fetching dataset statistics from the database.",
             )
 
 
@@ -679,5 +715,5 @@ async def statistics_by_id(id: int):
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail="An error occurred while fetching dataset statistics from the database.",
+                detail=f"An error occurred while fetching dataset statistics from the database.",
             )

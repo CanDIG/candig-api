@@ -9,8 +9,8 @@ from contextlib import asynccontextmanager
 from connexion import AsyncApp
 from .api import query_operations
 from .api import dataset_operations
-# from .api import person_operations
-from .database.db_setup import create_tables_async
+from .api import person_operations
+from .database.db_setup import create_tables, update_person_table
 
 from candigv2_logging.logging import CanDIGLogger, initialize  # type: ignore
 
@@ -19,7 +19,7 @@ logger = CanDIGLogger(__file__)
 
 sys.modules['query_operations'] = query_operations
 sys.modules['dataset_operations'] = dataset_operations
-# sys.modules['person_operations'] = person_operations
+sys.modules['person_operations'] = person_operations
 
 @asynccontextmanager
 async def lifespan(app):
@@ -28,7 +28,8 @@ async def lifespan(app):
     """
     # Startup
     logger.info("Application starting up...")
-    await create_tables_async()
+    await create_tables()
+    await update_person_table()
     logger.info("Application startup complete.")
     
     yield

@@ -18,6 +18,7 @@ class Settings:
     _DB_PORT: str = os.getenv("DB_PORT", "5432")
     _DB_NAME: str = os.getenv("DB_NAME", "candig_api")
     CANDIG_SCHEMA: str = os.getenv("CANDIG_SCHEMA", "candig")
+    CDM_SCHEMA: str = os.getenv("CDM_SCHEMA", "omop")
 
     @property
     def DATABASE_URI(self) -> str:

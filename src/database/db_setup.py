@@ -14,7 +14,7 @@ from candigv2_logging.logging import CanDIGLogger  # type: ignore
 
 logger = CanDIGLogger(__file__)
 
-async def create_tables_async():
+async def create_tables():
     """
     Create database schemas and tables from models
     """
@@ -68,4 +68,68 @@ async def create_tables_async():
     finally:
         if conn:
             await conn.close()
-            logger.info("Setup connection closed.")
+
+async def update_person_table():
+    """
+    Update person_id to use IDENTITY (auto-increment)
+    """
+    conn = None
+    try:
+        conn = await asyncpg.connect(dsn=settings.DATABASE_URI)
+        
+        schema_name = settings.CDM_SCHEMA
+        table_name = "person"
+        
+        table_exists_query = f"SELECT to_regclass('{schema_name}.{table_name}')"
+        if await conn.fetchval(table_exists_query) is None:
+            logger.warning(f"Table '{schema_name}.{table_name}' does not exist. Skipping identity update.")
+            return
+        
+        # Check if person_id column already has identity
+        identity_check_query = """
+        SELECT is_identity 
+        FROM information_schema.columns 
+        WHERE table_schema = $1 AND table_name = $2 AND column_name = 'person_id'
+        """
+        is_identity = await conn.fetchval(identity_check_query, schema_name, table_name)
+        
+        if is_identity == 'YES':
+            logger.info(f"Column person_id in {schema_name}.{table_name} already has identity. Skipping identity update.")
+            return
+        
+        logger.info(f"Updating person_id column in {schema_name}.{table_name} to use IDENTITY...")
+        alter_queries = [
+            # First, drop the default constraint if it exists
+            f"ALTER TABLE {schema_name}.{table_name} ALTER COLUMN person_id DROP DEFAULT",
+            # Add identity to the existing column
+            f"ALTER TABLE {schema_name}.{table_name} ALTER COLUMN person_id ADD GENERATED ALWAYS AS IDENTITY"
+        ]
+        
+        for query in alter_queries:
+            try:
+                await conn.execute(query)
+                logger.info(f"Executed: {query}")
+            except asyncpg.exceptions.PostgresError as e:
+                # If dropping default fails (no default exists), that's okay
+                if "does not exist" in str(e) and "DROP DEFAULT" in query:
+                    logger.info("No default constraint to drop, continuing...")
+                    continue
+                else:
+                    raise
+        
+        logger.info(f"Successfully updated person_id column to use IDENTITY")
+        
+    except (
+        asyncpg.exceptions.CannotConnectNowError,
+        ConnectionRefusedError,
+        OSError,
+    ) as e:
+        logger.error("FATAL: Could not connect to database for person_id update.")
+        logger.error(f"Error: {e}")
+        raise
+    except Exception as e:
+        logger.error(f"FATAL: An error occurred during person_id identity update: {e}")
+        raise
+    finally:
+        if conn:
+            await conn.close()
