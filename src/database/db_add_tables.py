@@ -22,7 +22,7 @@ class Dataset(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     source_value = Column(String(128), unique=True, nullable=False)
-    info = Column(JSON, nullable=False)
+    info = Column(JSON, nullable=True)
 
     person_mappings = relationship("PersonInDataset", back_populates="dataset", cascade="all, delete-orphan")
 
