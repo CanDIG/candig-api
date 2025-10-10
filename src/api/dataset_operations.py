@@ -754,11 +754,28 @@ async def insert_from_moh(body: dict):
                         if field.get("omop_table") == "dataset" and not field.get(
                             "skip_errors"
                         ):
-                            # Check if dataset already exists in id_mapper
-                            dataset_id_obj = field.get("omop_record").get("id")
-                            existing_dataset_id = id_mapper.get_id(dataset_id_obj)
+                            # Check if dataset already exists in the database by source_value
+                            dataset_record = field.get("omop_record")
+                            source_value = dataset_record.get("source_value")
+                            
+                            # Query database for existing dataset
+                            existing_dataset_stmt = select(Dataset).where(
+                                Dataset.source_value == source_value
+                            )
+                            existing_dataset_result = await session.execute(existing_dataset_stmt)
+                            existing_dataset = existing_dataset_result.scalar_one_or_none()
 
-                            if not existing_dataset_id:
+                            if existing_dataset:
+                                # Use existing dataset
+                                new_dataset_id = existing_dataset.id
+                                id_mapper.store_id(dataset_record.get("id"), new_dataset_id)
+                                return_obj.append({
+                                    "id": existing_dataset.id,
+                                    "source_value": existing_dataset.source_value,
+                                    "info": existing_dataset.info
+                                })
+                            else:
+                                # Create new dataset
                                 new_dataset = await create_record(
                                     session, id_mapper, field, "dataset"
                                 )
