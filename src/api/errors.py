@@ -28,19 +28,19 @@ async def raise_integrity_error(e: IntegrityError):
         detail=f"Could not save the data.\n{extra_details}Details: {error_msg}",
     )
 
-# async def raise_problem_exception(e):
-#     logger.error(f"Problem Exception: {e}")
+async def raise_problem_exception(e: Exception):
+    logger.error(f"Problem Exception: {e}")
 
-#     raise ProblemException(
-#         status=500,
-#         title="Processing Error",
-#         detail="An internal error occurred while processing the payload.",
-#     )
+    raise ProblemException(
+        status=500,
+        title="Processing Error",
+        detail="An internal error occurred while processing the payload.",
+    )
 
-# async def raise_bad_request(obj):
+async def raise_bad_request(obj: str):
 
-#     raise ProblemException(
-#         status=400,
-#         title="Bad Request",
-#         detail=f"Payload must contain one valid {obj} record at the donor level.",
-#     )
+    raise ProblemException(
+        status=400,
+        title="Bad Request",
+        detail=f"Payload must contain one valid {obj} record at the donor level.",
+    )
