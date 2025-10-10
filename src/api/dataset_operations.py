@@ -5,6 +5,7 @@ from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
+from src.api.errors import raise_bad_request, raise_integrity_error, raise_problem_exception
 from src.api.helpers import TABLE_CONFIG, IdMapper, create_record
 from src.database.db_add_tables import Dataset, PersonInDataset
 from src.database.db_operations import get_db_session
@@ -784,11 +785,7 @@ async def insert_from_moh(body: dict):
                             break
 
                     if new_dataset_id is None:
-                        raise ProblemException(
-                            400,
-                            "Bad Request",
-                            "Payload must contain one valid 'dataset' record at the donor level.",
-                        )
+                        await raise_bad_request("dataset")
 
                     for field in items:
                         if field.get("omop_table") == "person" and not field.get(
@@ -802,11 +799,7 @@ async def insert_from_moh(body: dict):
                             break
 
                         if new_person_id is None:
-                            raise ProblemException(
-                                400,
-                                "Bad Request",
-                                "Payload must contain one valid 'person' record at the donor level.",
-                            )
+                            await raise_bad_request("person")
 
                     # Second pass: Process all other tables at the donor level
                     for field in items:
@@ -844,28 +837,12 @@ async def insert_from_moh(body: dict):
             logger.info("Successfully created all records and committed transaction.")
             return {"records": return_obj}, 201
 
+        except ProblemException:
+            await session.rollback()
+            raise 
         except IntegrityError as e:
             await session.rollback()
-            logger.error(f"Database Integrity Error: {str(e)}")
-            extra_details = ""
-            if "foreignkeyviolationerror" in str(e).lower():
-                extra_details += "Foreign key invalid.\n"
-            if "uniqueviolationerror" in str(e).lower():
-                extra_details += "Value should be unique.\n"
-
-            error_msg = str(e)
-            if "DETAIL:" in error_msg:
-                error_msg = error_msg.split("DETAIL:", 1)[1].split("\n", 1)[0].strip()
-            raise ProblemException(
-                status=400,
-                title="Database Integrity Error",
-                detail=f"Violation of database integrity constraints.\n{extra_details}Error details: {error_msg}",
-            )
+            await raise_integrity_error(e)
         except Exception as e:
             await session.rollback()
-            logger.error(f"An unexpected error occurred in create_full: {str(e)}")
-            raise ProblemException(
-                status=500,
-                title="Processing Error",
-                detail="An internal error occurred while processing the payload.",
-            )
+            await raise_problem_exception(e)
