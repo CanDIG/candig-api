@@ -844,10 +844,23 @@ async def insert_from_moh(body: dict):
             logger.info("Successfully created all records and committed transaction.")
             return {"records": return_obj}, 201
 
-        except ProblemException:
+        except IntegrityError as e:
             await session.rollback()
-            logger.error("Rolling back transaction due to a ProblemException.")
-            raise
+            logger.error(f"Database Integrity Error: {str(e)}")
+            extra_details = ""
+            if "foreignkeyviolationerror" in str(e).lower():
+                extra_details += "Foreign key invalid.\n"
+            if "uniqueviolationerror" in str(e).lower():
+                extra_details += "Value should be unique.\n"
+
+            error_msg = str(e)
+            if "DETAIL:" in error_msg:
+                error_msg = error_msg.split("DETAIL:", 1)[1].split("\n", 1)[0].strip()
+            raise ProblemException(
+                status=400,
+                title="Database Integrity Error",
+                detail=f"Violation of database integrity constraints.\n{extra_details}Error details: {error_msg}",
+            )
         except Exception as e:
             await session.rollback()
             logger.error(f"An unexpected error occurred in create_full: {str(e)}")
