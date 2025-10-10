@@ -1,7 +1,7 @@
 from connexion.exceptions import ProblemException
 from sqlalchemy import select, text
-from ..database.db_add_table import PersonInDataset
-from ..database.db_operation import get_db_session
+from ..database.db_add_tables import PersonInDataset
+from ..database.db_operations import get_db_session
 from datetime import datetime
 from ..config import settings
 from candigv2_logging.logging import CanDIGLogger
