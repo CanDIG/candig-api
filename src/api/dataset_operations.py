@@ -5,7 +5,11 @@ from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
-from src.api.errors import raise_bad_request, raise_integrity_error, raise_problem_exception
+from src.api.errors import (
+    raise_bad_request,
+    raise_integrity_error,
+    raise_problem_exception,
+)
 from src.api.helpers import TABLE_CONFIG, IdMapper, create_record
 from src.database.db_add_tables import Dataset, PersonInDataset
 from src.database.db_operations import get_db_session
@@ -720,15 +724,66 @@ async def statistics_by_id(id: int):
             )
 
 
+async def delete_cascade(id: int):
+    """
+    Delete a dataset and its associated persons
+    Delete dataset will cascade to person_in_dataset
+    Delete person will cascade to associated data
+    """
+    async for session in get_db_session():
+        try:
+            # Get the dataset
+            dataset_to_delete = await session.get(Dataset, id)
+
+            if not dataset_to_delete:
+                raise ProblemException(
+                    status=404,
+                    title="Not Found",
+                    detail=f"Dataset with ID '{id}' not found.",
+                )
+
+            # Get all person_ids associated with this dataset
+            person_in_dataset_stmt = select(PersonInDataset.person_id).where(
+                PersonInDataset.dataset_id == id
+            )
+            person_result = await session.execute(person_in_dataset_stmt)
+            person_ids = [row[0] for row in person_result.fetchall()]
+
+            # Delete persons first if any exist
+            # This also cascade to other tables through person_id
+            if person_ids:
+                delete_persons_sql = text(f"""
+                    DELETE FROM {settings.CDM_SCHEMA}.person 
+                    WHERE person_id = ANY(:person_ids)
+                """)
+                await session.execute(delete_persons_sql, {"person_ids": person_ids})
+
+            # Finally delete the dataset
+            await session.delete(dataset_to_delete)
+            await session.commit()
+
+            return {
+                "message": f"Dataset {id} and {len(person_ids)} associated person(s) deleted successfully."
+            }, 200
+
+        except ProblemException:
+            await session.rollback()
+            raise
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Database Error in dataset.delete_cascade: {str(e)}")
+            raise ProblemException(
+                status=500,
+                title="Database Error",
+                detail=f"An error occurred while deleting the dataset: {str(e)}",
+            )
+
+
 async def insert_from_moh(body: dict):
     """
-    Creates a complete set of linked OMOP records from a nested payload.
-
-    This refactored function orchestrates the creation process by:
-    1. Identifying the person record and creating it first.
+    This function creates OMOP records by:
+    1. Find the person record and creating it first.
     2. Looping through the rest of the payload.
-    3. Delegating record creation to a generic helper function (_process_and_create_record)
-       which uses a central configuration (TABLE_CONFIG).
     """
     id_mapper = IdMapper()
     return_obj = []
@@ -758,23 +813,31 @@ async def insert_from_moh(body: dict):
                             # Check if dataset already exists in the database by source_value
                             dataset_record = field.get("omop_record")
                             source_value = dataset_record.get("source_value")
-                            
+
                             # Query database for existing dataset
                             existing_dataset_stmt = select(Dataset).where(
                                 Dataset.source_value == source_value
                             )
-                            existing_dataset_result = await session.execute(existing_dataset_stmt)
-                            existing_dataset = existing_dataset_result.scalar_one_or_none()
+                            existing_dataset_result = await session.execute(
+                                existing_dataset_stmt
+                            )
+                            existing_dataset = (
+                                existing_dataset_result.scalar_one_or_none()
+                            )
 
                             if existing_dataset:
                                 # Use existing dataset
                                 new_dataset_id = existing_dataset.id
-                                id_mapper.store_id(dataset_record.get("id"), new_dataset_id)
-                                return_obj.append({
-                                    "id": existing_dataset.id,
-                                    "source_value": existing_dataset.source_value,
-                                    "info": existing_dataset.info
-                                })
+                                id_mapper.store_id(
+                                    dataset_record.get("id"), new_dataset_id
+                                )
+                                return_obj.append(
+                                    {
+                                        "id": existing_dataset.id,
+                                        "source_value": existing_dataset.source_value,
+                                        "info": existing_dataset.info,
+                                    }
+                                )
                             else:
                                 # Create new dataset
                                 new_dataset = await create_record(
@@ -839,7 +902,7 @@ async def insert_from_moh(body: dict):
 
         except ProblemException:
             await session.rollback()
-            raise 
+            raise
         except IntegrityError as e:
             await session.rollback()
             await raise_integrity_error(e)

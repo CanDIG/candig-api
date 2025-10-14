@@ -6,6 +6,7 @@ from connexion.exceptions import ProblemException
 
 logger = logging.getLogger(__name__)
 
+
 async def raise_integrity_error(e: IntegrityError):
     logger.error(f"Database Integrity Error: {e}")
 
@@ -28,6 +29,7 @@ async def raise_integrity_error(e: IntegrityError):
         detail=f"Could not save the data.\n{extra_details}Details: {error_msg}",
     )
 
+
 async def raise_problem_exception(e: Exception):
     logger.error(f"Problem Exception: {e}")
 
@@ -37,8 +39,8 @@ async def raise_problem_exception(e: Exception):
         detail="An internal error occurred while processing the payload.",
     )
 
-async def raise_bad_request(obj: str):
 
+async def raise_bad_request(obj: str):
     raise ProblemException(
         status=400,
         title="Bad Request",

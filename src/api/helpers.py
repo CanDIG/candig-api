@@ -1,5 +1,18 @@
-
-from src.database.insert_operations import create_condition_occurrence, create_episode, create_episode_event, create_measurement, create_observation, create_person, create_specimen,create_procedure_occurrence, create_drug_exposure, create_fact_relationship, create_death, create_dataset, create_person_in_dataset
+from src.database.insert_operations import (
+    create_condition_occurrence,
+    create_episode,
+    create_episode_event,
+    create_measurement,
+    create_observation,
+    create_person,
+    create_specimen,
+    create_procedure_occurrence,
+    create_drug_exposure,
+    create_fact_relationship,
+    create_death,
+    create_dataset,
+    create_person_in_dataset,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from connexion.exceptions import ProblemException
 import logging
@@ -35,7 +48,7 @@ TABLE_CONFIG = {
         "create_func": create_observation,
     },
     "death": {
-        "pk": None, # Death table's PK is the person_id FK.
+        "pk": None,  # Death table's PK is the person_id FK.
         "fk_map": {"person_id": "person_id"},
         "create_func": create_death,
     },
@@ -87,22 +100,24 @@ TABLE_CONFIG = {
 
 class IdMapper:
     """A class to map temporary IDs from a payload to permanent database IDs."""
+
     def __init__(self):
         self.id_map = {}
-    
+
     def create_key(self, id_obj: dict) -> str:
         """Create a unique string key from an id_map object."""
         return f"{id_obj['source_system']}|{id_obj['source_value']}|{id_obj['source_desc']}|{id_obj['target_desc']}"
-    
+
     def store_id(self, id_obj: dict, actual_id: int):
         """Store the mapping between an id_map object and an actual database ID."""
         key = self.create_key(id_obj)
         self.id_map[key] = actual_id
-    
+
     def get_id(self, id_obj: dict) -> int:
         """Retrieve the actual database ID for an id_map object."""
         key = self.create_key(id_obj)
         return self.id_map.get(key)
+
 
 # ==============================================================================
 # Record Processing Helper
@@ -118,7 +133,7 @@ async def create_record(
     """
     config = TABLE_CONFIG[table_name]
     record_data = record_field.get("omop_record", {})
-    
+
     # 1. Extract the temporary ID object for the primary key, if it exists
     pk_field = config.get("pk")
     id_obj = None

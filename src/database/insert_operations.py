@@ -9,24 +9,24 @@ from sqlalchemy import select, text
 
 logger = CanDIGLogger(__file__)
 
+
 async def create_person(
     session: AsyncSession,
     record_data: dict,
 ):
     # Handle birth_datetime conversion
-    if 'birth_datetime' in record_data and record_data['birth_datetime'] is not None:
-        if isinstance(record_data['birth_datetime'], str):
+    if "birth_datetime" in record_data and record_data["birth_datetime"] is not None:
+        if isinstance(record_data["birth_datetime"], str):
             try:
-                record_data['birth_datetime'] = datetime.fromisoformat(
-                    record_data['birth_datetime'].replace('Z', '+00:00')
+                record_data["birth_datetime"] = datetime.fromisoformat(
+                    record_data["birth_datetime"].replace("Z", "+00:00")
                 )
             except ValueError as e:
                 raise ProblemException(
-                status=400,
-                title="Bad Request",
-                detail=f"Invalid datetime format: {record_data['birth_datetime']}. Expected ISO 8601 format."
-            )
-
+                    status=400,
+                    title="Bad Request",
+                    detail=f"Invalid datetime format: {record_data['birth_datetime']}. Expected ISO 8601 format.",
+                )
 
     insert_sql = text(f"""
         INSERT INTO {settings.CDM_SCHEMA}.person (
@@ -50,23 +50,49 @@ async def create_person(
 
     # Prepare parameters with values from record_data
     person_params = {
-        "gender_concept_id": int(record_data.get('gender_concept_id')) if record_data.get('gender_concept_id') else None,
-        "year_of_birth": int(record_data.get('year_of_birth')) if record_data.get('year_of_birth') else None,
-        "month_of_birth": int(record_data.get('month_of_birth')) if record_data.get('month_of_birth') else None,
-        "day_of_birth": int(record_data.get('day_of_birth')) if record_data.get('day_of_birth') else None,
-        "birth_datetime": record_data.get('birth_datetime'),
-        "race_concept_id": int(record_data.get('race_concept_id')) if record_data.get('race_concept_id') else None,
-        "ethnicity_concept_id": int(record_data.get('ethnicity_concept_id')) if record_data.get('ethnicity_concept_id') else None,
-        "location_id": int(record_data.get('location_id')) if record_data.get('location_id') else None,
-        "provider_id": int(record_data.get('provider_id')) if record_data.get('provider_id') else None,
-        "care_site_id": int(record_data.get('care_site_id')) if record_data.get('care_site_id') else None,
-        "person_source_value": record_data.get('person_source_value'),
-        "gender_source_value": record_data.get('gender_source_value'),
-        "gender_source_concept_id": int(record_data.get('gender_source_concept_id')) if record_data.get('gender_source_concept_id') else None,
-        "race_source_value": record_data.get('race_source_value'),
-        "race_source_concept_id": int(record_data.get('race_source_concept_id')) if record_data.get('race_source_concept_id') else None,
-        "ethnicity_source_value": record_data.get('ethnicity_source_value'),
-        "ethnicity_source_concept_id": int(record_data.get('ethnicity_source_concept_id')) if record_data.get('ethnicity_source_concept_id') else None
+        "gender_concept_id": int(record_data.get("gender_concept_id"))
+        if record_data.get("gender_concept_id")
+        else None,
+        "year_of_birth": int(record_data.get("year_of_birth"))
+        if record_data.get("year_of_birth")
+        else None,
+        "month_of_birth": int(record_data.get("month_of_birth"))
+        if record_data.get("month_of_birth")
+        else None,
+        "day_of_birth": int(record_data.get("day_of_birth"))
+        if record_data.get("day_of_birth")
+        else None,
+        "birth_datetime": record_data.get("birth_datetime"),
+        "race_concept_id": int(record_data.get("race_concept_id"))
+        if record_data.get("race_concept_id")
+        else None,
+        "ethnicity_concept_id": int(record_data.get("ethnicity_concept_id"))
+        if record_data.get("ethnicity_concept_id")
+        else None,
+        "location_id": int(record_data.get("location_id"))
+        if record_data.get("location_id")
+        else None,
+        "provider_id": int(record_data.get("provider_id"))
+        if record_data.get("provider_id")
+        else None,
+        "care_site_id": int(record_data.get("care_site_id"))
+        if record_data.get("care_site_id")
+        else None,
+        "person_source_value": record_data.get("person_source_value"),
+        "gender_source_value": record_data.get("gender_source_value"),
+        "gender_source_concept_id": int(record_data.get("gender_source_concept_id"))
+        if record_data.get("gender_source_concept_id")
+        else None,
+        "race_source_value": record_data.get("race_source_value"),
+        "race_source_concept_id": int(record_data.get("race_source_concept_id"))
+        if record_data.get("race_source_concept_id")
+        else None,
+        "ethnicity_source_value": record_data.get("ethnicity_source_value"),
+        "ethnicity_source_concept_id": int(
+            record_data.get("ethnicity_source_concept_id")
+        )
+        if record_data.get("ethnicity_source_concept_id")
+        else None,
     }
 
     # Execute sql
@@ -92,7 +118,7 @@ async def create_person(
         "race_source_value": row.race_source_value,
         "race_source_concept_id": row.race_source_concept_id,
         "ethnicity_source_value": row.ethnicity_source_value,
-        "ethnicity_source_concept_id": row.ethnicity_source_concept_id
+        "ethnicity_source_concept_id": row.ethnicity_source_concept_id,
     }
 
     return person_dict
@@ -106,32 +132,38 @@ async def create_observation(
     Inserts a new observation record into the database.
     """
     # Handle observation_datetime conversion
-    if 'observation_datetime' in record_data and record_data['observation_datetime'] is not None:
-        if isinstance(record_data['observation_datetime'], str):
+    if (
+        "observation_datetime" in record_data
+        and record_data["observation_datetime"] is not None
+    ):
+        if isinstance(record_data["observation_datetime"], str):
             try:
-                record_data['observation_datetime'] = datetime.fromisoformat(
-                    record_data['observation_datetime'].replace('Z', '+00:00')
+                record_data["observation_datetime"] = datetime.fromisoformat(
+                    record_data["observation_datetime"].replace("Z", "+00:00")
                 )
             except ValueError:
                 raise ProblemException(
                     status=400,
                     title="Bad Request",
-                    detail=f"Invalid datetime format: {record_data['observation_datetime']}. Expected ISO 8601 format."
+                    detail=f"Invalid datetime format: {record_data['observation_datetime']}. Expected ISO 8601 format.",
                 )
 
-
     # Handle observation_date conversion
-    if 'observation_date' in record_data and record_data['observation_date'] is not None:
-        if isinstance(record_data['observation_date'], str):
+    if (
+        "observation_date" in record_data
+        and record_data["observation_date"] is not None
+    ):
+        if isinstance(record_data["observation_date"], str):
             try:
-                record_data['observation_date'] = date.fromisoformat(record_data['observation_date'])
+                record_data["observation_date"] = date.fromisoformat(
+                    record_data["observation_date"]
+                )
             except ValueError:
                 raise ProblemException(
-                status=400,
-                title="Bad Request",
-                detail=f"Invalid datetime format: {record_data['observation_date']}. Expected ISO 8601 format."
-            )
-
+                    status=400,
+                    title="Bad Request",
+                    detail=f"Invalid datetime format: {record_data['observation_date']}. Expected ISO 8601 format.",
+                )
 
     insert_sql = text(f"""
         INSERT INTO {settings.CDM_SCHEMA}.observation (
@@ -157,26 +189,54 @@ async def create_observation(
     """)
 
     observation_params = {
-        "person_id": int(record_data.get('person_id')) if record_data.get('person_id') else None,
-        "observation_concept_id": int(record_data.get('observation_concept_id')) if record_data.get('observation_concept_id') else None,
-        "observation_date": record_data.get('observation_date'),
-        "observation_datetime": record_data.get('observation_datetime'),
-        "observation_type_concept_id": int(record_data.get('observation_type_concept_id')) if record_data.get('observation_type_concept_id') else None,
-        "value_as_number": record_data.get('value_as_number'),
-        "value_as_string": record_data.get('value_as_string'),
-        "value_as_concept_id": int(record_data.get('value_as_concept_id')) if record_data.get('value_as_concept_id') else None,
-        "qualifier_concept_id": int(record_data.get('qualifier_concept_id')) if record_data.get('qualifier_concept_id') else None,
-        "unit_concept_id": int(record_data.get('unit_concept_id')) if record_data.get('unit_concept_id') else None,
-        "provider_id": int(record_data.get('provider_id')) if record_data.get('provider_id') else None,
-        "visit_occurrence_id": int(record_data.get('visit_occurrence_id')) if record_data.get('visit_occurrence_id') else None,
-        "visit_detail_id": int(record_data.get('visit_detail_id')) if record_data.get('visit_detail_id') else None,
-        "observation_source_value": record_data.get('observation_source_value'),
-        "observation_source_concept_id": int(record_data.get('observation_source_concept_id')) if record_data.get('observation_source_concept_id') else None,
-        "unit_source_value": record_data.get('unit_source_value'),
-        "qualifier_source_value": record_data.get('qualifier_source_value'),
-        "value_source_value": record_data.get('value_source_value'),
-        "observation_event_id": int(record_data.get('observation_event_id')) if record_data.get('observation_event_id') else None,
-        "obs_event_field_concept_id": int(record_data.get('obs_event_field_concept_id')) if record_data.get('obs_event_field_concept_id') else None
+        "person_id": int(record_data.get("person_id"))
+        if record_data.get("person_id")
+        else None,
+        "observation_concept_id": int(record_data.get("observation_concept_id"))
+        if record_data.get("observation_concept_id")
+        else None,
+        "observation_date": record_data.get("observation_date"),
+        "observation_datetime": record_data.get("observation_datetime"),
+        "observation_type_concept_id": int(
+            record_data.get("observation_type_concept_id")
+        )
+        if record_data.get("observation_type_concept_id")
+        else None,
+        "value_as_number": record_data.get("value_as_number"),
+        "value_as_string": record_data.get("value_as_string"),
+        "value_as_concept_id": int(record_data.get("value_as_concept_id"))
+        if record_data.get("value_as_concept_id")
+        else None,
+        "qualifier_concept_id": int(record_data.get("qualifier_concept_id"))
+        if record_data.get("qualifier_concept_id")
+        else None,
+        "unit_concept_id": int(record_data.get("unit_concept_id"))
+        if record_data.get("unit_concept_id")
+        else None,
+        "provider_id": int(record_data.get("provider_id"))
+        if record_data.get("provider_id")
+        else None,
+        "visit_occurrence_id": int(record_data.get("visit_occurrence_id"))
+        if record_data.get("visit_occurrence_id")
+        else None,
+        "visit_detail_id": int(record_data.get("visit_detail_id"))
+        if record_data.get("visit_detail_id")
+        else None,
+        "observation_source_value": record_data.get("observation_source_value"),
+        "observation_source_concept_id": int(
+            record_data.get("observation_source_concept_id")
+        )
+        if record_data.get("observation_source_concept_id")
+        else None,
+        "unit_source_value": record_data.get("unit_source_value"),
+        "qualifier_source_value": record_data.get("qualifier_source_value"),
+        "value_source_value": record_data.get("value_source_value"),
+        "observation_event_id": int(record_data.get("observation_event_id"))
+        if record_data.get("observation_event_id")
+        else None,
+        "obs_event_field_concept_id": int(record_data.get("obs_event_field_concept_id"))
+        if record_data.get("obs_event_field_concept_id")
+        else None,
     }
 
     result = await session.execute(insert_sql, observation_params)
@@ -204,10 +264,11 @@ async def create_observation(
         "qualifier_source_value": row.qualifier_source_value,
         "value_source_value": row.value_source_value,
         "observation_event_id": row.observation_event_id,
-        "obs_event_field_concept_id": row.obs_event_field_concept_id
+        "obs_event_field_concept_id": row.obs_event_field_concept_id,
     }
 
     return observation_dict
+
 
 async def create_condition_occurrence(
     session: AsyncSession,
@@ -217,28 +278,37 @@ async def create_condition_occurrence(
     Inserts a new condition_occurrence record into the database.
     """
     # Handle datetime conversions
-    for field in ['condition_start_datetime', 'condition_end_datetime']:
-        if field in record_data and record_data[field] is not None and isinstance(record_data[field], str):
+    for field in ["condition_start_datetime", "condition_end_datetime"]:
+        if (
+            field in record_data
+            and record_data[field] is not None
+            and isinstance(record_data[field], str)
+        ):
             try:
-                record_data[field] = datetime.fromisoformat(record_data[field].replace('Z', '+00:00'))
+                record_data[field] = datetime.fromisoformat(
+                    record_data[field].replace("Z", "+00:00")
+                )
             except ValueError:
                 raise ProblemException(
-                status=400,
-                title="Bad Request",
-                detail=f"Invalid datetime format: {record_data[field]}. Expected ISO 8601 format."
-            )
-
+                    status=400,
+                    title="Bad Request",
+                    detail=f"Invalid datetime format: {record_data[field]}. Expected ISO 8601 format.",
+                )
 
     # Handle date conversions
-    for field in ['condition_start_date', 'condition_end_date']:
-         if field in record_data and record_data[field] is not None and isinstance(record_data[field], str):
+    for field in ["condition_start_date", "condition_end_date"]:
+        if (
+            field in record_data
+            and record_data[field] is not None
+            and isinstance(record_data[field], str)
+        ):
             try:
                 record_data[field] = date.fromisoformat(record_data[field])
             except ValueError:
                 raise ProblemException(
                     status=400,
                     title="Bad Request",
-                    detail=f"Invalid birth_datetime format: {record_data[field]}. Expected ISO 8601 format."
+                    detail=f"Invalid birth_datetime format: {record_data[field]}. Expected ISO 8601 format.",
                 )
 
     insert_sql = text(f"""
@@ -262,21 +332,43 @@ async def create_condition_occurrence(
     """)
 
     condition_occurrence_params = {
-        "person_id": int(record_data.get('person_id')) if record_data.get('person_id') else None,
-        "condition_concept_id": int(record_data.get('condition_concept_id')) if record_data.get('condition_concept_id') else None,
-        "condition_start_date": record_data.get('condition_start_date'),
-        "condition_start_datetime": record_data.get('condition_start_datetime'),
-        "condition_end_date": record_data.get('condition_end_date'),
-        "condition_end_datetime": record_data.get('condition_end_datetime'),
-        "condition_type_concept_id": int(record_data.get('condition_type_concept_id')) if record_data.get('condition_type_concept_id') else None,
-        "condition_status_concept_id": int(record_data.get('condition_status_concept_id')) if record_data.get('condition_status_concept_id') else None,
-        "stop_reason": record_data.get('stop_reason'),
-        "provider_id": int(record_data.get('provider_id')) if record_data.get('provider_id') else None,
-        "visit_occurrence_id": int(record_data.get('visit_occurrence_id')) if record_data.get('visit_occurrence_id') else None,
-        "visit_detail_id": int(record_data.get('visit_detail_id')) if record_data.get('visit_detail_id') else None,
-        "condition_source_value": record_data.get('condition_source_value'),
-        "condition_source_concept_id": int(record_data.get('condition_source_concept_id')) if record_data.get('condition_source_concept_id') else None,
-        "condition_status_source_value": record_data.get('condition_status_source_value')
+        "person_id": int(record_data.get("person_id"))
+        if record_data.get("person_id")
+        else None,
+        "condition_concept_id": int(record_data.get("condition_concept_id"))
+        if record_data.get("condition_concept_id")
+        else None,
+        "condition_start_date": record_data.get("condition_start_date"),
+        "condition_start_datetime": record_data.get("condition_start_datetime"),
+        "condition_end_date": record_data.get("condition_end_date"),
+        "condition_end_datetime": record_data.get("condition_end_datetime"),
+        "condition_type_concept_id": int(record_data.get("condition_type_concept_id"))
+        if record_data.get("condition_type_concept_id")
+        else None,
+        "condition_status_concept_id": int(
+            record_data.get("condition_status_concept_id")
+        )
+        if record_data.get("condition_status_concept_id")
+        else None,
+        "stop_reason": record_data.get("stop_reason"),
+        "provider_id": int(record_data.get("provider_id"))
+        if record_data.get("provider_id")
+        else None,
+        "visit_occurrence_id": int(record_data.get("visit_occurrence_id"))
+        if record_data.get("visit_occurrence_id")
+        else None,
+        "visit_detail_id": int(record_data.get("visit_detail_id"))
+        if record_data.get("visit_detail_id")
+        else None,
+        "condition_source_value": record_data.get("condition_source_value"),
+        "condition_source_concept_id": int(
+            record_data.get("condition_source_concept_id")
+        )
+        if record_data.get("condition_source_concept_id")
+        else None,
+        "condition_status_source_value": record_data.get(
+            "condition_status_source_value"
+        ),
     }
 
     result = await session.execute(insert_sql, condition_occurrence_params)
@@ -299,10 +391,11 @@ async def create_condition_occurrence(
         "visit_detail_id": row.visit_detail_id,
         "condition_source_value": row.condition_source_value,
         "condition_source_concept_id": row.condition_source_concept_id,
-        "condition_status_source_value": row.condition_status_source_value
+        "condition_status_source_value": row.condition_status_source_value,
     }
 
     return condition_occurrence_dict
+
 
 async def create_episode(
     session: AsyncSession,
@@ -312,28 +405,38 @@ async def create_episode(
     Inserts a new episode record into the database.
     """
     # Handle datetime conversions
-    for field in ['episode_start_datetime', 'episode_end_datetime']:
-        if field in record_data and record_data[field] is not None and isinstance(record_data[field], str):
+    for field in ["episode_start_datetime", "episode_end_datetime"]:
+        if (
+            field in record_data
+            and record_data[field] is not None
+            and isinstance(record_data[field], str)
+        ):
             try:
-                record_data[field] = datetime.fromisoformat(record_data[field].replace('Z', '+00:00'))
+                record_data[field] = datetime.fromisoformat(
+                    record_data[field].replace("Z", "+00:00")
+                )
             except ValueError:
                 raise ProblemException(
                     status=400,
                     title="Bad Request",
-                    detail=f"Invalid birth_datetime format: {record_data[field]}. Expected ISO 8601 format."
+                    detail=f"Invalid birth_datetime format: {record_data[field]}. Expected ISO 8601 format.",
                 )
 
     # Handle date conversions
-    for field in ['episode_start_date', 'episode_end_date']:
-        if field in record_data and record_data[field] is not None and isinstance(record_data[field], str):
+    for field in ["episode_start_date", "episode_end_date"]:
+        if (
+            field in record_data
+            and record_data[field] is not None
+            and isinstance(record_data[field], str)
+        ):
             try:
                 record_data[field] = date.fromisoformat(record_data[field])
             except ValueError:
                 raise ProblemException(
-                status=400,
-                title="Bad Request",
-                detail=f"Invalid birth_datetime format: {record_data[field]}. Expected ISO 8601 format."
-            )
+                    status=400,
+                    title="Bad Request",
+                    detail=f"Invalid birth_datetime format: {record_data[field]}. Expected ISO 8601 format.",
+                )
 
     insert_sql = text(f"""
         INSERT INTO {settings.CDM_SCHEMA}.episode (
@@ -353,18 +456,32 @@ async def create_episode(
     """)
 
     episode_params = {
-        "person_id": int(record_data.get('person_id')) if record_data.get('person_id') else None,
-        "episode_concept_id": int(record_data.get('episode_concept_id')) if record_data.get('episode_concept_id') else None,
-        "episode_start_date": record_data.get('episode_start_date'),
-        "episode_start_datetime": record_data.get('episode_start_datetime'),
-        "episode_end_date": record_data.get('episode_end_date'),
-        "episode_end_datetime": record_data.get('episode_end_datetime'),
-        "episode_parent_id": int(record_data.get('episode_parent_id')) if record_data.get('episode_parent_id') else None,
-        "episode_number": int(record_data.get('episode_number')) if record_data.get('episode_number') else None,
-        "episode_object_concept_id": int(record_data.get('episode_object_concept_id')) if record_data.get('episode_object_concept_id') else None,
-        "episode_type_concept_id": int(record_data.get('episode_type_concept_id')) if record_data.get('episode_type_concept_id') else None,
-        "episode_source_value": record_data.get('episode_source_value'),
-        "episode_source_concept_id": int(record_data.get('episode_source_concept_id')) if record_data.get('episode_source_concept_id') else None
+        "person_id": int(record_data.get("person_id"))
+        if record_data.get("person_id")
+        else None,
+        "episode_concept_id": int(record_data.get("episode_concept_id"))
+        if record_data.get("episode_concept_id")
+        else None,
+        "episode_start_date": record_data.get("episode_start_date"),
+        "episode_start_datetime": record_data.get("episode_start_datetime"),
+        "episode_end_date": record_data.get("episode_end_date"),
+        "episode_end_datetime": record_data.get("episode_end_datetime"),
+        "episode_parent_id": int(record_data.get("episode_parent_id"))
+        if record_data.get("episode_parent_id")
+        else None,
+        "episode_number": int(record_data.get("episode_number"))
+        if record_data.get("episode_number")
+        else None,
+        "episode_object_concept_id": int(record_data.get("episode_object_concept_id"))
+        if record_data.get("episode_object_concept_id")
+        else None,
+        "episode_type_concept_id": int(record_data.get("episode_type_concept_id"))
+        if record_data.get("episode_type_concept_id")
+        else None,
+        "episode_source_value": record_data.get("episode_source_value"),
+        "episode_source_concept_id": int(record_data.get("episode_source_concept_id"))
+        if record_data.get("episode_source_concept_id")
+        else None,
     }
 
     result = await session.execute(insert_sql, episode_params)
@@ -384,10 +501,11 @@ async def create_episode(
         "episode_object_concept_id": row.episode_object_concept_id,
         "episode_type_concept_id": row.episode_type_concept_id,
         "episode_source_value": row.episode_source_value,
-        "episode_source_concept_id": row.episode_source_concept_id
+        "episode_source_concept_id": row.episode_source_concept_id,
     }
 
     return episode_dict
+
 
 async def create_episode_event(
     session: AsyncSession,
@@ -405,9 +523,11 @@ async def create_episode_event(
     """)
 
     episode_event_params = {
-        "episode_id": int(record_data.get('episode_id')),
-        "event_id": int(record_data.get('event_id')),
-        "episode_event_field_concept_id": int(record_data.get('episode_event_field_concept_id')),
+        "episode_id": int(record_data.get("episode_id")),
+        "event_id": int(record_data.get("event_id")),
+        "episode_event_field_concept_id": int(
+            record_data.get("episode_event_field_concept_id")
+        ),
     }
 
     # Execute
@@ -418,10 +538,11 @@ async def create_episode_event(
     episode_event_dict = {
         "episode_id": row.episode_id,
         "event_id": row.event_id,
-        "episode_event_field_concept_id": row.episode_event_field_concept_id
+        "episode_event_field_concept_id": row.episode_event_field_concept_id,
     }
 
     return episode_event_dict
+
 
 async def create_measurement(
     session: AsyncSession,
@@ -431,29 +552,37 @@ async def create_measurement(
     Inserts a new measurement record into the database.
     """
     # Handle measurement_datetime conversion
-    if 'measurement_datetime' in record_data and record_data['measurement_datetime'] is not None:
-        if isinstance(record_data['measurement_datetime'], str):
+    if (
+        "measurement_datetime" in record_data
+        and record_data["measurement_datetime"] is not None
+    ):
+        if isinstance(record_data["measurement_datetime"], str):
             try:
-                record_data['measurement_datetime'] = datetime.fromisoformat(
-                    record_data['measurement_datetime'].replace('Z', '+00:00')
+                record_data["measurement_datetime"] = datetime.fromisoformat(
+                    record_data["measurement_datetime"].replace("Z", "+00:00")
                 )
             except ValueError:
                 raise ProblemException(
                     status=400,
                     title="Bad Request",
-                    detail=f"Invalid datetime format: {record_data['measurement_datetime']}. Expected ISO 8601 format."
+                    detail=f"Invalid datetime format: {record_data['measurement_datetime']}. Expected ISO 8601 format.",
                 )
-    
+
     # Handle measurement_date conversion
-    if 'measurement_date' in record_data and record_data['measurement_date'] is not None:
-        if isinstance(record_data['measurement_date'], str):
+    if (
+        "measurement_date" in record_data
+        and record_data["measurement_date"] is not None
+    ):
+        if isinstance(record_data["measurement_date"], str):
             try:
-                record_data['measurement_date'] = date.fromisoformat(record_data['measurement_date'])
+                record_data["measurement_date"] = date.fromisoformat(
+                    record_data["measurement_date"]
+                )
             except ValueError:
                 raise ProblemException(
                     status=400,
                     title="Bad Request",
-                    detail=f"Invalid birth_datetime format: {record_data['measurement_date']}. Expected ISO 8601 format."
+                    detail=f"Invalid birth_datetime format: {record_data['measurement_date']}. Expected ISO 8601 format.",
                 )
 
     insert_sql = text(f"""
@@ -483,28 +612,60 @@ async def create_measurement(
     """)
 
     measurement_params = {
-        "person_id": int(record_data.get('person_id')) if record_data.get('person_id') else None,
-        "measurement_concept_id": int(record_data.get('measurement_concept_id')) if record_data.get('measurement_concept_id') else None,
-        "measurement_date": record_data.get('measurement_date'),
-        "measurement_datetime": record_data.get('measurement_datetime'),
-        "measurement_time": record_data.get('measurement_time'),
-        "measurement_type_concept_id": int(record_data.get('measurement_type_concept_id')) if record_data.get('measurement_type_concept_id') else None,
-        "operator_concept_id": int(record_data.get('operator_concept_id')) if record_data.get('operator_concept_id') else None,
-        "value_as_number": record_data.get('value_as_number'),
-        "value_as_concept_id": int(record_data.get('value_as_concept_id')) if record_data.get('value_as_concept_id') else None,
-        "unit_concept_id": int(record_data.get('unit_concept_id')) if record_data.get('unit_concept_id') else None,
-        "range_low": record_data.get('range_low'),
-        "range_high": record_data.get('range_high'),
-        "provider_id": int(record_data.get('provider_id')) if record_data.get('provider_id') else None,
-        "visit_occurrence_id": int(record_data.get('visit_occurrence_id')) if record_data.get('visit_occurrence_id') else None,
-        "visit_detail_id": int(record_data.get('visit_detail_id')) if record_data.get('visit_detail_id') else None,
-        "measurement_source_value": record_data.get('measurement_source_value'),
-        "measurement_source_concept_id": int(record_data.get('measurement_source_concept_id')) if record_data.get('measurement_source_concept_id') else None,
-        "unit_source_value": record_data.get('unit_source_value'),
-        "unit_source_concept_id": int(record_data.get('unit_source_concept_id')) if record_data.get('unit_source_concept_id') else None,
-        "value_source_value": record_data.get('value_source_value'),
-        "measurement_event_id": int(record_data.get('measurement_event_id')) if record_data.get('measurement_event_id') else None,
-        "meas_event_field_concept_id": int(record_data.get('meas_event_field_concept_id')) if record_data.get('meas_event_field_concept_id') else None
+        "person_id": int(record_data.get("person_id"))
+        if record_data.get("person_id")
+        else None,
+        "measurement_concept_id": int(record_data.get("measurement_concept_id"))
+        if record_data.get("measurement_concept_id")
+        else None,
+        "measurement_date": record_data.get("measurement_date"),
+        "measurement_datetime": record_data.get("measurement_datetime"),
+        "measurement_time": record_data.get("measurement_time"),
+        "measurement_type_concept_id": int(
+            record_data.get("measurement_type_concept_id")
+        )
+        if record_data.get("measurement_type_concept_id")
+        else None,
+        "operator_concept_id": int(record_data.get("operator_concept_id"))
+        if record_data.get("operator_concept_id")
+        else None,
+        "value_as_number": record_data.get("value_as_number"),
+        "value_as_concept_id": int(record_data.get("value_as_concept_id"))
+        if record_data.get("value_as_concept_id")
+        else None,
+        "unit_concept_id": int(record_data.get("unit_concept_id"))
+        if record_data.get("unit_concept_id")
+        else None,
+        "range_low": record_data.get("range_low"),
+        "range_high": record_data.get("range_high"),
+        "provider_id": int(record_data.get("provider_id"))
+        if record_data.get("provider_id")
+        else None,
+        "visit_occurrence_id": int(record_data.get("visit_occurrence_id"))
+        if record_data.get("visit_occurrence_id")
+        else None,
+        "visit_detail_id": int(record_data.get("visit_detail_id"))
+        if record_data.get("visit_detail_id")
+        else None,
+        "measurement_source_value": record_data.get("measurement_source_value"),
+        "measurement_source_concept_id": int(
+            record_data.get("measurement_source_concept_id")
+        )
+        if record_data.get("measurement_source_concept_id")
+        else None,
+        "unit_source_value": record_data.get("unit_source_value"),
+        "unit_source_concept_id": int(record_data.get("unit_source_concept_id"))
+        if record_data.get("unit_source_concept_id")
+        else None,
+        "value_source_value": record_data.get("value_source_value"),
+        "measurement_event_id": int(record_data.get("measurement_event_id"))
+        if record_data.get("measurement_event_id")
+        else None,
+        "meas_event_field_concept_id": int(
+            record_data.get("meas_event_field_concept_id")
+        )
+        if record_data.get("meas_event_field_concept_id")
+        else None,
     }
 
     result = await session.execute(insert_sql, measurement_params)
@@ -534,10 +695,11 @@ async def create_measurement(
         "unit_source_concept_id": row.unit_source_concept_id,
         "value_source_value": row.value_source_value,
         "measurement_event_id": row.measurement_event_id,
-        "meas_event_field_concept_id": row.meas_event_field_concept_id
+        "meas_event_field_concept_id": row.meas_event_field_concept_id,
     }
 
     return measurement_dict
+
 
 async def create_specimen(
     session: AsyncSession,
@@ -547,29 +709,34 @@ async def create_specimen(
     Inserts a new specimen record into the database.
     """
     # Handle specimen_datetime conversion
-    if 'specimen_datetime' in record_data and record_data['specimen_datetime'] is not None:
-        if isinstance(record_data['specimen_datetime'], str):
+    if (
+        "specimen_datetime" in record_data
+        and record_data["specimen_datetime"] is not None
+    ):
+        if isinstance(record_data["specimen_datetime"], str):
             try:
-                record_data['specimen_datetime'] = datetime.fromisoformat(
-                    record_data['specimen_datetime'].replace('Z', '+00:00')
+                record_data["specimen_datetime"] = datetime.fromisoformat(
+                    record_data["specimen_datetime"].replace("Z", "+00:00")
                 )
             except ValueError:
                 raise ProblemException(
                     status=400,
                     title="Bad Request",
-                    detail=f"Invalid datetime format: {record_data['specimen_datetime']}. Expected ISO 8601 format."
+                    detail=f"Invalid datetime format: {record_data['specimen_datetime']}. Expected ISO 8601 format.",
                 )
 
     # Handle specimen_date conversion
-    if 'specimen_date' in record_data and record_data['specimen_date'] is not None:
-        if isinstance(record_data['specimen_date'], str):
+    if "specimen_date" in record_data and record_data["specimen_date"] is not None:
+        if isinstance(record_data["specimen_date"], str):
             try:
-                record_data['specimen_date'] = date.fromisoformat(record_data['specimen_date'])
+                record_data["specimen_date"] = date.fromisoformat(
+                    record_data["specimen_date"]
+                )
             except ValueError:
                 raise ProblemException(
                     status=400,
                     title="Bad Request",
-                    detail=f"Invalid datetime format: {record_data['specimen_date']}. Expected ISO 8601 format."
+                    detail=f"Invalid datetime format: {record_data['specimen_date']}. Expected ISO 8601 format.",
                 )
 
     insert_sql = text(f"""
@@ -590,20 +757,32 @@ async def create_specimen(
     """)
 
     specimen_params = {
-        "person_id": int(record_data.get('person_id')) if record_data.get('person_id') else None,
-        "specimen_concept_id": int(record_data.get('specimen_concept_id')) if record_data.get('specimen_concept_id') else None,
-        "specimen_type_concept_id": int(record_data.get('specimen_type_concept_id')) if record_data.get('specimen_type_concept_id') else None,
-        "specimen_date": record_data.get('specimen_date'),
-        "specimen_datetime": record_data.get('specimen_datetime'),
-        "quantity": record_data.get('quantity'),
-        "unit_concept_id": int(record_data.get('unit_concept_id')) if record_data.get('unit_concept_id') else None,
-        "anatomic_site_concept_id": int(record_data.get('anatomic_site_concept_id')) if record_data.get('anatomic_site_concept_id') else None,
-        "disease_status_concept_id": int(record_data.get('disease_status_concept_id')) if record_data.get('disease_status_concept_id') else None,
-        "specimen_source_id": record_data.get('specimen_source_id'),
-        "specimen_source_value": record_data.get('specimen_source_value'),
-        "unit_source_value": record_data.get('unit_source_value'),
-        "anatomic_site_source_value": record_data.get('anatomic_site_source_value'),
-        "disease_status_source_value": record_data.get('disease_status_source_value')
+        "person_id": int(record_data.get("person_id"))
+        if record_data.get("person_id")
+        else None,
+        "specimen_concept_id": int(record_data.get("specimen_concept_id"))
+        if record_data.get("specimen_concept_id")
+        else None,
+        "specimen_type_concept_id": int(record_data.get("specimen_type_concept_id"))
+        if record_data.get("specimen_type_concept_id")
+        else None,
+        "specimen_date": record_data.get("specimen_date"),
+        "specimen_datetime": record_data.get("specimen_datetime"),
+        "quantity": record_data.get("quantity"),
+        "unit_concept_id": int(record_data.get("unit_concept_id"))
+        if record_data.get("unit_concept_id")
+        else None,
+        "anatomic_site_concept_id": int(record_data.get("anatomic_site_concept_id"))
+        if record_data.get("anatomic_site_concept_id")
+        else None,
+        "disease_status_concept_id": int(record_data.get("disease_status_concept_id"))
+        if record_data.get("disease_status_concept_id")
+        else None,
+        "specimen_source_id": record_data.get("specimen_source_id"),
+        "specimen_source_value": record_data.get("specimen_source_value"),
+        "unit_source_value": record_data.get("unit_source_value"),
+        "anatomic_site_source_value": record_data.get("anatomic_site_source_value"),
+        "disease_status_source_value": record_data.get("disease_status_source_value"),
     }
 
     result = await session.execute(insert_sql, specimen_params)
@@ -625,10 +804,11 @@ async def create_specimen(
         "specimen_source_value": row.specimen_source_value,
         "unit_source_value": row.unit_source_value,
         "anatomic_site_source_value": row.anatomic_site_source_value,
-        "disease_status_source_value": row.disease_status_source_value
+        "disease_status_source_value": row.disease_status_source_value,
     }
 
     return specimen_dict
+
 
 async def create_procedure_occurrence(
     session: AsyncSession,
@@ -638,26 +818,36 @@ async def create_procedure_occurrence(
     Inserts a new procedure_occurrence record into the database.
     """
     # Handle datetime conversions from ISO format string to datetime object
-    for field in ['procedure_datetime', 'procedure_end_datetime']:
-        if field in record_data and record_data[field] is not None and isinstance(record_data[field], str):
+    for field in ["procedure_datetime", "procedure_end_datetime"]:
+        if (
+            field in record_data
+            and record_data[field] is not None
+            and isinstance(record_data[field], str)
+        ):
             try:
-                record_data[field] = datetime.fromisoformat(record_data[field].replace('Z', '+00:00'))
+                record_data[field] = datetime.fromisoformat(
+                    record_data[field].replace("Z", "+00:00")
+                )
             except ValueError:
                 raise ProblemException(
                     status=400,
                     title="Bad Request",
-                    detail=f"Invalid datetime format: {record_data[field]}. Expected ISO 8601 format."
+                    detail=f"Invalid datetime format: {record_data[field]}. Expected ISO 8601 format.",
                 )
     # Handle date conversions from ISO format string to date object
-    for field in ['procedure_date', 'procedure_end_date']:
-        if field in record_data and record_data[field] is not None and isinstance(record_data[field], str):
+    for field in ["procedure_date", "procedure_end_date"]:
+        if (
+            field in record_data
+            and record_data[field] is not None
+            and isinstance(record_data[field], str)
+        ):
             try:
                 record_data[field] = date.fromisoformat(record_data[field])
             except ValueError:
                 raise ProblemException(
                     status=400,
                     title="Bad Request",
-                    detail=f"Invalid datetime format: {record_data[field]}. Expected ISO 8601 format."
+                    detail=f"Invalid datetime format: {record_data[field]}. Expected ISO 8601 format.",
                 )
 
     insert_sql = text(f"""
@@ -682,21 +872,41 @@ async def create_procedure_occurrence(
 
     # Prepare parameters with values from record_data, ensuring type consistency
     procedure_params = {
-        "person_id": int(record_data.get('person_id')) if record_data.get('person_id') else None,
-        "procedure_concept_id": int(record_data.get('procedure_concept_id')) if record_data.get('procedure_concept_id') else None,
-        "procedure_date": record_data.get('procedure_date'),
-        "procedure_datetime": record_data.get('procedure_datetime'),
-        "procedure_end_date": record_data.get('procedure_end_date'),
-        "procedure_end_datetime": record_data.get('procedure_end_datetime'),
-        "procedure_type_concept_id": int(record_data.get('procedure_type_concept_id')) if record_data.get('procedure_type_concept_id') else None,
-        "modifier_concept_id": int(record_data.get('modifier_concept_id')) if record_data.get('modifier_concept_id') else None,
-        "quantity": int(record_data.get('quantity')) if record_data.get('quantity') is not None else None,
-        "provider_id": int(record_data.get('provider_id')) if record_data.get('provider_id') else None,
-        "visit_occurrence_id": int(record_data.get('visit_occurrence_id')) if record_data.get('visit_occurrence_id') else None,
-        "visit_detail_id": int(record_data.get('visit_detail_id')) if record_data.get('visit_detail_id') else None,
-        "procedure_source_value": record_data.get('procedure_source_value'),
-        "procedure_source_concept_id": int(record_data.get('procedure_source_concept_id')) if record_data.get('procedure_source_concept_id') else None,
-        "modifier_source_value": record_data.get('modifier_source_value')
+        "person_id": int(record_data.get("person_id"))
+        if record_data.get("person_id")
+        else None,
+        "procedure_concept_id": int(record_data.get("procedure_concept_id"))
+        if record_data.get("procedure_concept_id")
+        else None,
+        "procedure_date": record_data.get("procedure_date"),
+        "procedure_datetime": record_data.get("procedure_datetime"),
+        "procedure_end_date": record_data.get("procedure_end_date"),
+        "procedure_end_datetime": record_data.get("procedure_end_datetime"),
+        "procedure_type_concept_id": int(record_data.get("procedure_type_concept_id"))
+        if record_data.get("procedure_type_concept_id")
+        else None,
+        "modifier_concept_id": int(record_data.get("modifier_concept_id"))
+        if record_data.get("modifier_concept_id")
+        else None,
+        "quantity": int(record_data.get("quantity"))
+        if record_data.get("quantity") is not None
+        else None,
+        "provider_id": int(record_data.get("provider_id"))
+        if record_data.get("provider_id")
+        else None,
+        "visit_occurrence_id": int(record_data.get("visit_occurrence_id"))
+        if record_data.get("visit_occurrence_id")
+        else None,
+        "visit_detail_id": int(record_data.get("visit_detail_id"))
+        if record_data.get("visit_detail_id")
+        else None,
+        "procedure_source_value": record_data.get("procedure_source_value"),
+        "procedure_source_concept_id": int(
+            record_data.get("procedure_source_concept_id")
+        )
+        if record_data.get("procedure_source_concept_id")
+        else None,
+        "modifier_source_value": record_data.get("modifier_source_value"),
     }
 
     # Execute sql
@@ -720,10 +930,11 @@ async def create_procedure_occurrence(
         "visit_detail_id": row.visit_detail_id,
         "procedure_source_value": row.procedure_source_value,
         "procedure_source_concept_id": row.procedure_source_concept_id,
-        "modifier_source_value": row.modifier_source_value
+        "modifier_source_value": row.modifier_source_value,
     }
 
     return procedure_occurrence_dict
+
 
 async def create_drug_exposure(
     session: AsyncSession,
@@ -733,27 +944,41 @@ async def create_drug_exposure(
     Inserts a new drug_exposure record into the database.
     """
     # Handle datetime conversions from ISO format string to datetime object
-    for field in ['drug_exposure_start_datetime', 'drug_exposure_end_datetime']:
-        if field in record_data and record_data[field] is not None and isinstance(record_data[field], str):
+    for field in ["drug_exposure_start_datetime", "drug_exposure_end_datetime"]:
+        if (
+            field in record_data
+            and record_data[field] is not None
+            and isinstance(record_data[field], str)
+        ):
             try:
-                record_data[field] = datetime.fromisoformat(record_data[field].replace('Z', '+00:00'))
+                record_data[field] = datetime.fromisoformat(
+                    record_data[field].replace("Z", "+00:00")
+                )
             except ValueError:
                 raise ProblemException(
                     status=400,
                     title="Bad Request",
-                    detail=f"Invalid datetime format: {record_data[field]}. Expected ISO 8601 format."
+                    detail=f"Invalid datetime format: {record_data[field]}. Expected ISO 8601 format.",
                 )
 
     # Handle date conversions from ISO format string to date object
-    for field in ['drug_exposure_start_date', 'drug_exposure_end_date', 'verbatim_end_date']:
-        if field in record_data and record_data[field] is not None and isinstance(record_data[field], str):
+    for field in [
+        "drug_exposure_start_date",
+        "drug_exposure_end_date",
+        "verbatim_end_date",
+    ]:
+        if (
+            field in record_data
+            and record_data[field] is not None
+            and isinstance(record_data[field], str)
+        ):
             try:
                 record_data[field] = date.fromisoformat(record_data[field])
             except ValueError:
                 raise ProblemException(
                     status=400,
                     title="Bad Request",
-                    detail=f"Invalid datetime format: {record_data[field]}. Expected ISO 8601 format."
+                    detail=f"Invalid datetime format: {record_data[field]}. Expected ISO 8601 format.",
                 )
 
     insert_sql = text(f"""
@@ -778,28 +1003,48 @@ async def create_drug_exposure(
 
     # Prepare parameters with values from record_data, ensuring type consistency
     drug_exposure_params = {
-        "person_id": int(record_data.get('person_id')) if record_data.get('person_id') else None,
-        "drug_concept_id": int(record_data.get('drug_concept_id')) if record_data.get('drug_concept_id') else None,
-        "drug_exposure_start_date": record_data.get('drug_exposure_start_date'),
-        "drug_exposure_start_datetime": record_data.get('drug_exposure_start_datetime'),
-        "drug_exposure_end_date": record_data.get('drug_exposure_end_date'),
-        "drug_exposure_end_datetime": record_data.get('drug_exposure_end_datetime'),
-        "verbatim_end_date": record_data.get('verbatim_end_date'),
-        "drug_type_concept_id": int(record_data.get('drug_type_concept_id')) if record_data.get('drug_type_concept_id') else None,
-        "stop_reason": record_data.get('stop_reason'),
-        "refills": int(record_data.get('refills')) if record_data.get('refills') is not None else None,
-        "quantity": record_data.get('quantity'), # NUMERIC type
-        "days_supply": int(record_data.get('days_supply')) if record_data.get('days_supply') is not None else None,
-        "sig": record_data.get('sig'),
-        "route_concept_id": int(record_data.get('route_concept_id')) if record_data.get('route_concept_id') else None,
-        "lot_number": record_data.get('lot_number'),
-        "provider_id": int(record_data.get('provider_id')) if record_data.get('provider_id') else None,
-        "visit_occurrence_id": int(record_data.get('visit_occurrence_id')) if record_data.get('visit_occurrence_id') else None,
-        "visit_detail_id": int(record_data.get('visit_detail_id')) if record_data.get('visit_detail_id') else None,
-        "drug_source_value": record_data.get('drug_source_value'),
-        "drug_source_concept_id": int(record_data.get('drug_source_concept_id')) if record_data.get('drug_source_concept_id') else None,
-        "route_source_value": record_data.get('route_source_value'),
-        "dose_unit_source_value": record_data.get('dose_unit_source_value')
+        "person_id": int(record_data.get("person_id"))
+        if record_data.get("person_id")
+        else None,
+        "drug_concept_id": int(record_data.get("drug_concept_id"))
+        if record_data.get("drug_concept_id")
+        else None,
+        "drug_exposure_start_date": record_data.get("drug_exposure_start_date"),
+        "drug_exposure_start_datetime": record_data.get("drug_exposure_start_datetime"),
+        "drug_exposure_end_date": record_data.get("drug_exposure_end_date"),
+        "drug_exposure_end_datetime": record_data.get("drug_exposure_end_datetime"),
+        "verbatim_end_date": record_data.get("verbatim_end_date"),
+        "drug_type_concept_id": int(record_data.get("drug_type_concept_id"))
+        if record_data.get("drug_type_concept_id")
+        else None,
+        "stop_reason": record_data.get("stop_reason"),
+        "refills": int(record_data.get("refills"))
+        if record_data.get("refills") is not None
+        else None,
+        "quantity": record_data.get("quantity"),  # NUMERIC type
+        "days_supply": int(record_data.get("days_supply"))
+        if record_data.get("days_supply") is not None
+        else None,
+        "sig": record_data.get("sig"),
+        "route_concept_id": int(record_data.get("route_concept_id"))
+        if record_data.get("route_concept_id")
+        else None,
+        "lot_number": record_data.get("lot_number"),
+        "provider_id": int(record_data.get("provider_id"))
+        if record_data.get("provider_id")
+        else None,
+        "visit_occurrence_id": int(record_data.get("visit_occurrence_id"))
+        if record_data.get("visit_occurrence_id")
+        else None,
+        "visit_detail_id": int(record_data.get("visit_detail_id"))
+        if record_data.get("visit_detail_id")
+        else None,
+        "drug_source_value": record_data.get("drug_source_value"),
+        "drug_source_concept_id": int(record_data.get("drug_source_concept_id"))
+        if record_data.get("drug_source_concept_id")
+        else None,
+        "route_source_value": record_data.get("route_source_value"),
+        "dose_unit_source_value": record_data.get("dose_unit_source_value"),
     }
 
     # Execute sql
@@ -830,10 +1075,11 @@ async def create_drug_exposure(
         "drug_source_value": row.drug_source_value,
         "drug_source_concept_id": row.drug_source_concept_id,
         "route_source_value": row.route_source_value,
-        "dose_unit_source_value": row.dose_unit_source_value
+        "dose_unit_source_value": row.dose_unit_source_value,
     }
 
     return drug_exposure_dict
+
 
 async def create_fact_relationship(
     session: AsyncSession,
@@ -851,11 +1097,11 @@ async def create_fact_relationship(
     """)
 
     fact_relationship_params = {
-        "domain_concept_id_1": int(record_data.get('domain_concept_id_1')),
-        "fact_id_1": int(record_data.get('fact_id_1')),
-        "domain_concept_id_2": int(record_data.get('domain_concept_id_2')),
-        "fact_id_2": int(record_data.get('fact_id_2')),
-        "relationship_concept_id": int(record_data.get('relationship_concept_id'))
+        "domain_concept_id_1": int(record_data.get("domain_concept_id_1")),
+        "fact_id_1": int(record_data.get("fact_id_1")),
+        "domain_concept_id_2": int(record_data.get("domain_concept_id_2")),
+        "fact_id_2": int(record_data.get("fact_id_2")),
+        "relationship_concept_id": int(record_data.get("relationship_concept_id")),
     }
 
     result = await session.execute(insert_sql, fact_relationship_params)
@@ -867,10 +1113,11 @@ async def create_fact_relationship(
         "fact_id_1": row.fact_id_1,
         "domain_concept_id_2": row.domain_concept_id_2,
         "fact_id_2": row.fact_id_2,
-        "relationship_concept_id": row.relationship_concept_id
+        "relationship_concept_id": row.relationship_concept_id,
     }
 
     return fact_relationship_dict
+
 
 async def create_death(
     session: AsyncSession,
@@ -880,29 +1127,31 @@ async def create_death(
     Inserts a new death record into the database.
     """
     # Handle death_datetime conversion
-    if 'death_datetime' in record_data and record_data['death_datetime'] is not None:
-        if isinstance(record_data['death_datetime'], str):
+    if "death_datetime" in record_data and record_data["death_datetime"] is not None:
+        if isinstance(record_data["death_datetime"], str):
             try:
-                record_data['death_datetime'] = datetime.fromisoformat(
-                    record_data['death_datetime'].replace('Z', '+00:00')
+                record_data["death_datetime"] = datetime.fromisoformat(
+                    record_data["death_datetime"].replace("Z", "+00:00")
                 )
             except ValueError:
                 raise ProblemException(
                     status=400,
                     title="Bad Request",
-                    detail=f"Invalid datetime format: {record_data['date_datetime']}. Expected ISO 8601 format."
+                    detail=f"Invalid datetime format: {record_data['date_datetime']}. Expected ISO 8601 format.",
                 )
 
     # Handle death_date conversion
-    if 'death_date' in record_data and record_data['death_date'] is not None:
-        if isinstance(record_data['death_date'], str):
+    if "death_date" in record_data and record_data["death_date"] is not None:
+        if isinstance(record_data["death_date"], str):
             try:
-                record_data['death_date'] = date.fromisoformat(record_data['death_date'])
+                record_data["death_date"] = date.fromisoformat(
+                    record_data["death_date"]
+                )
             except ValueError:
                 raise ProblemException(
                     status=400,
                     title="Bad Request",
-                    detail=f"Invalid datetime format: {record_data['death_date']}. Expected ISO 8601 format."
+                    detail=f"Invalid datetime format: {record_data['death_date']}. Expected ISO 8601 format.",
                 )
 
     insert_sql = text(f"""
@@ -917,13 +1166,23 @@ async def create_death(
     """)
 
     death_params = {
-        "person_id": int(record_data.get('person_id')),
-        "death_date": record_data.get('death_date'),
-        "death_datetime": record_data.get('death_datetime') if record_data.get('death_datetime') else None,
-        "death_type_concept_id": int(record_data.get('death_type_concept_id')) if record_data.get('death_type_concept_id') else None,
-        "cause_concept_id": int(record_data.get('cause_concept_id')) if record_data.get('cause_concept_id') else None,
-        "cause_source_value": record_data.get('cause_source_value') if record_data.get('cause_source_value') else None,
-        "cause_source_concept_id": int(record_data.get('cause_source_concept_id')) if record_data.get('cause_source_concept_id') else None
+        "person_id": int(record_data.get("person_id")),
+        "death_date": record_data.get("death_date"),
+        "death_datetime": record_data.get("death_datetime")
+        if record_data.get("death_datetime")
+        else None,
+        "death_type_concept_id": int(record_data.get("death_type_concept_id"))
+        if record_data.get("death_type_concept_id")
+        else None,
+        "cause_concept_id": int(record_data.get("cause_concept_id"))
+        if record_data.get("cause_concept_id")
+        else None,
+        "cause_source_value": record_data.get("cause_source_value")
+        if record_data.get("cause_source_value")
+        else None,
+        "cause_source_concept_id": int(record_data.get("cause_source_concept_id"))
+        if record_data.get("cause_source_concept_id")
+        else None,
     }
 
     result = await session.execute(insert_sql, death_params)
@@ -937,10 +1196,11 @@ async def create_death(
         "death_type_concept_id": row.death_type_concept_id,
         "cause_concept_id": row.cause_concept_id,
         "cause_source_value": row.cause_source_value,
-        "cause_source_concept_id": row.cause_source_concept_id
+        "cause_source_concept_id": row.cause_source_concept_id,
     }
 
     return death_dict
+
 
 async def create_dataset(
     session: AsyncSession,
@@ -956,21 +1216,18 @@ async def create_dataset(
                 """)
 
     dataset_params = {
-        "source_value": record_data.get('source_value'),
-        "info": record_data.get('info') if record_data.get('info') else None,
+        "source_value": record_data.get("source_value"),
+        "info": record_data.get("info") if record_data.get("info") else None,
     }
 
     result = await session.execute(insert_sql, dataset_params)
     row = result.fetchone()
 
     # Convert row to dictionary
-    dataset_dict = {
-        "id": row.id,
-        "source_value": row.source_value,
-        "info": row.info
-    }
+    dataset_dict = {"id": row.id, "source_value": row.source_value, "info": row.info}
 
     return dataset_dict
+
 
 async def create_person_in_dataset(
     session: AsyncSession,
@@ -986,17 +1243,14 @@ async def create_person_in_dataset(
                 """)
 
     dataset_params = {
-        "dataset_id": record_data.get('dataset_id'),
-        "person_id": record_data.get('person_id'),
+        "dataset_id": record_data.get("dataset_id"),
+        "person_id": record_data.get("person_id"),
     }
 
     result = await session.execute(insert_sql, dataset_params)
     row = result.fetchone()
 
     # Convert row to dictionary
-    result_dict = {
-        "dataset_id": row.dataset_id,
-        "person_id": row.person_id
-    }
+    result_dict = {"dataset_id": row.dataset_id, "person_id": row.person_id}
 
     return result_dict

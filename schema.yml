@@ -187,7 +187,7 @@ paths:
       summary: Delete a dataset corresponding to the given ID
       description: |
         Delete a dataset at the given ID.
-      operationId: dataset_operations.delete_by_id
+      operationId: dataset_operations.delete_cascade
       parameters:
         - in: path
           name: id
