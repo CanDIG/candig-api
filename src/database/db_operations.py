@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
 )
 from ..config import settings
+from typing import AsyncGenerator
 
 async_engine = create_async_engine(
     settings.DATABASE_URI.replace("postgresql://", "postgresql+asyncpg://"),
@@ -21,7 +22,7 @@ async_session_factory = async_sessionmaker(
 )
 
 
-async def get_db_session() -> AsyncSession:
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     For ORM usage: provides a SQLAlchemy AsyncSession.
     Manages commit/rollback and closing.
