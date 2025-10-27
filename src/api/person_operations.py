@@ -285,6 +285,13 @@ async def create(dataset_id: int, body: dict):
 
             result = await session.execute(insert_person_sql, person_params)
             row = result.fetchone()
+            if row is None:
+                raise ProblemException(
+                    status=404,
+                    title="Not Found",
+                    detail=f"Person with id {id} not found in dataset {dataset_id}.",
+                )
+            
             person_id = row.person_id  # Get the person_id for linking to dataset
 
             # Link person to dataset
@@ -463,6 +470,12 @@ async def put(dataset_id: int, id: int, body: dict):
             # Update person
             result = await session.execute(update_person_sql, person_params)
             row = result.fetchone()
+            if row is None:
+                raise ProblemException(
+                    status=500,
+                    title="Database Error",
+                    detail=f"Failed to update person with id {id}.",
+                )
 
             await session.commit()
 
@@ -660,6 +673,12 @@ async def patch_user(dataset_id: str, id: str, body: dict):
                 get_current_sql, {"person_id": int(id)}
             )
             current_person = current_result.fetchone()
+            if current_person is None:
+                raise ProblemException(
+                    status=404,
+                    title="Not Found",
+                    detail=f"Person with id {id} not found.",
+                )
 
             # Prepare parameters for person update using current values as defaults
             person_params = {
@@ -713,6 +732,12 @@ async def patch_user(dataset_id: str, id: str, body: dict):
             # Update person and get the updated row
             result = await session.execute(update_person_sql, person_params)
             row = result.fetchone()
+            if row is None:
+                raise ProblemException(
+                    status=500,
+                    title="Database Error",
+                    detail=f"Failed to update person with id {id}.",
+                )
 
             await session.commit()
 

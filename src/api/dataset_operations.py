@@ -129,7 +129,7 @@ async def create(body: dict):
 
                     # Get the auto-generated person_id from the db
                     result = await session.execute(insert_person_sql, person_params)
-                    person_id = result.fetchone()[0]
+                    person_id = result.scalar_one()
 
                     # Link person to dataset
                     insert_person_dataset_sql = text(f"""
@@ -426,7 +426,7 @@ async def put_by_id(id: int, body: dict):
 
                         # Get the auto-generated person_id from the db
                         result = await session.execute(insert_person_sql, person_params)
-                        new_person_id = result.fetchone()[0]
+                        new_person_id = result.scalar_one()
                         provided_person_ids.add(new_person_id)
 
                         # Link new person to dataset
@@ -850,6 +850,7 @@ async def insert_from_moh(body: dict):
                     if new_dataset_id is None:
                         await raise_bad_request("dataset")
 
+                    new_person_id = None 
                     for field in items:
                         if field.get("omop_table") == "person" and not field.get(
                             "skip_errors"

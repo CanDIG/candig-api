@@ -113,7 +113,7 @@ class IdMapper:
         key = self.create_key(id_obj)
         self.id_map[key] = actual_id
 
-    def get_id(self, id_obj: dict) -> int:
+    def get_id(self, id_obj: dict) -> int | None:
         """Retrieve the actual database ID for an id_map object."""
         key = self.create_key(id_obj)
         return self.id_map.get(key)

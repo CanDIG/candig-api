@@ -10,8 +10,9 @@ Tables added:
 
 """
 
-from sqlalchemy import Column, Integer, String, JSON, ForeignKey, PrimaryKeyConstraint
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import Integer, String, JSON, ForeignKey, PrimaryKeyConstraint
+from sqlalchemy.orm import declarative_base, relationship, Mapped, mapped_column
+from typing import Dict, Any, Optional
 from ..config import settings
 
 Base = declarative_base()
@@ -21,9 +22,9 @@ class Dataset(Base):
     __tablename__ = "dataset"
     __table_args__ = {"schema": settings.CANDIG_SCHEMA}
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    source_value = Column(String(128), unique=True, nullable=False)
-    info = Column(JSON, nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    source_value: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    info: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True, default={})
 
     person_mappings = relationship(
         "PersonInDataset", back_populates="dataset", cascade="all, delete-orphan"
@@ -33,12 +34,12 @@ class Dataset(Base):
 class PersonInDataset(Base):
     __tablename__ = "person_in_dataset"
 
-    dataset_id = Column(
+    dataset_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(f"{settings.CANDIG_SCHEMA}.dataset.id", ondelete="CASCADE"),
         nullable=False,
     )
-    person_id = Column(Integer, unique=True, nullable=False)
+    person_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
 
     __table_args__ = (
         PrimaryKeyConstraint("dataset_id", "person_id"),
