@@ -1,10 +1,7 @@
 import logging
 
-from aiohttp.http import SERVER_SOFTWARE
-from aiohttp.web import StreamResponse
-
-from beacon import conf
-from beacon.utils.json import json_iterencode
+from ...beacon import conf
+from ...beacon.utils.json import json_iterencode
 
 LOG = logging.getLogger(__name__)
 
@@ -25,7 +22,7 @@ async def json_stream(request, data, partial=False):
     LOG.debug('HTTP response stream')
     headers = {
         'Content-Type': 'application/json;charset=utf-8',
-        'Server': f'{conf.beacon_name} {conf.version} (based on {SERVER_SOFTWARE})'
+        'Server': f'{conf.beacon_name} {conf.version} (based on Connexion)'
     }
     LOG.debug('Partial content: %s', partial)
     response = StreamResponse(headers=headers, status=206 if partial else 200)

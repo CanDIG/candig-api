@@ -1,9 +1,9 @@
 from typing import Optional
 
-from beacon import conf
-from beacon.omop.schemas import DefaultSchemas
-from beacon.request import RequestParams
-from beacon.request.model import Granularity
+from ...beacon import conf
+from ...beacon.omop.schemas import DefaultSchemas
+from ...beacon.request import RequestParams
+from ...beacon.request.model import Granularity
 
 
 def build_meta(qparams: RequestParams, entity_schema: Optional[DefaultSchemas], returned_granularity: Granularity):

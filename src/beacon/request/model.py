@@ -1,18 +1,18 @@
 import logging
 from typing_extensions import Self
 from pydantic import BaseModel
-from strenum import StrEnum
+from enum import StrEnum
 from typing import List, Optional, Union
-from beacon import conf
-from humps.main import camelize
-from aiohttp.web_request import Request
+from ...beacon import conf
+#from humps import camelize
+#from aiohttp.web_request import Request
 
 LOG = logging.getLogger(__name__)
 
 
 class CamelModel(BaseModel):
     class Config:
-        alias_generator = camelize
+        #alias_generator = camelize
         allow_population_by_field_name = True
 
 
@@ -85,7 +85,8 @@ class RequestParams(CamelModel):
     meta: RequestMeta = RequestMeta()
     query: RequestQuery = RequestQuery()
 
-    def from_request(self, request: Request) -> Self:
+    #def from_request(self, request: Request) -> Self:
+    def from_request(self, request) -> Self:
         if request.method != "POST" or not request.has_body or not request.can_read_body:
             for k, v in request.query.items():
                 if k == "requestedSchema":

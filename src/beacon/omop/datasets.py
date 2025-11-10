@@ -1,9 +1,9 @@
 from typing import Optional
-from beacon.omop.filters import apply_filters
-from beacon.omop.schemas import DefaultSchemas
-from beacon.omop.utils import query_id, get_count, get_documents, get_cross_query
-from beacon.request.model import RequestParams
-from beacon.omop import client
+from ...beacon.omop.filters import apply_filters
+from ...beacon.omop.schemas import DefaultSchemas
+from ...beacon.omop.utils import query_id, get_count, get_documents, get_cross_query
+from ...beacon.request.model import RequestParams
+from ...beacon.omop import client
 
 import logging
 

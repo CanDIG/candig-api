@@ -3,7 +3,7 @@ info:
   title: CanDIG-API
   version: 0.1.0
 servers:
-  - url: /v3
+  - url: /v1/beacon
 security:
   - {}
 paths:
@@ -72,7 +72,7 @@ paths:
       - $ref: '#/components/parameters/requestedSchema'
     get:
       description: Get information about the beacon
-      operationId: getBeaconInfoRoot
+      operationId: beacon_operations.get_beacon_info_root
       tags:
         - Informational endpoints
       responses:
@@ -87,7 +87,7 @@ paths:
   /datasets/configuration:
     get:
       description: Returns some configuration aspects and the definition of the entry types (e.g. genomic variants, biosamples, cohorts, individuals and runs) implemented in this specific Beacon server or instance.
-      operationId: getBeaconConfiguration
+      operationId: beacon_operations.get_beacon_configuration
       tags:
         - Informational endpoints
       responses:
@@ -107,7 +107,7 @@ paths:
   /datasets/map:
     get:
       description: Returns a map (like a web sitemap) of the different endpoints implemented in this Beacon instance.
-      operationId: getBeaconMap
+      operationId: beacon_operations.get_beacon_map
       tags:
         - Informational endpoints
       parameters: []
@@ -128,7 +128,7 @@ paths:
   /datasets/entry_types:
     get:
       description: Return the section of the configuration that describes the entry types in this Beacon.
-      operationId: getEntryTypes
+      operationId: beacon_operations.get_entry_types
       tags:
         - Informational endpoints
       parameters: []
@@ -188,7 +188,7 @@ components:
       content:
         application/json:
           schema:
-            oneOf:
+            anyOf:
               - $ref: '#/components/schemas/BeaconBooleanResponse'
               - $ref: '#/components/schemas/BeaconCountResponse'
               - $ref: '#/components/schemas/BeaconResultsetsResponse'
@@ -763,6 +763,22 @@ components:
       properties:
         exists:
           $ref: '#/components/schemas/Exists'
+    BeaconCountResponseSection:
+      description: >-
+        Payload definition for the "count" response.
+      type: object
+      properties:
+        countAdjustedTo:
+          $ref: '#/components/schemas/CountAdjustedTo'
+        countPrecision:
+          $ref: '#/components/schemas/CountPrecision'
+        exists:
+          $ref: '#/components/schemas/Exists'
+        numTotalResults:
+          $ref: '#/components/schemas/NumTotalResults'
+      required:
+        - exists
+        - numTotalResults
     BeaconCountResponse:
       description: >-
         Complete definition for a minimal response that provides an aggregate Boolean
@@ -781,7 +797,7 @@ components:
         responseSummary:
           description: >-
             Response summary, including Boolean and optionally results count.
-            $ref: '#/components/schemas/beaconCountResponseSection'
+          $ref: '#/components/schemas/BeaconCountResponseSection'
         info:
           description: >-
             Additional details that could be of interest. Provided to clearly

@@ -4,12 +4,12 @@ Beacon Framework Configuration Endpoints.
 
 # import logging
 
-from beacon import conf
+from ...beacon import conf
 
 # LOG = logging.getLogger(__name__)
-from beacon.omop.schemas import DefaultSchemas
+from ...beacon.omop.schemas import DefaultSchemas
 
-from beacon.utils.stream import json_stream
+from ...beacon.utils.stream import json_stream
 
 
 def get_entry_types():

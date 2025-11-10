@@ -3,21 +3,16 @@ import logging
 from dataclasses import is_dataclass
 from decimal import Decimal
 from json.encoder import py_encode_basestring_ascii
-from bson.objectid import ObjectId
-
-from asyncpg import Record
 
 from json import loads as parse_json
-
-from pymongo.cursor import Cursor
 
 LOG = logging.getLogger(__name__)
 
 _INFINITY = float('inf')
 
-
-def is_cursor(o):
-    return isinstance(o, Cursor)
+# What is this for?
+#def is_cursor(o):
+#    return isinstance(o, Cursor)
 
 
 def is_list(o):
@@ -27,7 +22,7 @@ def is_list(o):
 
 
 def is_dict(o):
-    return isinstance(o, (dict, Record))
+    return isinstance(o, dict)
 
 
 def is_asyncgen(o):
@@ -83,8 +78,6 @@ def _atom(o):
             return float.__repr__(o)
     elif isinstance(o, Decimal):
         return str(o)  # keeps the decimals, float would truncate them
-    elif isinstance(o, ObjectId):
-        return py_encode_basestring_ascii(str(o))
     # not a common type
     return None
 
@@ -101,9 +94,6 @@ async def _compound(o, circulars):
             yield i
     elif is_dataclass(o):
         async for i in _iterencode_dataclass(o, circulars):
-            yield i
-    elif is_cursor(o):
-        async for i in _iterencode_cursor(o, circulars):
             yield i
     else:
         raise TypeError(f'Unsupported type: {o.__class__.__name__}')

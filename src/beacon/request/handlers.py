@@ -1,27 +1,28 @@
 
 import json
 import logging
-from aiohttp import web
-from aiohttp.web_request import Request
-from bson import json_util
-from beacon import conf
+#from aiohttp import web
+#from aiohttp.web_request import Request
+#from bson import json_util
+from ...beacon import conf
 
-from beacon.request import ontologies
-from beacon.request.model import Granularity, RequestParams
-from beacon.response.build_response import (
+from ...beacon.request import ontologies
+from ...beacon.request.model import Granularity, RequestParams
+from ...beacon.response.build_response import (
     build_beacon_resultset_response,
     build_beacon_collection_response,
     build_beacon_boolean_response,
     build_beacon_count_response,
     build_filtering_terms_response,
 )
-from beacon.utils.stream import json_stream
+from ...beacon.utils.stream import json_stream
 
 LOG = logging.getLogger(__name__)
 
 
 def collection_handler(db_fn, request=None):
-    async def wrapper(request: Request):
+    #async def wrapper(request: Request):
+    async def wrapper(request):
 
         # Get params
         json_body = await request.json() if request.method == "POST" and request.has_body and request.can_read_body else {}
@@ -42,7 +43,8 @@ def collection_handler(db_fn, request=None):
 
 
 def generic_handler(db_fn, request=None):
-    async def wrapper(request: Request):
+    #async def wrapper(request: Request):
+    async def wrapper(request):
         # Get params
         json_body = await request.json() if request.method == "POST" and request.has_body and request.can_read_body else {}
         qparams = RequestParams(**json_body).from_request(request)
@@ -79,7 +81,8 @@ def generic_handler(db_fn, request=None):
 
 
 def filtering_terms_handler(db_fn, request=None):
-    async def wrapper(request: Request):
+    #async def wrapper(request: Request):
+    async def wrapper(request):
         # Get params
         json_body = await request.json() if request.method == "POST" and request.has_body and request.can_read_body else {}
         qparams = RequestParams(**json_body).from_request(request)

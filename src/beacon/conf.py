@@ -1,7 +1,7 @@
 import os
 import importlib.util
 
-config_file_path = os.getenv('BEACON_CONF', default="beacon/confTemplate.py")
+config_file_path = os.getenv('BEACON_CONF', default="src/beacon/confTemplate.py")
 if not config_file_path:
     raise EnvironmentError("CONFIG information set to default")
 
