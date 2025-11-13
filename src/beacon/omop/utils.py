@@ -1,9 +1,9 @@
 from typing import Dict, Optional
 
-from pymongo.cursor import Cursor
-from pymongo.collection import Collection
-from beacon.omop import client
-from beacon.request.model import RequestParams
+#from pymongo.cursor import Cursor
+#from pymongo.collection import Collection
+from ...beacon.omop import engine
+from ...beacon.request.model import RequestParams
 import logging
 import aiosql
 import itertools
@@ -27,7 +27,7 @@ def peek(iterable):
 
 
 def search_ontology(concept_id):
-    records = individual_queries.sql_get_ontology(client,
+    records = individual_queries.sql_get_ontology(engine,
                                                     concept_id=concept_id)
     return records
 
@@ -54,10 +54,9 @@ def search_ontologies(dictValues):
         
         
 def basic_query(query):
-    cur = client.cursor()
-    cur.execute(query)
-    records = cur.fetchall()
-    return records
+    with engine.connect() as conn:
+        records = conn.execute(query)
+        return records
 
 
 def query_id(query: dict, document_id) -> dict:
@@ -75,6 +74,19 @@ def query_property(query: dict, property_id: str, value: str, property_map: Dict
     return query
 
 
+def get_count(database: str, query_params: dict):
+    query_str = f"FROM {database}"
+    if len(query_params) > 1:
+        query_str += " WHERE "
+        first = True
+        for param in query_params:
+            if not first:
+                query_str += " AND "
+            first = False
+            query_str += f" {param} = {query_params[param]} "
+    get_count(query_str)
+
+
 def get_count(query: str) -> int:
     LOG.debug("Returning estimated count")
     queryFinal = "Select count(*) " + query
@@ -83,13 +95,11 @@ def get_count(query: str) -> int:
     return records[0][0]
 
 ## TODO: check format_query() definition
-def get_documents(listVariables: list, query: str, skip: int, limit: int) -> Cursor:
+def get_documents(listVariables: list, query: str, skip: int, limit: int):
     queryFinal = "Select " + ",".join(listVariables) + " " + query 
     LOG.debug("FINAL QUERY: {}".format(queryFinal))
-    with client:
-        cur = client.cursor()
-        cur.execute(queryFinal)
-        records = cur.fetchall()  
+    with engine.connect() as conn:
+        records = conn.execute(queryFinal)
         recordsFinal = format_query(listVariables, records)
         return recordsFinal
 

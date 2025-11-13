@@ -1,11 +1,11 @@
 from typing import Optional
-from beacon.omop import client
-from beacon.omop.filters import apply_filters
-from beacon.omop.utils import query_id, get_documents, get_count
-from beacon.omop.individuals import get_filtering_terms_of_individual
-from beacon.omop.biosamples import get_filtering_terms_of_biosample
+from ...beacon.omop import client
+from ...beacon.omop.filters import apply_filters
+from ...beacon.omop.utils import query_id, get_documents, get_count
+from ...beacon.omop.individuals import get_filtering_terms_of_individual
+from ...beacon.omop.biosamples import get_filtering_terms_of_biosample
 
-from beacon.request.model import RequestParams
+from ...beacon.request.model import RequestParams
 
 
 def get_filtering_terms(entry_id: Optional[str], qparams: RequestParams):

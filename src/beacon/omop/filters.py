@@ -4,8 +4,8 @@ import re
 import dataclasses
 from copy import deepcopy
 
-from beacon.request import ontologies
-from beacon.request.model import AlphanumericFilter, CustomFilter, OntologyFilter, Operator, Similarity
+#from ...beacon.request import ontologies
+from ...beacon.request.model import AlphanumericFilter, CustomFilter, OntologyFilter, Operator, Similarity
 #from beacon.semantic_similarity import semantic_similarity
 
 import logging
@@ -19,6 +19,44 @@ ANALYSES_MAP = ['aligner', 'analysisDate', 'biosampleId', 'id', 'individualId', 
 BIOSAMPLES_MAP = ['biosampleStatus.id', 'biosampleStatus.label', 'collectionDate', 'collectionMoment', 'id', 'individualId', 'info.BioSamples.accession','info.BioSamples.externalUrl', 'info.EGAsampleId', 'info.characteristics.organism.ontologyTerms','info.characteristics.organism.text','info.sampleName','info.taxId','sampleOriginType.id','sampleOriginType.label']
 G_VARIANTS_MAP = ['_info.vcf2bff.hostname', '_info.vcf2bff.filein', '_info.vcf2bff.user', '_info.vcf2bff.ncpuhost', '_info.vcf2bff.fileout', '_info.vcf2bff.cwd', '_info.vcf2bff.projectDir','_info.vcf2bff.version', '_info.datasetId', '_info.genome','caseLevelData.zygosity.label','caseLevelData.zygosity.id','caseLevelData.biosampleId','molecularAttributes.geneIds','molecularAttributes.annotationImpact','molecularAttributes.aminoacidChanges','molecularAttributes.molecularEffects.label','molecularAttributes.molecularEffects.id','variantQuality.FILTER','variantQuality.QUAL','_position.start','_position.end','_position.endInteger','_position.startInteger','_position.refseqId','_position.assemblyId','variation.variantType','variation.alternateBases','variation.referenceBases','variation.location.interval.start.value','variation.location.interval.start.type','variation.location.interval.end.value','variation.location.interval.end.type','variation.location.interval.type','variation.location.type','variation.location.sequence_id','variation.variantInternalId','variation.identifiers.genomicHGVSId']
 RUNS_MAP = ['biosampleId','id','individualId','libraryLayout','librarySelection','librarySource.id','librarySource.label','libraryStrategy','platform','platformModel.id','platformModel.label','runDate']
+
+
+def _unroll_condition_list(query: dict, param: str, join_text: str) -> str:
+    ret_str = ""
+    first = True
+    for this_param in query[param]:
+        if not first:
+            ret_str += join_text
+        first = False
+        ret_str = mongo_filter_to_sql(query[param][this_param])
+
+
+# Convert the MongoDB-esque filter from the apply_filters() call below to something more SQL-esque
+def mongo_filter_to_sql(query: dict) -> str:
+    ret_str = ""
+    # The kinds of dictionaries we'll be dealing with:
+    # One of:
+    #   $and
+    #   $or
+    #   $not
+    #   $regex
+    # If none of the above, it'll be a simple dict of PARAMETER = VALUE
+    if "$and" in query:
+        ret_str +=_unroll_condition_list(query, "$and", " AND ")
+    elif "$or" in query:
+        ret_str +=_unroll_condition_list(query, "$or", " OR ")
+    elif "$not" in query:
+        ret_str += "NOT(" + mongo_filter_to_sql(query["$not"]) + ")"
+    elif "$regex" in query:
+        ret_str += "REGEXP '" + mongo_filter_to_sql(query["$regex"]) + "'"
+    else:
+        # Should be a dict of size 1, throw an error for debugging if it isn't
+        if len(query) != 1:
+            LOG.error(f"Expected to only see one element, saw {len(query)} in {query}")
+        key = next(iter(query))
+        ret_str += f"{key} = {query[key]}"
+    return ret_str
+    
 
 
 def apply_filters(query: dict, filters: List[dict], collection: str) -> dict:
@@ -102,12 +140,12 @@ def apply_ontology_filter(query: dict, filter: OntologyFilter) -> dict:
     # Apply descendant terms
     if filter.include_descendant_terms:
         is_filter_id_required = False
-        descendants = ontologies.get_descendants(filter.id)
-        LOG.debug("Descendants: {}".format(descendants))
-        for descendant in descendants:
-            if query["$text"]["$search"]:
-                query["$text"]["$search"] += " "
-            query["$text"]["$search"] += descendant
+        #descendants = ontologies.get_descendants(filter.id)
+        #LOG.debug("Descendants: {}".format(descendants))
+        #for descendant in descendants:
+        #    if query["$text"]["$search"]:
+        #        query["$text"]["$search"] += " "
+        #    query["$text"]["$search"] += descendant
     
     if is_filter_id_required:
         if query["$text"]["$search"]:
@@ -130,18 +168,18 @@ def format_value(value: Union[str, List[int]]) -> Union[List[int], str, int, flo
 
 def format_operator(operator: Operator) -> str:
     if operator == Operator.EQUAL:
-        return "$eq"
+        return "="
     elif operator == Operator.NOT:
-        return "$ne"
+        return "!="
     elif operator == Operator.GREATER:
-        return "$gt"
+        return ">"
     elif operator == Operator.GREATER_EQUAL:
-        return "$gte"
+        return ">="
     elif operator == Operator.LESS:
-        return "$lt"
+        return "<"
     else:
         # operator == Operator.LESS_EQUAL
-        return "$lte"
+        return "<="
 
 def apply_alphanumeric_filter(query: dict, filter: AlphanumericFilter, collection: str) -> dict:
     LOG.debug(filter.value)
@@ -152,7 +190,7 @@ def apply_alphanumeric_filter(query: dict, filter: AlphanumericFilter, collectio
         formatted_operator = format_operator(filter.operator)
         query[filter.id] = { formatted_operator: formatted_value }
     elif isinstance(formatted_value,str):
-        if formatted_operator == "$eq":
+        if formatted_operator == "=":
             if '%' in filter.value:
                 if collection == 'individuals':
                     query['$and']=[]
@@ -321,7 +359,7 @@ def apply_alphanumeric_filter(query: dict, filter: AlphanumericFilter, collectio
                     query['$and'].append(dict_text)
                     query['$and'].append(dict_text_2)
                     
-        elif formatted_operator == "$ne":
+        elif formatted_operator == "!=":
             if collection == 'individuals':
                 query['$and']=[]
                 dict_text={}

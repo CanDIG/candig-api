@@ -3,12 +3,12 @@ import aiosql
 from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
-from beacon.omop.filters import apply_filters
-from beacon.omop.schemas import DefaultSchemas
-from beacon.request.model import RequestParams
-from beacon.omop import client as conn
-from beacon.omop.utils import  search_ontologies, basic_query
-from beacon.omop.individuals import get_individuals, get_cohort_individuals # build_filters
+from ...beacon.omop.filters import apply_filters
+from ...beacon.omop.schemas import DefaultSchemas
+from ...beacon.request.model import RequestParams
+from ...beacon.omop import client as conn
+from ...beacon.omop.utils import  search_ontologies, basic_query
+from ...beacon.omop.individuals import get_individuals, get_cohort_individuals # build_filters
 import pandas as pd
 
 LOG = logging.getLogger(__name__)

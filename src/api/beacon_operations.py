@@ -11,6 +11,10 @@ from ..beacon.response.build_response import (
     build_filtering_terms_response,
 )
 
+import logging
+
+LOG = logging.getLogger(__name__)
+
 API_VERSION = '1.0.0'
 BEACON_ID = 'org.candig.api.beacon'
 
@@ -51,10 +55,11 @@ async def get_entry_types():
 async def post(body: dict):
     retval = {}
     # Figure out what kind of search we should be doing (see beacon/request/routes)
-    params = RequestParams()
+    params = RequestParams().from_request(body)
 
     # Pass out the parsed search parameters to SQL (see beacon/omop/)
-    #schema, count, docs = datasets.get_datasets(None, params)
+    LOG.info(params)
+    schema, count, records = datasets.get_datasets(None, params)
 
     # Fill out the return value with all parameters that belong there (see beacon/response/build_response)
     #granularity = params.query.requested_granularity
@@ -63,6 +68,5 @@ async def post(body: dict):
     #retval["info"] = {}
     #retval["beaconHandovers"] = {}
     #response = build_beacon_boolean_response(response_converted, count, qparams, lambda x, y: x, entity_schema)
-    entity_schema = None
-    retval = build_beacon_boolean_response(None, 1, params, lambda x, y: x, entity_schema)
+    retval = build_beacon_boolean_response(records, count, params, lambda x, y: x, schema)
     return retval, 200

@@ -1,12 +1,12 @@
 import logging
 from typing import Dict, List, Optional
-from beacon.omop.filters import apply_alphanumeric_filter, apply_filters
-from beacon.omop.utils import query_id, query_ids, get_count, get_documents, get_cross_query
-from beacon.omop import client
-from beacon.request.model import AlphanumericFilter, Operator, RequestParams
-from beacon.omop.schemas import DefaultSchemas
-from beacon.omop.utils import query_id, get_count, get_documents
-from beacon.request.model import RequestParams
+from ...beacon.omop.filters import apply_alphanumeric_filter, apply_filters
+from ...beacon.omop.utils import query_id, query_ids, get_count, get_documents, get_cross_query
+from ...beacon.omop import client
+from ...beacon.request.model import AlphanumericFilter, Operator, RequestParams
+from ...beacon.omop.schemas import DefaultSchemas
+from ...beacon.omop.utils import query_id, get_count, get_documents
+from ...beacon.request.model import RequestParams
 
 LOG = logging.getLogger(__name__)
 
