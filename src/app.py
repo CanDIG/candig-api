@@ -1,8 +1,7 @@
 """
 CanDIG API Application
 
-This module initializes Connexion app with OpenAPI specification
-The API spec is loaded from schema.yml.
+This module initializes Connexion app with OpenAPI schema
 """
 
 import sys

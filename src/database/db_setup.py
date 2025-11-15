@@ -1,16 +1,21 @@
 """
-Database Setup
+Database Setup and Configuration
 
-This module sets up database
+This module handles database setup and applies customizations
+to the OMOP CDM schema:
+
+- Auto-increment IDs for primary keys
+- Extended VARCHAR limits (50 to 200) for source_value columns
+- CASCADE DELETE on foreign keys for automatic cleanup of related data
 """
 
 import asyncpg
-from sqlalchemy.schema import CreateTable
-from sqlalchemy.dialects import postgresql
-from .db_add_tables import Base
-from ..config import settings
-
 from candigv2_logging.logging import CanDIGLogger  # type: ignore
+from sqlalchemy.dialects import postgresql
+from sqlalchemy.schema import CreateTable
+
+from ..config import settings
+from .db_add_tables import Base
 
 logger = CanDIGLogger(__file__)
 
@@ -97,6 +102,7 @@ async def update_tables_identity():
             {"table": "specimen", "column": "specimen_id"},
             {"table": "procedure_occurrence", "column": "procedure_occurrence_id"},
             {"table": "drug_exposure", "column": "drug_exposure_id"},
+            {"table": "visit_occurrence", "column": "visit_occurrence_id"},
         ]
 
         for table_info in tables_to_update:
@@ -141,7 +147,6 @@ async def update_tables_identity():
                     await conn.execute(query)
                     logger.info(f"Executed: {query}")
                 except asyncpg.exceptions.PostgresError as e:
-                    # If dropping default fails (no default exists), that's okay
                     if "does not exist" in str(e) and "DROP DEFAULT" in query:
                         logger.info("No default constraint to drop, continuing...")
                         continue
@@ -268,6 +273,7 @@ async def update_column_limits():
         if conn:
             await conn.close()
 
+
 async def update_FK_delete_cascade():
     """
     Update foreign key constraints to CASCADE on DELETE
@@ -284,7 +290,7 @@ async def update_FK_delete_cascade():
                 "referenced_table": "person",
                 "referenced_column": "person_id",
             },
-              {
+            {
                 "table": "death",
                 "fk_column": "person_id",
                 "referenced_table": "person",
@@ -310,6 +316,12 @@ async def update_FK_delete_cascade():
             },
             {
                 "table": "measurement",
+                "fk_column": "person_id",
+                "referenced_table": "person",
+                "referenced_column": "person_id",
+            },
+            {
+                "table": "visit_occurrence",
                 "fk_column": "person_id",
                 "referenced_table": "person",
                 "referenced_column": "person_id",
@@ -344,7 +356,6 @@ async def update_FK_delete_cascade():
                 "referenced_table": "episode",
                 "referenced_column": "episode_id",
             },
-
         ]
 
         for fk_info in fk_updates:
@@ -365,16 +376,22 @@ async def update_FK_delete_cascade():
               AND tc.table_name = $2 
               AND kcu.column_name = $3;
             """
-            existing_fk_name = await conn.fetchval(find_fk_query, schema_name, table, fk_column)
+            existing_fk_name = await conn.fetchval(
+                find_fk_query, schema_name, table, fk_column
+            )
 
             # 2. If an old FK exists, drop it
             if existing_fk_name:
-                logger.info(f"Found existing constraint '{existing_fk_name}'. Dropping it.")
+                logger.info(
+                    f"Found existing constraint '{existing_fk_name}'. Dropping it."
+                )
                 drop_fk_query = f'ALTER TABLE "{schema_name}"."{table}" DROP CONSTRAINT "{existing_fk_name}"'
                 await conn.execute(drop_fk_query)
 
             # 3. Add the new, correctly defined foreign key constraint
-            logger.info(f"Adding constraint '{new_constraint_name}' with ON DELETE CASCADE.")
+            logger.info(
+                f"Adding constraint '{new_constraint_name}' with ON DELETE CASCADE."
+            )
             add_fk_query = f"""
             ALTER TABLE "{schema_name}"."{table}"
             ADD CONSTRAINT "{new_constraint_name}"

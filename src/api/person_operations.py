@@ -1,5 +1,6 @@
 from connexion.exceptions import ProblemException
 from sqlalchemy import select, text
+
 from ..database.db_add_tables import PersonInDataset
 from ..database.db_operations import get_db_session
 from datetime import datetime
@@ -8,7 +9,7 @@ from candigv2_logging.logging import CanDIGLogger
 
 logger = CanDIGLogger(__file__)
 
-
+# --- List persons Endpoint ---
 async def list(dataset_id: int):
     """Lists all person for a given dataset"""
     # TODO: implement authorize
@@ -108,7 +109,7 @@ async def list(dataset_id: int):
                     detail="An error occurred while fetching detailed person information from the database.",
                 )
 
-
+# --- Get person Endpoint ---
 async def get_by_id(dataset_id: int, id: int):
     """Get a person by ID within a dataset."""
     raw_sql = raw_sql = text(f"""
@@ -186,7 +187,7 @@ async def get_by_id(dataset_id: int, id: int):
                 detail="An error occurred while fetching person information from the database.",
             )
 
-
+# --- Create person Endpoint ---
 async def create(dataset_id: int, body: dict):
     """Create a new person in the dataset"""
 
@@ -291,7 +292,7 @@ async def create(dataset_id: int, body: dict):
                     title="Not Found",
                     detail=f"Person with id {id} not found in dataset {dataset_id}.",
                 )
-            
+
             person_id = row.person_id  # Get the person_id for linking to dataset
 
             # Link person to dataset
@@ -339,7 +340,7 @@ async def create(dataset_id: int, body: dict):
                 detail="An error occurred while creating the person in the database.",
             )
 
-
+# --- Update person Endpoint ---
 async def put(dataset_id: int, id: int, body: dict):
     """Update an existing person"""
 
@@ -523,7 +524,7 @@ async def put(dataset_id: int, id: int, body: dict):
                 detail="An error occurred while updating the person in the database.",
             )
 
-
+# --- Delete person Endpoint ---
 async def delete(dataset_id: str, id: str):
     """
     Delete a person from Person table
@@ -548,8 +549,6 @@ async def delete(dataset_id: str, id: str):
         DELETE FROM {settings.CDM_SCHEMA}.person 
         WHERE person_id = :person_id
     """)
-
-    # TODO: delete related records
 
     async for session in get_db_session():
         try:
@@ -588,7 +587,7 @@ async def delete(dataset_id: str, id: str):
                 detail="An error occurred while deleting the person from the database.",
             )
 
-
+# --- Update person Endpoint ---
 async def patch_user(dataset_id: str, id: str, body: dict):
     """Update an existing person in the database."""
     # TODO: update related record

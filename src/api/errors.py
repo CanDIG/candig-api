@@ -1,8 +1,7 @@
-# in utils.py or a similar shared module
-
 import logging
-from sqlalchemy.exc import IntegrityError
+
 from connexion.exceptions import ProblemException
+from sqlalchemy.exc import IntegrityError
 
 logger = logging.getLogger(__name__)
 
