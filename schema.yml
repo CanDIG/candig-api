@@ -855,3 +855,699 @@ components:
               type: integer
           required:
             - person_id
+    
+
+    # Top-level container
+    OmopIngestBody:
+      type: object
+      required:
+        - datasets
+      properties:
+        datasets:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dataset'
+
+    Dataset:
+      type: object
+      required:
+        - dataset_info
+      properties:
+        dataset_info:
+          $ref: '#/components/schemas/DatasetInfo'
+      additionalProperties: false
+
+    DatasetInfo:
+      type: object
+      required:
+        - omop_table
+        - omop_record
+      properties:
+        omop_table:
+          type: string
+          const: dataset
+        skip_errors:
+          type: array
+          items:
+            type: string
+        omop_record:
+          $ref: '#/components/schemas/DatasetOmopRecord'
+      additionalProperties: false
+
+    DatasetOmopRecord:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/IdMap'
+        source_value:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._]{1,64}$
+          example: SPECIMEN_0001
+        object_data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObjectData'
+      additionalProperties: false
+
+    IdMap:
+      type: object
+      required:
+        - type
+        - source_system
+        - source_value
+        - source_desc
+        - target_desc
+      properties:
+        type:
+          type: string
+          enum: ['id_map']
+        source_system:
+          type: string
+        source_value:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._]{1,64}$
+          example: SPECIMEN_0001
+        source_desc:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._]{1,64}$
+          example: Specimen.submitter_specimen_id
+        target_desc:
+          type: string
+      additionalProperties: false
+
+    ObjectData:
+      type: object
+      properties:
+        source_object_map:
+          type: string
+        omop_records:
+          type: array
+          items:
+            $ref: '#/components/schemas/OmopRecordWrapper'
+      additionalProperties: false
+
+    OmopRecordWrapper:
+      type: object
+      required:
+        - omop_table
+        - omop_record
+      properties:
+        omop_table:
+          type: string
+          description: "OMOP CDM v5.4 table name."
+          enum:
+            - person
+            - observation_period
+            - visit_occurrence
+            - visit_detail
+            - condition_occurrence
+            - procedure_occurrence
+            - drug_exposure
+            - device_exposure
+            - measurement
+            - observation
+            - death
+            - specimen
+            - payer_plan_period
+            - provider
+            - care_site
+            - location
+            - location_history
+            - fact_relationship
+            - drug_era
+            - condition_era
+            - dose_era
+        skip_errors:
+          type: array
+          items:
+            type: string
+        omop_record:
+          # validate against specific table schemas when possible, else use the base fallback
+          oneOf:
+            - $ref: '#/components/schemas/PersonRecord'
+            - $ref: '#/components/schemas/ObservationRecord'
+            - $ref: '#/components/schemas/MeasurementRecord'
+            - $ref: '#/components/schemas/ConditionOccurrenceRecord'
+            - $ref: '#/components/schemas/ProcedureOccurrenceRecord'
+            - $ref: '#/components/schemas/DrugExposureRecord'
+            - $ref: '#/components/schemas/SpecimenRecord'
+            - $ref: '#/components/schemas/ObservationPeriodRecord'
+            - $ref: '#/components/schemas/VisitOccurrenceRecord'
+            - $ref: '#/components/schemas/DeathRecord'
+            - $ref: '#/components/schemas/EpisodeRecord'
+            - $ref: '#/components/schemas/EpisodeEventRecord'
+            - $ref: '#/components/schemas/FactRelationshipRecord'
+            - $ref: '#/components/schemas/DrugEraRecord'
+            - $ref: '#/components/schemas/ConditionEraRecord'
+            - $ref: '#/components/schemas/DoseEraRecord'
+            - $ref: '#/components/schemas/ProviderRecord'
+            - $ref: '#/components/schemas/CareSiteRecord'
+            - $ref: '#/components/schemas/LocationRecord'
+            - $ref: '#/components/schemas/PayerPlanPeriodRecord'
+      additionalProperties: false
+
+    # Per-table explicit schemas (core ones used in sample)
+    PersonRecord:
+      type: object
+      properties:
+        person_id:
+          $ref: '#/components/schemas/IdMap'
+        person_source_value:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          example: "SITE_PM2C~SYNTH_01~DONOR_0001"
+        gender_concept_id:
+          type: integer
+        year_of_birth:
+          type: integer
+        month_of_birth:
+          type: integer
+        day_of_birth:
+          type: integer
+        birth_datetime:
+          type: string
+          format: date-time
+        death_datetime:
+          type: string
+          format: date-time
+        race_concept_id:
+          type: integer
+        ethnicity_concept_id:
+          type: integer
+        location_id:
+          type: integer
+        provider_id:
+          type: integer
+        care_site_id:
+          type: integer
+      required:
+        - person_id
+        - gender_concept_id
+        - year_of_birth
+        - person_source_value
+      additionalProperties: false
+
+    ObservationRecord:
+      type: object
+      properties:
+        observation_id:
+          $ref: '#/components/schemas/IdMap'
+        person_id:
+          $ref: '#/components/schemas/IdMap'
+        observation_concept_id:
+          type: integer
+        observation_date:
+          type: string
+          format: date
+        observation_datetime:
+          type: string
+          format: date-time
+        observation_type_concept_id:
+          type: integer
+        value_as_number:
+          type: number
+        value_as_concept_id:
+          type: integer
+        value_as_string:
+          type: string
+        value_as_datetime:
+          type: string
+          format: date-time
+        value_source_value:
+          type: string
+        observation_event_id:
+          $ref: '#/components/schemas/IdMap'
+        obs_event_field_concept_id:
+          type: integer
+      required:
+        - observation_id
+        - person_id
+        - observation_concept_id
+        - observation_date
+      additionalProperties: false
+
+    MeasurementRecord:
+      type: object
+      properties:
+        measurement_id:
+          $ref: '#/components/schemas/IdMap'
+        person_id:
+          $ref: '#/components/schemas/IdMap'
+        measurement_concept_id:
+          type: integer
+        measurement_date:
+          type: string
+          format: date
+        measurement_datetime:
+          type: string
+          format: date-time
+        measurement_type_concept_id:
+          type: integer
+        meas_event_field_concept_id:
+          type: integer
+        measurement_source_value:
+          type: string
+        value_as_number:
+          type: number
+        value_as_concept_id:
+          type: integer
+        value_source_value:
+          type: string
+        unit_concept_id:
+          type: integer
+      required:
+        - measurement_id
+        - person_id
+        - measurement_concept_id
+        - measurement_date
+      additionalProperties: false
+
+    ConditionOccurrenceRecord:
+      type: object
+      properties:
+        condition_occurrence_id:
+          $ref: '#/components/schemas/IdMap'
+        person_id:
+          $ref: '#/components/schemas/IdMap'
+        condition_concept_id:
+          type: integer
+        condition_start_date:
+          type: string
+          format: date
+        condition_start_datetime:
+          type: string
+          format: date-time
+        condition_type_concept_id:
+          type: integer
+        condition_status_concept_id:
+          type: integer
+        condition_source_value:
+          type: string
+      required:
+        - condition_occurrence_id
+        - person_id
+        - condition_concept_id
+        - condition_start_date
+      additionalProperties: false
+
+    ProcedureOccurrenceRecord:
+      type: object
+      properties:
+        procedure_occurrence_id:
+          $ref: '#/components/schemas/IdMap'
+        person_id:
+          $ref: '#/components/schemas/IdMap'
+        procedure_concept_id:
+          type: integer
+        procedure_date:
+          type: string
+          format: date
+        procedure_datetime:
+          type: string
+          format: date-time
+        procedure_type_concept_id:
+          type: integer
+        procedure_source_value:
+          type: string
+        quantity:
+          type: number
+      required:
+        - procedure_occurrence_id
+        - person_id
+        - procedure_concept_id
+        - procedure_date
+      additionalProperties: false
+
+    DrugExposureRecord:
+      type: object
+      properties:
+        drug_exposure_id:
+          $ref: '#/components/schemas/IdMap'
+        person_id:
+          $ref: '#/components/schemas/IdMap'
+        drug_concept_id:
+          type: integer
+        drug_exposure_start_date:
+          type: string
+          format: date
+        drug_exposure_end_date:
+          type: string
+          format: date
+        drug_type_concept_id:
+          type: integer
+        drug_exposure_start_datetime:
+          type: string
+          format: date-time
+        drug_exposure_end_datetime:
+          type: string
+          format: date-time
+        quantity:
+          type: number
+        dose_unit_source_value:
+          type: string
+        drug_source_value:
+          type: string
+        drug_source_concept_id:
+          type: integer
+      required:
+        - drug_exposure_id
+        - person_id
+        - drug_concept_id
+        - drug_exposure_start_date
+      additionalProperties: false
+
+    SpecimenRecord:
+      type: object
+      properties:
+        specimen_id:
+          $ref: '#/components/schemas/IdMap'
+        person_id:
+          $ref: '#/components/schemas/IdMap'
+        specimen_concept_id:
+          type: integer
+        specimen_date:
+          type: string
+          format: date
+        specimen_datetime:
+          type: string
+          format: date-time
+        anatomic_site_concept_id:
+          type: integer
+        anatomic_site_source_value:
+          type: string
+        specimen_type_concept_id:
+          type: integer
+      required:
+        - specimen_id
+        - person_id
+        - specimen_concept_id
+        - specimen_date
+      additionalProperties: false
+
+    ObservationPeriodRecord:
+      type: object
+      properties:
+        observation_period_id:
+          $ref: '#/components/schemas/IdMap'
+        person_id:
+          $ref: '#/components/schemas/IdMap'
+        observation_period_start_date:
+          type: string
+          format: date
+        observation_period_end_date:
+          type: string
+          format: date
+        period_type_concept_id:
+          type: integer
+      required:
+        - observation_period_id
+        - person_id
+        - observation_period_start_date
+        - observation_period_end_date
+      additionalProperties: false
+
+    VisitOccurrenceRecord:
+      type: object
+      properties:
+        visit_occurrence_id:
+          $ref: '#/components/schemas/IdMap'
+        person_id:
+          $ref: '#/components/schemas/IdMap'
+        visit_concept_id:
+          type: integer
+        visit_start_date:
+          type: string
+          format: date
+        visit_end_date:
+          type: string
+          format: date
+        visit_start_datetime:
+          type: string
+          format: date-time
+        visit_end_datetime:
+          type: string
+          format: date-time
+        visit_type_concept_id:
+          type: integer
+        provider_id:
+          type: integer
+        care_site_id:
+          type: integer
+      required:
+        - visit_occurrence_id
+        - person_id
+        - visit_concept_id
+        - visit_start_date
+        - visit_end_date
+      additionalProperties: false
+
+    DeathRecord:
+      type: object
+      properties:
+        person_id:
+          $ref: '#/components/schemas/IdMap'
+        death_date:
+          type: string
+          format: date
+        death_datetime:
+          type: string
+          format: date-time
+        death_type_concept_id:
+          type: integer
+      required:
+        - person_id
+      additionalProperties: false
+    
+        EpisodeRecord:
+      type: object
+      description: OMOP CDM v5.4 EPISODE table
+      properties:
+        episode_id:
+          type: integer
+        person_id:
+          oneOf:
+            - $ref: '#/components/schemas/IdMap'
+            - type: integer
+        episode_concept_id:
+          type: integer
+        episode_start_date:
+          type: string
+          format: date
+        episode_end_date:
+          type: string
+          format: date
+        episode_parent_id:
+          type: integer
+        episode_number:
+          type: integer
+        episode_object_concept_id:
+          type: integer
+        episode_source_value:
+          type: string
+      required:
+        - episode_id
+        - person_id
+        - episode_concept_id
+        - episode_start_date
+      additionalProperties: true
+
+    EpisodeEventRecord:
+      type: object
+      description: OMOP CDM v5.4 EPISODE_EVENT table
+      properties:
+        episode_id:
+          type: integer
+        event_id:
+          type: integer
+        event_field_concept_id:
+          type: integer
+      required:
+        - episode_id
+        - event_id
+        - event_field_concept_id
+      additionalProperties: true
+
+    FactRelationshipRecord:
+      type: object
+      description: OMOP CDM v5.4 FACT_RELATIONSHIP table
+      properties:
+        domain_concept_id_1:
+          type: integer
+        fact_id_1:
+          type: integer
+        domain_concept_id_2:
+          type: integer
+        fact_id_2:
+          type: integer
+        relationship_concept_id:
+          type: integer
+      required:
+        - domain_concept_id_1
+        - fact_id_1
+        - domain_concept_id_2
+        - fact_id_2
+        - relationship_concept_id
+      additionalProperties: true
+
+    DrugEraRecord:
+      type: object
+      description: OMOP CDM v5.4 DRUG_ERA table
+      properties:
+        drug_era_id:
+          type: integer
+        person_id:
+          oneOf:
+            - $ref: '#/components/schemas/IdMap'
+            - type: integer
+        drug_concept_id:
+          type: integer
+        drug_era_start_date:
+          type: string
+          format: date
+        drug_era_end_date:
+          type: string
+          format: date
+        drug_exposure_count:
+          type: integer
+        gap_days:
+          type: integer
+      required:
+        - drug_era_id
+        - person_id
+        - drug_concept_id
+        - drug_era_start_date
+        - drug_era_end_date
+      additionalProperties: true
+
+    ConditionEraRecord:
+      type: object
+      description: OMOP CDM v5.4 CONDITION_ERA table
+      properties:
+        condition_era_id:
+          type: integer
+        person_id:
+          oneOf:
+            - $ref: '#/components/schemas/IdMap'
+            - type: integer
+        condition_concept_id:
+          type: integer
+        condition_era_start_date:
+          type: string
+          format: date
+        condition_era_end_date:
+          type: string
+          format: date
+        condition_occurrence_count:
+          type: integer
+      required:
+        - condition_era_id
+        - person_id
+        - condition_concept_id
+        - condition_era_start_date
+        - condition_era_end_date
+      additionalProperties: true
+
+    DoseEraRecord:
+      type: object
+      description: OMOP CDM v5.4 DOSE_ERA table
+      properties:
+        dose_era_id:
+          type: integer
+        person_id:
+          oneOf:
+            - $ref: '#/components/schemas/IdMap'
+            - type: integer
+        drug_concept_id:
+          type: integer
+        unit_concept_id:
+          type: integer
+        dose_value:
+          type: number
+        dose_era_start_date:
+          type: string
+          format: date
+        dose_era_end_date:
+          type: string
+          format: date
+      required:
+        - dose_era_id
+        - person_id
+        - drug_concept_id
+        - unit_concept_id
+        - dose_value
+        - dose_era_start_date
+        - dose_era_end_date
+      additionalProperties: true
+
+
+    ProviderRecord:
+      type: object
+      properties:
+        provider_id:
+          type: integer
+        provider_name:
+          type: string
+        npi:
+          type: string
+        provider_source_value:
+          type: string
+      additionalProperties: false
+
+    CareSiteRecord:
+      type: object
+      properties:
+        care_site_id:
+          type: integer
+        care_site_name:
+          type: string
+        place_of_service_concept_id:
+          type: integer
+      additionalProperties: false
+
+    LocationRecord:
+      type: object
+      properties:
+        location_id:
+          type: integer
+        address_1:
+          type: string
+        address_2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        latitude:
+          type: number
+        longitude:
+          type: number
+      additionalProperties: false
+
+    PayerPlanPeriodRecord:
+      type: object
+      properties:
+        payer_plan_period_id:
+          type: integer
+        person_id:
+          $ref: '#/components/schemas/IdMap'
+        plan_concept_id:
+          type: integer
+        payer_plan_period_start_date:
+          type: string
+          format: date
+        payer_plan_period_end_date:
+          type: string
+          format: date
+        contract_owner:
+          type: string
+      additionalProperties: false
+
+
+
+
+
+
+
+
