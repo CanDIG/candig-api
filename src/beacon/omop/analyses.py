@@ -29,7 +29,7 @@ def get_analyses(entry_id: Optional[str], qparams: RequestParams):
     query = apply_request_parameters({}, qparams)
     query = apply_filters(query, qparams.query.filters, collection)
     schema = DefaultSchemas.ANALYSES
-    count = get_count(client.beacon.analyses, query)
+    count = get_count("beacon.analyses", query)
     docs = get_documents(
         client.beacon.analyses,
         query,

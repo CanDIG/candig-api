@@ -86,21 +86,23 @@ class RequestParams(CamelModel):
     query: RequestQuery = RequestQuery()
 
     #def from_request(self, request: Request) -> Self:
+    #    if request.method != "POST" or not request.has_body or not request.can_read_body:
+    #        for k, v in request.query.items():
+    #            if k == "requestedSchema":
+    #                self.meta.requested_schemas = [v]
+    #            elif k == "skip":
+    #                self.query.pagination.skip = int(v)
+    #            elif k == "limit":
+    #                self.query.pagination.limit = int(v)
+    #            elif k == "includeResultsetResponses":
+    #                self.query.include_resultset_responses = IncludeResultsetResponses(v)
+    #            elif k == "filters":
+    #                self.query.filters.append(v)                 
+    #            else:
+    #                self.query.request_parameters[k] = v
+    #    return self
+
     def from_request(self, request) -> Self:
-        if request.method != "POST" or not request.has_body or not request.can_read_body:
-            for k, v in request.query.items():
-                if k == "requestedSchema":
-                    self.meta.requested_schemas = [v]
-                elif k == "skip":
-                    self.query.pagination.skip = int(v)
-                elif k == "limit":
-                    self.query.pagination.limit = int(v)
-                elif k == "includeResultsetResponses":
-                    self.query.include_resultset_responses = IncludeResultsetResponses(v)
-                elif k == "filters":
-                    self.query.filters.append(v)                 
-                else:
-                    self.query.request_parameters[k] = v
         return self
 
     def summary(self):

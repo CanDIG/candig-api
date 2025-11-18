@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict, Optional
 
 #from pymongo.cursor import Cursor
@@ -53,9 +54,9 @@ def search_ontologies(dictValues):
     return dictValues
         
         
-def basic_query(query):
-    with engine.connect() as conn:
-        records = conn.execute(query)
+async def basic_query(query):
+    async with engine.connect() as conn:
+        records = await conn.execute(query)
         return records
 
 
@@ -74,24 +75,63 @@ def query_property(query: dict, property_id: str, value: str, property_map: Dict
     return query
 
 
+# Helper function for mongo_filter_to_sql: join e.g. ["$and"]["X", "Y", "Z"] -> "X AND Y AND Z"
+def _unroll_condition_list(query: dict, param: str, join_text: str) -> str:
+    ret_str = ""
+    first = True
+    for this_param in query[param]:
+        if not first:
+            ret_str += join_text
+        first = False
+        ret_str += mongo_filter_to_sql(query[param][this_param])
+    return ret_str
+
+
+# Convert the MongoDB-esque filter from the apply_filters() call below to something more SQL-esque
+def mongo_filter_to_sql(query: dict) -> str:
+    ret_str = ""
+    # The kinds of dictionaries we'll be dealing with:
+    # One of:
+    #   $and
+    #   $or
+    #   $not
+    #   $regex
+    # If none of the above, it'll be a simple dict of PARAMETER = VALUE
+    if "$and" in query:
+        ret_str +=_unroll_condition_list(query, "$and", " AND ")
+    elif "$or" in query:
+        ret_str +=_unroll_condition_list(query, "$or", " OR ")
+    elif "$not" in query:
+        ret_str += "NOT(" + mongo_filter_to_sql(query["$not"]) + ")"
+    elif "$regex" in query:
+        ret_str += "REGEXP '" + mongo_filter_to_sql(query["$regex"]) + "'"
+    elif "$text" in query:
+        # NB: We aren't handling any of the other parameters available in $text,
+        # such as $language or $caseSensitive -- I don't see any references to them in the codebase
+        ret_str += mongo_filter_to_sql(query["$text"]["$search"])
+    else:
+        # Should be a dict of size 1, throw an error for debugging if it isn't
+        if len(query) != 1:
+            LOG.error(f"Expected to only see one element, saw {len(query)} in {query}")
+        key = next(iter(query))
+        ret_str += f"{key} = {query[key]}"
+    return ret_str
+
+
+# Overload of get_count to deal with the MongoDB-esque params that we seem to be given
 def get_count(database: str, query_params: dict):
     query_str = f"FROM {database}"
     if len(query_params) > 1:
-        query_str += " WHERE "
-        first = True
-        for param in query_params:
-            if not first:
-                query_str += " AND "
-            first = False
-            query_str += f" {param} = {query_params[param]} "
-    get_count(query_str)
+        query_str += " WHERE " + mongo_filter_to_sql(query_params)
+    get_count_str(query_str)
 
 
-def get_count(query: str) -> int:
+async def get_count_str(query: str) -> int:
     LOG.debug("Returning estimated count")
     queryFinal = "Select count(*) " + query
     LOG.debug("FINAL QUERY: {}".format(queryFinal))
-    records = basic_query(queryFinal)
+    # TODO: Is this use of async going to slow things down?
+    records = await basic_query(queryFinal)
     return records[0][0]
 
 ## TODO: check format_query() definition

@@ -55,11 +55,12 @@ async def get_entry_types():
 async def post(body: dict):
     retval = {}
     # Figure out what kind of search we should be doing (see beacon/request/routes)
-    params = RequestParams().from_request(body)
+    LOG.info(body)
+    params = RequestParams(**body) #.from_request(body)
 
     # Pass out the parsed search parameters to SQL (see beacon/omop/)
     LOG.info(params)
-    schema, count, records = datasets.get_datasets(None, params)
+    schema, count, records = await datasets.get_datasets(None, params)
 
     # Fill out the return value with all parameters that belong there (see beacon/response/build_response)
     #granularity = params.query.requested_granularity

@@ -21,44 +21,6 @@ G_VARIANTS_MAP = ['_info.vcf2bff.hostname', '_info.vcf2bff.filein', '_info.vcf2b
 RUNS_MAP = ['biosampleId','id','individualId','libraryLayout','librarySelection','librarySource.id','librarySource.label','libraryStrategy','platform','platformModel.id','platformModel.label','runDate']
 
 
-def _unroll_condition_list(query: dict, param: str, join_text: str) -> str:
-    ret_str = ""
-    first = True
-    for this_param in query[param]:
-        if not first:
-            ret_str += join_text
-        first = False
-        ret_str = mongo_filter_to_sql(query[param][this_param])
-
-
-# Convert the MongoDB-esque filter from the apply_filters() call below to something more SQL-esque
-def mongo_filter_to_sql(query: dict) -> str:
-    ret_str = ""
-    # The kinds of dictionaries we'll be dealing with:
-    # One of:
-    #   $and
-    #   $or
-    #   $not
-    #   $regex
-    # If none of the above, it'll be a simple dict of PARAMETER = VALUE
-    if "$and" in query:
-        ret_str +=_unroll_condition_list(query, "$and", " AND ")
-    elif "$or" in query:
-        ret_str +=_unroll_condition_list(query, "$or", " OR ")
-    elif "$not" in query:
-        ret_str += "NOT(" + mongo_filter_to_sql(query["$not"]) + ")"
-    elif "$regex" in query:
-        ret_str += "REGEXP '" + mongo_filter_to_sql(query["$regex"]) + "'"
-    else:
-        # Should be a dict of size 1, throw an error for debugging if it isn't
-        if len(query) != 1:
-            LOG.error(f"Expected to only see one element, saw {len(query)} in {query}")
-        key = next(iter(query))
-        ret_str += f"{key} = {query[key]}"
-    return ret_str
-    
-
-
 def apply_filters(query: dict, filters: List[dict], collection: str) -> dict:
     LOG.debug("Filters len = {}".format(len(filters)))
     if len(filters) > 0:
