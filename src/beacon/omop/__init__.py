@@ -2,7 +2,7 @@ import logging
 from ...config import settings
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
-from ...database.db_operation import async_engine
+from ...database.db_operations import async_engine
 
 LOG = logging.getLogger(__name__)
 

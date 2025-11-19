@@ -4,7 +4,7 @@ from ...beacon.omop.schemas import DefaultSchemas
 from ...beacon.omop.utils import query_id, get_count, get_documents, get_cross_query, mongo_filter_to_sql
 from ...beacon.request.model import RequestParams
 from ...beacon.omop import engine # client
-from ...database.db_add_table import Dataset
+from ...database.db_add_tables import Dataset
 
 import logging
 
