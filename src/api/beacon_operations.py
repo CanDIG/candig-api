@@ -1,5 +1,6 @@
 #from ..beacon.request.handlers import filtering_terms_handler
 from ..beacon.omop import datasets #filtering_terms
+from ..beacon.omop.schemas import DefaultSchemas
 from ..beacon.response import framework, service_info, build_response
 from ..beacon.request import RequestParams
 from ..beacon.request.model import Granularity
@@ -17,6 +18,9 @@ LOG = logging.getLogger(__name__)
 
 API_VERSION = '1.0.0'
 BEACON_ID = 'org.candig.api.beacon'
+
+async def init_omop():
+    init()
 
 # /datasets/info
 async def get_beacon_info_root():
@@ -61,13 +65,12 @@ async def post(body: dict):
     # Pass out the parsed search parameters to SQL (see beacon/omop/)
     LOG.info(params)
     schema, count, records = await datasets.get_datasets(None, params)
+    # DEBUG: count/records aren't returning right now with the thing, so to test I'm just gonna use empty responses
+    #schema = DefaultSchemas.DATASETS
+    #count = 0
+    #records = []
 
     # Fill out the return value with all parameters that belong there (see beacon/response/build_response)
-    #granularity = params.query.requested_granularity
-    #retval["meta"] = build_response.build_meta(params, None, granularity)
-    #retval["responseSummary"] = {"exists": True}
-    #retval["info"] = {}
-    #retval["beaconHandovers"] = {}
     #response = build_beacon_boolean_response(response_converted, count, qparams, lambda x, y: x, entity_schema)
     retval = build_beacon_boolean_response(records, count, params, lambda x, y: x, schema)
     return retval, 200

@@ -3,6 +3,7 @@ from typing import Dict, Optional
 
 #from pymongo.cursor import Cursor
 #from pymongo.collection import Collection
+from sqlalchemy import text
 from ...beacon.omop import engine
 from ...beacon.request.model import RequestParams
 import logging
@@ -54,9 +55,9 @@ def search_ontologies(dictValues):
     return dictValues
         
         
-async def basic_query(query):
+async def basic_query(query: str):
     async with engine.connect() as conn:
-        records = await conn.execute(query)
+        records = await conn.execute(text(query))
         return records
 
 
@@ -110,6 +111,8 @@ def mongo_filter_to_sql(query: dict) -> str:
         # such as $language or $caseSensitive -- I don't see any references to them in the codebase
         ret_str += mongo_filter_to_sql(query["$text"]["$search"])
     else:
+        if len(query) == 0:
+            return ""
         # Should be a dict of size 1, throw an error for debugging if it isn't
         if len(query) != 1:
             LOG.error(f"Expected to only see one element, saw {len(query)} in {query}")
@@ -119,29 +122,30 @@ def mongo_filter_to_sql(query: dict) -> str:
 
 
 # Overload of get_count to deal with the MongoDB-esque params that we seem to be given
-def get_count(database: str, query_params: dict):
+async def get_count(database: str, query_params: dict):
     query_str = f"FROM {database}"
     if len(query_params) > 1:
         query_str += " WHERE " + mongo_filter_to_sql(query_params)
-    get_count_str(query_str)
+    return await get_count_str(query_str)
 
 
 async def get_count_str(query: str) -> int:
     LOG.debug("Returning estimated count")
     queryFinal = "Select count(*) " + query
-    LOG.debug("FINAL QUERY: {}".format(queryFinal))
+    LOG.debug(f"FINAL QUERY: {queryFinal}")
     # TODO: Is this use of async going to slow things down?
     records = await basic_query(queryFinal)
     return records[0][0]
 
 ## TODO: check format_query() definition
-def get_documents(listVariables: list, query: str, skip: int, limit: int):
-    queryFinal = "Select " + ",".join(listVariables) + " " + query 
+async def get_documents(listVariables: list, query: str, skip: int, limit: int):
+    LOG.debug([col.name for col in listVariables])
+    queryFinal = "Select " + ",".join([col.name for col in listVariables]) + " " + query
     LOG.debug("FINAL QUERY: {}".format(queryFinal))
-    with engine.connect() as conn:
+    async with engine.connect() as conn:
         records = conn.execute(queryFinal)
-        recordsFinal = format_query(listVariables, records)
-        return recordsFinal
+        # recordsFinal = format_query(listVariables, records)
+        return records #recordsFinal
 
 def get_cross_query(ids: dict, cross_type: str, collection_id: str):
     id_list=[]
