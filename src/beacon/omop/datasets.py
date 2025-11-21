@@ -1,7 +1,7 @@
 from typing import Optional
 from ...beacon.omop.filters import apply_filters
 from ...beacon.omop.schemas import DefaultSchemas
-from ...beacon.omop.utils import query_id, get_count, get_documents, get_cross_query, mongo_filter_to_sql
+from ...beacon.omop.utils import query_id, get_count, get_documents, get_cross_query, format_mongo_query
 from ...beacon.request.model import RequestParams
 from ...beacon.omop import engine # client
 from ...database.db_add_tables import Dataset
@@ -15,10 +15,10 @@ async def get_datasets(entry_id: Optional[str], qparams: RequestParams):
     collection = 'datasets'
     query = apply_filters({}, qparams.query.filters, collection)
     schema = DefaultSchemas.DATASETS
-    count = await get_count(Dataset.__table__.name, query)
+    count = await get_count(f"{Dataset.__table__.schema}.{Dataset.__table__.name}", query)
     docs = await get_documents(
         Dataset.__table__.columns,
-        mongo_filter_to_sql(query),
+        format_mongo_query(f"{Dataset.__table__.schema}.{Dataset.__table__.name}", query),
         qparams.query.pagination.skip,
         qparams.query.pagination.limit
     )
@@ -30,9 +30,9 @@ def get_dataset_with_id(entry_id: Optional[str], qparams: RequestParams):
     query = apply_filters({}, qparams.query.filters, collection)
     query = query_id(query, entry_id)
     schema = DefaultSchemas.DATASETS
-    count = get_count(engine.beacon.datasets, query)
+    count = get_count(f"{Dataset.__table__.schema}.{Dataset.__table__.name}", query)
     docs = get_documents(
-        engine.beacon.datasets,
+        Dataset.__table__.columns,
         query,
         qparams.query.pagination.skip,
         qparams.query.pagination.limit

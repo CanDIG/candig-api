@@ -84,12 +84,12 @@ def _unroll_condition_list(query: dict, param: str, join_text: str) -> str:
         if not first:
             ret_str += join_text
         first = False
-        ret_str += mongo_filter_to_sql(query[param][this_param])
+        ret_str += _mongo_filter_to_sql(query[param][this_param])
     return ret_str
 
 
 # Convert the MongoDB-esque filter from the apply_filters() call below to something more SQL-esque
-def mongo_filter_to_sql(query: dict) -> str:
+def _mongo_filter_to_sql(query: dict) -> str:
     ret_str = ""
     # The kinds of dictionaries we'll be dealing with:
     # One of:
@@ -103,13 +103,13 @@ def mongo_filter_to_sql(query: dict) -> str:
     elif "$or" in query:
         ret_str +=_unroll_condition_list(query, "$or", " OR ")
     elif "$not" in query:
-        ret_str += "NOT(" + mongo_filter_to_sql(query["$not"]) + ")"
+        ret_str += "NOT(" + _mongo_filter_to_sql(query["$not"]) + ")"
     elif "$regex" in query:
-        ret_str += "REGEXP '" + mongo_filter_to_sql(query["$regex"]) + "'"
+        ret_str += "REGEXP '" + _mongo_filter_to_sql(query["$regex"]) + "'"
     elif "$text" in query:
         # NB: We aren't handling any of the other parameters available in $text,
         # such as $language or $caseSensitive -- I don't see any references to them in the codebase
-        ret_str += mongo_filter_to_sql(query["$text"]["$search"])
+        ret_str += _mongo_filter_to_sql(query["$text"]["$search"])
     else:
         if len(query) == 0:
             return ""
@@ -121,12 +121,16 @@ def mongo_filter_to_sql(query: dict) -> str:
     return ret_str
 
 
-# Overload of get_count to deal with the MongoDB-esque params that we seem to be given
-async def get_count(database: str, query_params: dict):
+def format_mongo_query(database: str, query_params: dict):
     query_str = f"FROM {database}"
     if len(query_params) > 1:
-        query_str += " WHERE " + mongo_filter_to_sql(query_params)
-    return await get_count_str(query_str)
+        query_str += " WHERE " + _mongo_filter_to_sql(query_params)
+    return query_str
+
+
+# Overload of get_count to deal with the MongoDB-esque params that we seem to be given
+async def get_count(database: str, query_params: dict):
+    return await get_count_str(format_mongo_query(database, query_params))
 
 
 async def get_count_str(query: str) -> int:
@@ -135,17 +139,21 @@ async def get_count_str(query: str) -> int:
     LOG.debug(f"FINAL QUERY: {queryFinal}")
     # TODO: Is this use of async going to slow things down?
     records = await basic_query(queryFinal)
-    return records[0][0]
+    records = records.fetchone()
+    LOG.debug(records)
+    return records[0]
 
-## TODO: check format_query() definition
+## TODO: Originally this relied on a function `format_query()`, that did not exist
 async def get_documents(listVariables: list, query: str, skip: int, limit: int):
-    LOG.debug([col.name for col in listVariables])
-    queryFinal = "Select " + ",".join([col.name for col in listVariables]) + " " + query
-    LOG.debug("FINAL QUERY: {}".format(queryFinal))
+    queryFinal = f"Select {",".join([col.name for col in listVariables])} {query} OFFSET :OFFSET ROWS FETCH NEXT :LIMIT ROWS ONLY"
+    LOG.debug(f"FINAL QUERY: {queryFinal}")
     async with engine.connect() as conn:
-        records = conn.execute(queryFinal)
-        # recordsFinal = format_query(listVariables, records)
-        return records #recordsFinal
+        # NB: To grab page X of the results, given that they want page size Y we need:
+        # - skip X*Y rows
+        # - return Y rows after that
+        records = await conn.execute(text(queryFinal), {"OFFSET": skip * limit, "LIMIT": limit})
+        recordsFinal = records.fetchall() # format_query(listVariables, records)
+        return recordsFinal
 
 def get_cross_query(ids: dict, cross_type: str, collection_id: str):
     id_list=[]
