@@ -740,16 +740,17 @@ async def handle_multiple_donors_data_ingestion(body: dict):
     Note: this function is kept for reference until we confirm the file upload works correctly.
     """
 
-    return_obj = []
+    records = []
     async for session in get_db_session():
         try:
             donor_list = body["donors"]
             for donor_data in donor_list:
-                await ingest_donor_with_clinical_data(session, donor_data, return_obj)
+                record = await ingest_donor_with_clinical_data(session, donor_data)
+                records.extend(record) # type: ignore
 
             await session.commit()
             logger.info("Successfully created all records and committed transaction.")
-            return {"records": return_obj}, 201
+            return {"records": records}, 201
 
         except ProblemException:
             await session.rollback()
