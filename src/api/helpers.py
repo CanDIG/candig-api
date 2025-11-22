@@ -196,11 +196,12 @@ async def create_record(
 # Insert donor with clinical data
 # ==============================================================================
 async def ingest_donor_with_clinical_data(
-    session: AsyncSession, donor_data: dict, return_obj: list
+    session: AsyncSession, donor_data: dict
 ):
     """
     Insert a single donor with related clinical data
     """
+    return_objs = []
     id_mapper = IdMapper()
     PATTERNS = {
         "donor": r"^\$\.donors\[\d+\]$",
@@ -240,7 +241,7 @@ async def ingest_donor_with_clinical_data(
                         # Use existing dataset
                         new_dataset_id = existing_dataset.id
                         id_mapper.store_id(dataset_record.get("id"), new_dataset_id)
-                        return_obj.append(
+                        return_objs.append(
                             {
                                 "id": existing_dataset.id,
                                 "source_value": existing_dataset.source_value,
@@ -255,7 +256,7 @@ async def ingest_donor_with_clinical_data(
                         )
                         new_dataset_id = new_dataset["id"]
                         new_dataset["omop_table"] = "dataset"
-                        return_obj.append(new_dataset)
+                        return_objs.append(new_dataset)
                     break
 
             if new_dataset_id is None:
@@ -268,7 +269,7 @@ async def ingest_donor_with_clinical_data(
                         session, id_mapper, field, "person"
                     )
                     new_person_id = new_person["person_id"]
-                    return_obj.append(new_person)
+                    return_objs.append(new_person)
                     break
 
             if new_person_id is None:
@@ -286,7 +287,7 @@ async def ingest_donor_with_clinical_data(
                     new_record = await create_record(
                         session, id_mapper, field, table_name
                     )
-                    return_obj.append(new_record)
+                    return_objs.append(new_record)
 
         else:  # process other tables
             # Check if the key matches any patterns (excluding donor)
@@ -302,21 +303,19 @@ async def ingest_donor_with_clinical_data(
                         new_record = await create_record(
                             session, id_mapper, field, table_name
                         )
-                        return_obj.append(new_record)
+                        return_objs.append(new_record)
 
 
 async def handle_single_donor_data_ingestion(body: dict):
     """
     Ingest single donor's data structure.
     """
-    return_obj = []
-
     async for session in get_db_session():
         try:
-            await ingest_donor_with_clinical_data(session, body, return_obj)
+            records = await ingest_donor_with_clinical_data(session, body)
             await session.commit()
             logger.info("Successfully created all records and committed transaction.")
-            return {"records": return_obj}, 201
+            return {"records": records}, 201
 
         except ProblemException:
             await session.rollback()
