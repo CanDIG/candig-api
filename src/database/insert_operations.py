@@ -34,7 +34,7 @@ def row_to_dict(row: Optional[Row]) -> Dict[str, Any]:
 async def create_person(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     # Handle birth_datetime conversion
     if "birth_datetime" in record_data and record_data["birth_datetime"] is not None:
         if isinstance(record_data["birth_datetime"], str):
@@ -107,7 +107,7 @@ async def create_person(
 async def create_observation(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new observation record into the database.
     """
@@ -209,7 +209,7 @@ async def create_observation(
 async def create_condition_occurrence(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new condition_occurrence record into the database.
     """
@@ -305,7 +305,7 @@ async def create_condition_occurrence(
 async def create_episode(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new episode record into the database.
     """
@@ -391,7 +391,7 @@ async def create_episode(
 async def create_episode_event(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new episode_event record into the database.
     """
@@ -424,7 +424,7 @@ async def create_episode_event(
 async def create_measurement(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new measurement record into the database.
     """
@@ -531,7 +531,7 @@ async def create_measurement(
 async def create_specimen(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new specimen record into the database.
     """
@@ -618,7 +618,7 @@ async def create_specimen(
 async def create_procedure_occurrence(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new procedure_occurrence record into the database.
     """
@@ -711,7 +711,7 @@ async def create_procedure_occurrence(
 async def create_drug_exposure(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new drug_exposure record into the database.
     """
@@ -812,7 +812,7 @@ async def create_drug_exposure(
 async def create_fact_relationship(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new fact_relationship record into the database.
     """
@@ -844,7 +844,7 @@ async def create_fact_relationship(
 async def create_death(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new death record into the database.
     """
@@ -909,7 +909,7 @@ async def create_death(
 async def create_dataset(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new dataset record into the database.
     """
@@ -936,7 +936,7 @@ async def create_dataset(
 async def create_person_in_dataset(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Create FK between person and dataset
     """
@@ -963,7 +963,7 @@ async def create_person_in_dataset(
 async def create_visit_occurrence(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new visit_occurrence record into the database.
     """
