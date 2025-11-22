@@ -313,7 +313,8 @@ async def handle_single_donor_data_ingestion(body: dict) -> tuple[dict, int]:
         try:
             records = await ingest_donor_with_clinical_data(session, body)
             await session.commit()
-            logger.info("Successfully created all records and committed transaction.")
+            logger.info("Successfully created records and committed transaction for a donor.")
+            # TODO:log which donor created
             return {"records": records}, 201
 
         except ProblemException:
