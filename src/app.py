@@ -17,7 +17,7 @@ from .database.db_setup import (
     update_column_limits,
 )
 
-from candigv2_logging.logging import CanDIGLogger, initialize  # type: ignore
+from candigv2_logging.logging import CanDIGLogger, initialize
 
 initialize()
 logger = CanDIGLogger(__file__)

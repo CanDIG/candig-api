@@ -10,7 +10,7 @@ to the OMOP CDM schema:
 """
 
 import asyncpg
-from candigv2_logging.logging import CanDIGLogger  # type: ignore
+from candigv2_logging.logging import CanDIGLogger
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateTable
 
