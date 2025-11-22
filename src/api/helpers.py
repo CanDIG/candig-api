@@ -305,8 +305,7 @@ async def ingest_donor_with_clinical_data(
                         )
                         return_objs.append(new_record)
 
-
-async def handle_single_donor_data_ingestion(body: dict):
+async def handle_single_donor_data_ingestion(body: dict) -> tuple[dict, int]:
     """
     Ingest single donor's data structure.
     """
@@ -326,3 +325,8 @@ async def handle_single_donor_data_ingestion(body: dict):
         except Exception as e:
             await session.rollback()
             await raise_problem_exception(e)
+    raise ProblemException(
+        status=500,
+        title="Internal Server Error",
+        detail="Database session error"
+    )
