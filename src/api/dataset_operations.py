@@ -734,7 +734,7 @@ async def delete_by_id(id: int):
 
 
 # --- Ingest Dataset with Multiple Persons Endpoint ---
-async def handle_multiple_donors_data_ingestion(body: dict):
+async def handle_multiple_donors_data_ingestion(body: dict) -> tuple[dict, int]:
     """
     Ingest multiple donors in 1 batch.
     Note: this function is kept for reference until we confirm the file upload works correctly.
@@ -761,3 +761,8 @@ async def handle_multiple_donors_data_ingestion(body: dict):
         except Exception as e:
             await session.rollback()
             await raise_problem_exception(e)
+    raise ProblemException(
+        status=500,
+        title="Internal Server Error",
+        detail="Database session error"
+    )
