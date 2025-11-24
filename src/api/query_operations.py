@@ -1,3 +1,6 @@
+"""
+API query operations like service info, file upload and status tracking...
+"""
 import json
 import os
 import secrets
