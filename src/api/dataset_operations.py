@@ -1,3 +1,6 @@
+"""
+Provides CRUD operations for dataset like LIST, GET, CREATE, UPDATE, DELETE
+"""
 import json
 from datetime import datetime
 
