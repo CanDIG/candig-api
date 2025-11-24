@@ -1,3 +1,6 @@
+"""
+Provides CRUD operations for person like LIST, GET, CREATE, UPDATE, DELETE
+"""
 from connexion.exceptions import ProblemException
 from sqlalchemy import select, text
 
