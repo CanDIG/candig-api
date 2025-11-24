@@ -1,3 +1,11 @@
+"""
+Database insert operations for OMOP tables.
+
+Currently only have basic validation for dates, datetimes, and integers.
+
+TODO: need to guard against SQL injection,
+not sure to do it through the OpenAPI schema or in the code.
+"""
 from datetime import date, datetime
 from typing import Any, Dict, Optional
 
