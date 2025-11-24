@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from ..config import settings
-from typing import AsyncGenerator
 
 async_engine = create_async_engine(
     settings.DATABASE_URI.replace("postgresql://", "postgresql+asyncpg://"),
