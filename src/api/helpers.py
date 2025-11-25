@@ -200,7 +200,7 @@ async def create_record(
 # ==============================================================================
 async def ingest_donor_with_clinical_data(
     session: AsyncSession, donor_data: dict
-) -> dict:
+) -> list:
     """
     Insert a single donor with related clinical data
     """
