@@ -219,94 +219,96 @@ async def ingest_donor_with_clinical_data(
     }
 
     new_dataset_id = None
-    for key in donor_data.keys():
+    donor_keys = [key for key in donor_data.keys() if re.match(PATTERNS["donor"], key)]
+    sample_keys = [key for key in donor_data.keys() if not re.match(PATTERNS["donor"], key)]
+    for key in donor_keys:
         items = donor_data[key]
-        if re.match(PATTERNS["donor"], key):
-            # First pass: Find and create the dataset
-            for field in items:
-                if field.get("omop_table") == "dataset" and not field.get(
-                    "skip_errors"
-                ):
-                    # Check if dataset already exists in the database by source_value
-                    dataset_record = field.get("omop_record")
-                    source_value = dataset_record.get("source_value")
+        # First pass: Find and create the dataset
+        for field in items:
+            if field.get("omop_table") == "dataset" and not field.get(
+                "skip_errors"
+            ):
+                # Check if dataset already exists in the database by source_value
+                dataset_record = field.get("omop_record")
+                source_value = dataset_record.get("source_value")
 
-                    # Query database for existing dataset
-                    existing_dataset_stmt = select(Dataset).where(
-                        Dataset.source_value == source_value
+                # Query database for existing dataset
+                existing_dataset_stmt = select(Dataset).where(
+                    Dataset.source_value == source_value
+                )
+                existing_dataset_result = await session.execute(
+                    existing_dataset_stmt
+                )
+                existing_dataset = existing_dataset_result.scalar_one_or_none()
+
+                if existing_dataset:
+                    # Use existing dataset
+                    new_dataset_id = existing_dataset.id
+                    id_mapper.store_id(dataset_record.get("id"), new_dataset_id)
+                    return_objs.append(
+                        {
+                            "id": existing_dataset.id,
+                            "source_value": existing_dataset.source_value,
+                            "info": existing_dataset.info,
+                            "omop_table": "dataset",
+                        }
                     )
-                    existing_dataset_result = await session.execute(
-                        existing_dataset_stmt
+                else:
+                    # Create new dataset
+                    new_dataset = await create_record(
+                        session, id_mapper, field, "dataset"
                     )
-                    existing_dataset = existing_dataset_result.scalar_one_or_none()
+                    new_dataset_id = new_dataset["id"]
+                    new_dataset["omop_table"] = "dataset"
+                    return_objs.append(new_dataset)
+                break
 
-                    if existing_dataset:
-                        # Use existing dataset
-                        new_dataset_id = existing_dataset.id
-                        id_mapper.store_id(dataset_record.get("id"), new_dataset_id)
-                        return_objs.append(
-                            {
-                                "id": existing_dataset.id,
-                                "source_value": existing_dataset.source_value,
-                                "info": existing_dataset.info,
-                                "omop_table": "dataset",
-                            }
-                        )
-                    else:
-                        # Create new dataset
-                        new_dataset = await create_record(
-                            session, id_mapper, field, "dataset"
-                        )
-                        new_dataset_id = new_dataset["id"]
-                        new_dataset["omop_table"] = "dataset"
-                        return_objs.append(new_dataset)
-                    break
+        if new_dataset_id is None:
+            await raise_bad_request("dataset")
 
-            if new_dataset_id is None:
-                await raise_bad_request("dataset")
+        new_person_id = None
+        for field in items:
+            if field.get("omop_table") == "person" and not field.get("skip_errors"):
+                new_person = await create_record(
+                    session, id_mapper, field, "person"
+                )
+                new_person_id = new_person["person_id"]
+                return_objs.append(new_person)
+                break
 
-            new_person_id = None
-            for field in items:
-                if field.get("omop_table") == "person" and not field.get("skip_errors"):
-                    new_person = await create_record(
-                        session, id_mapper, field, "person"
-                    )
-                    new_person_id = new_person["person_id"]
-                    return_objs.append(new_person)
-                    break
+        if new_person_id is None:
+            await raise_bad_request("person")
 
-            if new_person_id is None:
-                await raise_bad_request("person")
+        # Second pass: Process all other tables at the donor level
+        for field in items:
+            table_name = field.get("omop_table")
+            if (
+                table_name != "person"
+                and table_name != "dataset"
+                and table_name in TABLE_CONFIG
+                and not field.get("skip_errors")
+            ):
+                new_record = await create_record(
+                    session, id_mapper, field, table_name
+                )
+                return_objs.append(new_record)
 
-            # Second pass: Process all other tables at the donor level
+    for key in sample_keys:
+        items = donor_data[key]
+        # Check if the key matches any patterns (excluding donor)
+        is_known_pattern = any(
+            re.match(pattern, key)
+            for name, pattern in PATTERNS.items()
+            if name not in ["donor", "dataset"]
+        )
+        if is_known_pattern:
             for field in items:
                 table_name = field.get("omop_table")
-                if (
-                    table_name != "person"
-                    and table_name != "dataset"
-                    and table_name in TABLE_CONFIG
-                    and not field.get("skip_errors")
-                ):
+                if table_name in TABLE_CONFIG and not field.get("skip_errors"):
                     new_record = await create_record(
                         session, id_mapper, field, table_name
                     )
                     return_objs.append(new_record)
-
-        else:  # process other tables
-            # Check if the key matches any patterns (excluding donor)
-            is_known_pattern = any(
-                re.match(pattern, key)
-                for name, pattern in PATTERNS.items()
-                if name not in ["donor", "dataset"]
-            )
-            if is_known_pattern:
-                for field in items:
-                    table_name = field.get("omop_table")
-                    if table_name in TABLE_CONFIG and not field.get("skip_errors"):
-                        new_record = await create_record(
-                            session, id_mapper, field, table_name
-                        )
-                        return_objs.append(new_record)
 
 async def handle_single_donor_data_ingestion(body: dict) -> tuple[dict, int]:
     """
