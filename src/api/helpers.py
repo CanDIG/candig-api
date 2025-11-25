@@ -309,6 +309,7 @@ async def ingest_donor_with_clinical_data(
                         session, id_mapper, field, table_name
                     )
                     return_objs.append(new_record)
+    return return_objs
 
 async def handle_single_donor_data_ingestion(body: dict) -> tuple[dict, int]:
     """

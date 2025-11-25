@@ -14,6 +14,7 @@ import json
 import os
 import threading
 import time
+import traceback
 from datetime import datetime, timezone
 from queue import Queue
 
@@ -67,7 +68,7 @@ async def ingest_donors(donors_list: list) -> tuple[list, list]:
                     f"Failed to insert donor at index {idx} with status {status_code}"
                 )
         except Exception as e:
-            logger.error("Error occurred during ingest. Starting rollback…")
+            logger.error(f"{traceback.format_exc()}\nError occurred during ingest. Starting rollback…")
             failed_donors.append({"donor_index": idx, "error": str(e)})
             # Delete cascade inserted dataset
             for dataset_id in inserted_dataset_ids:
