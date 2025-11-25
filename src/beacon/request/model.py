@@ -12,7 +12,7 @@ LOG = logging.getLogger(__name__)
 
 class CamelModel(BaseModel):
     class Config:
-        #alias_generator = camelize
+        alias_generator = str.title #camelize
         allow_population_by_field_name = True
 
 
@@ -102,7 +102,24 @@ class RequestParams(CamelModel):
     #                self.query.request_parameters[k] = v
     #    return self
 
-    def from_request(self, request) -> Self:
+    def from_request(self, body) -> Self:
+        LOG.info(body)
+        if "query" in body:
+            for k, v in body["query"].items():
+                if k == "requestedSchema":
+                    self.meta.requested_schemas = [v]
+                elif k == "skip":
+                    self.query.pagination.skip = int(v)
+                elif k == "limit":
+                    self.query.pagination.limit = int(v)
+                elif k == "includeResultsetResponses":
+                    self.query.include_resultset_responses = IncludeResultsetResponses(v)
+                elif k == "filters":
+                    self.query.filters.append(v)
+                elif k == "requestedGranularity":
+                    self.query.requested_granularity = v
+                else:
+                    self.query.request_parameters[k] = v
         return self
 
     def summary(self):

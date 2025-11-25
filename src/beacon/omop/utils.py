@@ -134,7 +134,6 @@ async def get_count(database: str, query_params: dict):
 
 
 async def get_count_str(query: str) -> int:
-    LOG.debug("Returning estimated count")
     queryFinal = "Select count(*) " + query
     LOG.debug(f"FINAL QUERY: {queryFinal}")
     # TODO: Is this use of async going to slow things down?
@@ -145,15 +144,16 @@ async def get_count_str(query: str) -> int:
 
 ## TODO: Originally this relied on a function `format_query()`, that did not exist
 async def get_documents(listVariables: list, query: str, skip: int, limit: int):
-    queryFinal = f"Select {",".join([col.name for col in listVariables])} {query} OFFSET :OFFSET ROWS FETCH NEXT :LIMIT ROWS ONLY"
+    queryFinal = f"SELECT {",".join([col.name for col in listVariables])} {query} OFFSET :OFFSET ROWS FETCH NEXT :LIMIT ROWS ONLY"
     LOG.debug(f"FINAL QUERY: {queryFinal}")
     async with engine.connect() as conn:
         # NB: To grab page X of the results, given that they want page size Y we need:
         # - skip X*Y rows
         # - return Y rows after that
         records = await conn.execute(text(queryFinal), {"OFFSET": skip * limit, "LIMIT": limit})
-        recordsFinal = records.fetchall() # format_query(listVariables, records)
-        return recordsFinal
+        recordsFinal = records.fetchmany(limit) # format_query(listVariables, records)
+        # Switch the SQLAlchemy result to a dict for the response
+        return [record._asdict() for record in recordsFinal]
 
 def get_cross_query(ids: dict, cross_type: str, collection_id: str):
     id_list=[]

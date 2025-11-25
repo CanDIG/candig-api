@@ -4,9 +4,10 @@ from ..beacon.omop.schemas import DefaultSchemas
 from ..beacon.response import framework, service_info, build_response
 from ..beacon.request import RequestParams
 from ..beacon.request.model import Granularity
+from ..beacon import conf
 from ..beacon.response.build_response import (
     build_beacon_resultset_response,
-    build_beacon_collection_response,
+    #build_beacon_collection_response,
     build_beacon_boolean_response,
     build_beacon_count_response,
     build_filtering_terms_response,
@@ -59,18 +60,28 @@ async def get_entry_types():
 async def post(body: dict):
     retval = {}
     # Figure out what kind of search we should be doing (see beacon/request/routes)
-    LOG.info(body)
-    params = RequestParams(**body) #.from_request(body)
+    #LOG.info(body)
+    params = RequestParams(**body).from_request(body)
 
     # Pass out the parsed search parameters to SQL (see beacon/omop/)
-    LOG.info(params)
+    #LOG.info(params)
     schema, count, records = await datasets.get_datasets(None, params)
-    # DEBUG: count/records aren't returning right now with the thing, so to test I'm just gonna use empty responses
-    #schema = DefaultSchemas.DATASETS
-    #count = 0
-    #records = []
 
     # Fill out the return value with all parameters that belong there (see beacon/response/build_response)
-    #response = build_beacon_boolean_response(response_converted, count, qparams, lambda x, y: x, entity_schema)
-    retval = build_beacon_boolean_response(records, count, params, lambda x, y: x, schema)
+    # Start by assuming max granularity, and downgrade as needed
+    granularity = Granularity.RECORD
+    if conf.max_beacon_granularity != Granularity.RECORD or params.query.requested_granularity != Granularity.RECORD:
+        granularity = Granularity.COUNT
+        if conf.max_beacon_granularity == Granularity.BOOLEAN or params.query.requested_granularity == Granularity.BOOLEAN:
+            granularity = Granularity.BOOLEAN
+
+    # Format proper response
+    if (granularity == Granularity.RECORD):
+        retval = build_beacon_resultset_response(records, count, params, lambda x, y: x, schema)
+    elif granularity == Granularity.COUNT:
+        retval = build_beacon_count_response(records, count, params, lambda x, y: x, schema)
+    else:
+        retval = build_beacon_boolean_response(records, count, params, lambda x, y: x, schema)
+
+    #LOG.info(retval)
     return retval, 200
