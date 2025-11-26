@@ -65,6 +65,39 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
+
+  /datasets/ingest_multiple_donors:
+    post:
+      summary: Create a new dataset.
+      description: |
+        Creates a new dataset with related clinical data
+      operationId: dataset_operations.handle_multiple_donors_data_ingestion
+      requestBody:
+        description: Generic JSON payload
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        201:
+          description: Dataset created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+      tags:
+        - Datasets
         
   /datasets/statistics:
     get:
@@ -278,6 +311,67 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
+
+  /datasets/upload:
+    post:
+      summary: Upload a JSON file for dataset creation
+      description: |
+        Upload a JSON file for dataset creation.
+      operationId: query_operations.upload_file
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File to upload JSON
+              required:
+                - file
+      responses:
+        200:
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileUploadResponseBody"
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
+
+  /datasets/upload/status/{queue_id}:
+    get:
+      summary: Check the status of an uploaded file
+      description: |
+        Retrieve the processing status of a previously uploaded file using its queue ID.
+      operationId: query_operations.get_upload_status
+      parameters:
+        - in: path
+          name: queue_id
+          required: true
+          schema:
+            title: Queue ID
+            type: string
+            description: The unique identifier for the upload job
+      responses:
+        200:
+          description: Status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                description: Status information for the upload job
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
 
   /datasets/{dataset_id}/persons:
     get:
@@ -822,3 +916,24 @@ components:
               type: integer
           required:
             - person_id
+    
+    FileUploadResponseBody:
+      type: object
+      properties:
+        filename:
+          type: string
+          description: Name of the uploaded file
+        content_type:
+          type: string
+          description: MIME type of the uploaded file
+        size:
+          type: integer
+          description: Size of the file in bytes
+        message:
+          type: string
+          description: Success message
+      required:
+        - filename
+        - content_type
+        - size
+        - message

@@ -1,3 +1,6 @@
+"""
+Provides CRUD operations for dataset like LIST, GET, CREATE, UPDATE, DELETE
+"""
 import json
 from datetime import datetime
 
@@ -6,13 +9,22 @@ from connexion.exceptions import ProblemException
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 
-from ..database.db_add_table import Dataset, PersonInDataset
-from ..database.db_operation import get_db_session
+from src.api.errors import (
+    raise_integrity_error,
+    raise_problem_exception,
+)
+from src.api.helpers import (
+    ingest_donor_with_clinical_data,
+)
+from src.database.db_add_tables import Dataset, PersonInDataset
+from src.database.db_operations import get_db_session
+
 from ..config import settings  # Import settings
 
 logger = CanDIGLogger(__file__)
 
 
+# --- List datasets Endpoint ---
 async def list_all():
     """Lists all datasets"""
 
@@ -55,6 +67,7 @@ async def list_all():
             )
 
 
+# --- Create dataset Endpoint ---
 async def create(body: dict):
     """
     Create a new dataset with new person(s)
@@ -123,7 +136,7 @@ async def create(body: dict):
 
                     # Get the auto-generated person_id from the db
                     result = await session.execute(insert_person_sql, person_params)
-                    person_id = result.fetchone()[0]
+                    person_id = result.scalar_one()
 
                     # Link person to dataset
                     insert_person_dataset_sql = text(f"""
@@ -156,7 +169,7 @@ async def create(body: dict):
                 extra_details += "Foreign key invalid.\n"
             if "uniqueviolationerror" in str(e).lower():
                 extra_details += "Value should be unique.\n"
-            
+
             error_msg = str(e)
             if "DETAIL:" in error_msg:
                 error_msg = error_msg.split("DETAIL:", 1)[1].split("\n", 1)[0].strip()
@@ -171,10 +184,11 @@ async def create(body: dict):
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail=f"An error occurred while creating the dataset in the database",
+                detail="An error occurred while creating the dataset in the database",
             )
 
 
+# --- Get dataset Endpoint ---
 async def get_by_id(id: int):
     """Gets a single dataset"""
 
@@ -223,6 +237,7 @@ async def get_by_id(id: int):
             )
 
 
+# --- Update dataset Endpoint ---
 async def put_by_id(id: int, body: dict):
     """
     Update an existing dataset with person(s)
@@ -259,7 +274,7 @@ async def put_by_id(id: int, body: dict):
 
                     if person_id:
                         provided_person_ids.add(person_id)
-                        
+
                         # Check if person exists before updating
                         check_person_exists_sql = text(f"""
                             SELECT 1 FROM {settings.CDM_SCHEMA}.person WHERE person_id = :person_id LIMIT 1
@@ -267,14 +282,14 @@ async def put_by_id(id: int, body: dict):
                         person_exists = await session.execute(
                             check_person_exists_sql, {"person_id": person_id}
                         )
-                        
+
                         if not person_exists.fetchone():
                             raise ProblemException(
                                 status=400,
                                 title="Bad Request",
                                 detail=f"Person with id {person_id} does not exist",
                             )
-                        
+
                         # Update existing person
                         birth_datetime = None
                         if person_data.get("birth_datetime"):
@@ -420,7 +435,7 @@ async def put_by_id(id: int, body: dict):
 
                         # Get the auto-generated person_id from the db
                         result = await session.execute(insert_person_sql, person_params)
-                        new_person_id = result.fetchone()[0]
+                        new_person_id = result.scalar_one()
                         provided_person_ids.add(new_person_id)
 
                         # Link new person to dataset
@@ -435,7 +450,7 @@ async def put_by_id(id: int, body: dict):
 
             # Delete persons that exist in the database but not in the request body
             persons_to_delete = existing_person_ids - provided_person_ids
-            
+
             if persons_to_delete:
                 # Delete from person_in_dataset table first
                 delete_person_dataset_sql = text(f"""
@@ -443,8 +458,8 @@ async def put_by_id(id: int, body: dict):
                     WHERE person_id = ANY(:person_ids) AND dataset_id = :dataset_id
                 """)
                 await session.execute(
-                    delete_person_dataset_sql, 
-                    {"person_ids": list(persons_to_delete), "dataset_id": id}
+                    delete_person_dataset_sql,
+                    {"person_ids": list(persons_to_delete), "dataset_id": id},
                 )
 
                 # Delete the persons from omop.person table
@@ -453,8 +468,7 @@ async def put_by_id(id: int, body: dict):
                     WHERE person_id = ANY(:person_ids)
                 """)
                 await session.execute(
-                    delete_persons_sql, 
-                    {"person_ids": list(persons_to_delete)}
+                    delete_persons_sql, {"person_ids": list(persons_to_delete)}
                 )
 
             await session.commit()
@@ -478,7 +492,7 @@ async def put_by_id(id: int, body: dict):
                 extra_details += "Foreign key invalid.\n"
             if "uniqueviolationerror" in str(e).lower():
                 extra_details += "Value should be unique.\n"
-            
+
             error_msg = str(e)
             if "DETAIL:" in error_msg:
                 error_msg = error_msg.split("DETAIL:", 1)[1].split("\n", 1)[0].strip()
@@ -497,65 +511,7 @@ async def put_by_id(id: int, body: dict):
             )
 
 
-async def delete_by_id(id: int):
-    """
-    Delete a dataset and its associate persons
-    """
-    async for session in get_db_session():
-        try:
-            dataset_to_delete = await session.get(Dataset, id)
-
-            if dataset_to_delete:
-                # Get all person_ids associated with this dataset
-                person_in_dataset_stmt = select(PersonInDataset.person_id).where(
-                    PersonInDataset.dataset_id == id
-                )
-                person_result = await session.execute(person_in_dataset_stmt)
-                person_ids = [row[0] for row in person_result.fetchall()]
-
-                # Delete from person_in_dataset table
-                person_in_dataset_delete_stmt = select(PersonInDataset).where(
-                    PersonInDataset.dataset_id == id
-                )
-                person_in_dataset_records = await session.execute(
-                    person_in_dataset_delete_stmt
-                )
-                for record in person_in_dataset_records.scalars():
-                    await session.delete(record)
-
-                # Delete persons
-                if person_ids:
-                    delete_persons_sql = text(f"""
-                        DELETE FROM {settings.CDM_SCHEMA}.person 
-                        WHERE person_id = ANY(:person_ids)
-                    """)
-                    await session.execute(
-                        delete_persons_sql, {"person_ids": person_ids}
-                    )
-
-                # Delete the dataset
-                await session.delete(dataset_to_delete)
-                await session.commit()
-                return {"message": "Operation completed successfully."}, 200
-            else:
-                raise ProblemException(
-                    status=404,
-                    title="Not Found",
-                    detail=f"Dataset with ID '{id}' not found.",
-                )
-        except ProblemException:
-            await session.rollback()
-            raise
-        except Exception as e:
-            await session.rollback()
-            logger.error(f"Database Error in dataset.delete_by_id: {str(e)}")
-            raise ProblemException(
-                status=500,
-                title="Database Error",
-                detail="An error occurred while deleting the dataset from the database.",
-            )
-
-
+# --- Get dataset info Endpoint ---
 async def get_info(id: int):
     """Gets dataset info"""
 
@@ -589,6 +545,7 @@ async def get_info(id: int):
             )
 
 
+# --- Update dataset Endpoint ---
 async def patch_info(id: int, body: dict):
     """
     Updates dataset info
@@ -622,10 +579,11 @@ async def patch_info(id: int, body: dict):
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail=f"An error occurred while updating the dataset info in the database.",
+                detail="An error occurred while updating the dataset info in the database.",
             )
 
 
+# --- Get datasets stats Endpoint ---
 async def statistics():
     """
     Gets summary statistics for all datasets
@@ -670,10 +628,11 @@ async def statistics():
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail=f"An error occurred while fetching dataset statistics from the database.",
+                detail="An error occurred while fetching dataset statistics from the database.",
             )
 
 
+# --- Get dataset stats Endpoint ---
 async def statistics_by_id(id: int):
     """
     Gets summary statistics for a specific dataset
@@ -715,5 +674,98 @@ async def statistics_by_id(id: int):
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail=f"An error occurred while fetching dataset statistics from the database.",
+                detail="An error occurred while fetching dataset statistics from the database.",
             )
+
+
+# --- Delete dataset Endpoint ---
+async def delete_by_id(id: int):
+    """
+    Delete a dataset and all associated data.
+
+    1. Deletes the dataset itself
+    2. Removes person-dataset link from person_in_dataset
+    3. Deletes all persons with its associated clinical data (treatments, events...) through FK
+    """
+    async for session in get_db_session():
+        try:
+            # Get the dataset
+            dataset_to_delete = await session.get(Dataset, id)
+
+            if not dataset_to_delete:
+                raise ProblemException(
+                    status=404,
+                    title="Not Found",
+                    detail=f"Dataset with ID '{id}' not found.",
+                )
+
+            # Get all person_ids associated with this dataset
+            person_in_dataset_stmt = select(PersonInDataset.person_id).where(
+                PersonInDataset.dataset_id == id
+            )
+            person_result = await session.execute(person_in_dataset_stmt)
+            person_ids = [row[0] for row in person_result.fetchall()]
+
+            # Delete persons first if any exist
+            # This also cascade to other tables through person_id
+            if person_ids:
+                delete_persons_sql = text(f"""
+                    DELETE FROM {settings.CDM_SCHEMA}.person 
+                    WHERE person_id = ANY(:person_ids)
+                """)
+                await session.execute(delete_persons_sql, {"person_ids": person_ids})
+
+            # Finally delete the dataset
+            await session.delete(dataset_to_delete)
+            await session.commit()
+
+            return {
+                "message": f"Dataset {id} and {len(person_ids)} associated person(s) deleted successfully."
+            }, 200
+
+        except ProblemException:
+            await session.rollback()
+            raise
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Database Error in dataset.delete: {str(e)}")
+            raise ProblemException(
+                status=500,
+                title="Database Error",
+                detail=f"An error occurred while deleting the dataset: {str(e)}",
+            )
+
+
+# --- Ingest Dataset with Multiple Persons Endpoint ---
+async def handle_multiple_donors_data_ingestion(body: dict) -> tuple[dict, int]:
+    """
+    Ingest multiple donors in 1 batch.
+    Note: this function is kept for reference until we confirm the file upload works correctly.
+    """
+
+    records = []
+    async for session in get_db_session():
+        try:
+            donor_list = body["donors"]
+            for donor_data in donor_list:
+                record = await ingest_donor_with_clinical_data(session, donor_data)
+                records.extend(record) # type: ignore
+
+            await session.commit()
+            logger.info("Successfully created all records and committed transaction.")
+            return {"records": records}, 201
+
+        except ProblemException:
+            await session.rollback()
+            raise
+        except IntegrityError as e:
+            await session.rollback()
+            await raise_integrity_error(e)
+        except Exception as e:
+            await session.rollback()
+            await raise_problem_exception(e)
+    raise ProblemException(
+        status=500,
+        title="Internal Server Error",
+        detail="Database session error"
+    )

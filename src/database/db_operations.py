@@ -4,16 +4,19 @@ Database Operations
 This module provides database connectivity and session management.
 """
 
+from typing import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import (
-    create_async_engine,
-    async_sessionmaker,
     AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
 )
+
 from ..config import settings
 
 async_engine = create_async_engine(
     settings.DATABASE_URI.replace("postgresql://", "postgresql+asyncpg://"),
-    echo=True,  # set False to hide SQL output
+    echo=False,  # set False to hide SQL output
 )
 
 async_session_factory = async_sessionmaker(
@@ -21,7 +24,7 @@ async_session_factory = async_sessionmaker(
 )
 
 
-async def get_db_session() -> AsyncSession:
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     For ORM usage: provides a SQLAlchemy AsyncSession.
     Manages commit/rollback and closing.
