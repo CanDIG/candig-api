@@ -1,8 +1,7 @@
 """
 CanDIG API Application
 
-This module initializes Connexion app with OpenAPI specification
-The API spec is loaded from schema.yml.
+This module initializes Connexion app with OpenAPI schema
 """
 
 import sys
@@ -18,7 +17,7 @@ from .database.db_setup import (
     update_column_limits,
 )
 
-from candigv2_logging.logging import CanDIGLogger, initialize  # type: ignore
+from candigv2_logging.logging import CanDIGLogger, initialize
 
 initialize()
 logger = CanDIGLogger(__file__)

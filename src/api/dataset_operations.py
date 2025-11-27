@@ -1,3 +1,6 @@
+"""
+Provides CRUD operations for dataset like LIST, GET, CREATE, UPDATE, DELETE
+"""
 import json
 from datetime import datetime
 
@@ -5,20 +8,23 @@ from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
+
 from src.api.errors import (
-    raise_bad_request,
     raise_integrity_error,
     raise_problem_exception,
 )
-from src.api.helpers import TABLE_CONFIG, IdMapper, create_record
+from src.api.helpers import (
+    ingest_donor_with_clinical_data,
+)
 from src.database.db_add_tables import Dataset, PersonInDataset
 from src.database.db_operations import get_db_session
+
 from ..config import settings  # Import settings
-import re
 
 logger = CanDIGLogger(__file__)
 
 
+# --- List datasets Endpoint ---
 async def list_all():
     """Lists all datasets"""
 
@@ -61,6 +67,7 @@ async def list_all():
             )
 
 
+# --- Create dataset Endpoint ---
 async def create(body: dict):
     """
     Create a new dataset with new person(s)
@@ -177,10 +184,11 @@ async def create(body: dict):
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail=f"An error occurred while creating the dataset in the database",
+                detail="An error occurred while creating the dataset in the database",
             )
 
 
+# --- Get dataset Endpoint ---
 async def get_by_id(id: int):
     """Gets a single dataset"""
 
@@ -229,6 +237,7 @@ async def get_by_id(id: int):
             )
 
 
+# --- Update dataset Endpoint ---
 async def put_by_id(id: int, body: dict):
     """
     Update an existing dataset with person(s)
@@ -502,65 +511,7 @@ async def put_by_id(id: int, body: dict):
             )
 
 
-async def delete_by_id(id: int):
-    """
-    Delete a dataset and its associate persons
-    """
-    async for session in get_db_session():
-        try:
-            dataset_to_delete = await session.get(Dataset, id)
-
-            if dataset_to_delete:
-                # Get all person_ids associated with this dataset
-                person_in_dataset_stmt = select(PersonInDataset.person_id).where(
-                    PersonInDataset.dataset_id == id
-                )
-                person_result = await session.execute(person_in_dataset_stmt)
-                person_ids = [row[0] for row in person_result.fetchall()]
-
-                # Delete from person_in_dataset table
-                person_in_dataset_delete_stmt = select(PersonInDataset).where(
-                    PersonInDataset.dataset_id == id
-                )
-                person_in_dataset_records = await session.execute(
-                    person_in_dataset_delete_stmt
-                )
-                for record in person_in_dataset_records.scalars():
-                    await session.delete(record)
-
-                # Delete persons
-                if person_ids:
-                    delete_persons_sql = text(f"""
-                        DELETE FROM {settings.CDM_SCHEMA}.person 
-                        WHERE person_id = ANY(:person_ids)
-                    """)
-                    await session.execute(
-                        delete_persons_sql, {"person_ids": person_ids}
-                    )
-
-                # Delete the dataset
-                await session.delete(dataset_to_delete)
-                await session.commit()
-                return {"message": "Operation completed successfully."}, 200
-            else:
-                raise ProblemException(
-                    status=404,
-                    title="Not Found",
-                    detail=f"Dataset with ID '{id}' not found.",
-                )
-        except ProblemException:
-            await session.rollback()
-            raise
-        except Exception as e:
-            await session.rollback()
-            logger.error(f"Database Error in dataset.delete_by_id: {str(e)}")
-            raise ProblemException(
-                status=500,
-                title="Database Error",
-                detail="An error occurred while deleting the dataset from the database.",
-            )
-
-
+# --- Get dataset info Endpoint ---
 async def get_info(id: int):
     """Gets dataset info"""
 
@@ -594,6 +545,7 @@ async def get_info(id: int):
             )
 
 
+# --- Update dataset Endpoint ---
 async def patch_info(id: int, body: dict):
     """
     Updates dataset info
@@ -627,10 +579,11 @@ async def patch_info(id: int, body: dict):
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail=f"An error occurred while updating the dataset info in the database.",
+                detail="An error occurred while updating the dataset info in the database.",
             )
 
 
+# --- Get datasets stats Endpoint ---
 async def statistics():
     """
     Gets summary statistics for all datasets
@@ -675,10 +628,11 @@ async def statistics():
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail=f"An error occurred while fetching dataset statistics from the database.",
+                detail="An error occurred while fetching dataset statistics from the database.",
             )
 
 
+# --- Get dataset stats Endpoint ---
 async def statistics_by_id(id: int):
     """
     Gets summary statistics for a specific dataset
@@ -720,15 +674,18 @@ async def statistics_by_id(id: int):
             raise ProblemException(
                 status=500,
                 title="Database Error",
-                detail=f"An error occurred while fetching dataset statistics from the database.",
+                detail="An error occurred while fetching dataset statistics from the database.",
             )
 
 
-async def delete_cascade(id: int):
+# --- Delete dataset Endpoint ---
+async def delete_by_id(id: int):
     """
-    Delete a dataset and its associated persons
-    Delete dataset will cascade to person_in_dataset
-    Delete person will cascade to associated data
+    Delete a dataset and all associated data.
+
+    1. Deletes the dataset itself
+    2. Removes person-dataset link from person_in_dataset
+    3. Deletes all persons with its associated clinical data (treatments, events...) through FK
     """
     async for session in get_db_session():
         try:
@@ -771,7 +728,7 @@ async def delete_cascade(id: int):
             raise
         except Exception as e:
             await session.rollback()
-            logger.error(f"Database Error in dataset.delete_cascade: {str(e)}")
+            logger.error(f"Database Error in dataset.delete: {str(e)}")
             raise ProblemException(
                 status=500,
                 title="Database Error",
@@ -779,127 +736,24 @@ async def delete_cascade(id: int):
             )
 
 
-async def insert_from_moh(body: dict):
+# --- Ingest Dataset with Multiple Persons Endpoint ---
+async def handle_multiple_donors_data_ingestion(body: dict) -> tuple[dict, int]:
     """
-    This function creates OMOP records by:
-    1. Find the person record and creating it first.
-    2. Looping through the rest of the payload.
+    Ingest multiple donors in 1 batch.
+    Note: this function is kept for reference until we confirm the file upload works correctly.
     """
-    id_mapper = IdMapper()
-    return_obj = []
 
-    PATTERNS = {
-        "donor": r"^\$\.donors\[\d+\]$",
-        "primary_diagnosis": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\]$",
-        "specimen": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].specimens\[\d+\]$",
-        "treatment": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].treatments\[\d+\]$",
-        "systemic_therapy": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].treatments\[\d+\].systemic_therapies\[\d+\]$",
-        "surgery": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].treatments\[\d+\].surgeries\[\d+\]$",
-        "radiation": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].treatments\[\d+\].radiations\[\d+\]$",
-        "biomarker": r"^\$\.donors\[\d+\].biomarkers\[\d+\]$",
-    }
-
+    records = []
     async for session in get_db_session():
         try:
-            new_dataset_id = None
-            for key in body.keys():
-                items = body[key]
-                if re.match(PATTERNS["donor"], key):
-                    # First pass: Find and create the dataset
-                    for field in items:
-                        if field.get("omop_table") == "dataset" and not field.get(
-                            "skip_errors"
-                        ):
-                            # Check if dataset already exists in the database by source_value
-                            dataset_record = field.get("omop_record")
-                            source_value = dataset_record.get("source_value")
-
-                            # Query database for existing dataset
-                            existing_dataset_stmt = select(Dataset).where(
-                                Dataset.source_value == source_value
-                            )
-                            existing_dataset_result = await session.execute(
-                                existing_dataset_stmt
-                            )
-                            existing_dataset = (
-                                existing_dataset_result.scalar_one_or_none()
-                            )
-
-                            if existing_dataset:
-                                # Use existing dataset
-                                new_dataset_id = existing_dataset.id
-                                id_mapper.store_id(
-                                    dataset_record.get("id"), new_dataset_id
-                                )
-                                return_obj.append(
-                                    {
-                                        "id": existing_dataset.id,
-                                        "source_value": existing_dataset.source_value,
-                                        "info": existing_dataset.info,
-                                    }
-                                )
-                            else:
-                                # Create new dataset
-                                new_dataset = await create_record(
-                                    session, id_mapper, field, "dataset"
-                                )
-                                new_dataset_id = new_dataset["id"]
-                                return_obj.append(new_dataset)
-                            break
-
-                    if new_dataset_id is None:
-                        await raise_bad_request("dataset")
-
-                    new_person_id = None 
-                    for field in items:
-                        if field.get("omop_table") == "person" and not field.get(
-                            "skip_errors"
-                        ):
-                            new_person = await create_record(
-                                session, id_mapper, field, "person"
-                            )
-                            new_person_id = new_person["person_id"]
-                            return_obj.append(new_person)
-                            break
-
-                        if new_person_id is None:
-                            await raise_bad_request("person")
-
-                    # Second pass: Process all other tables at the donor level
-                    for field in items:
-                        table_name = field.get("omop_table")
-                        if (
-                            table_name != "person"
-                            and table_name != "dataset"
-                            and table_name in TABLE_CONFIG
-                            and not field.get("skip_errors")
-                        ):
-                            new_record = await create_record(
-                                session, id_mapper, field, table_name
-                            )
-                            return_obj.append(new_record)
-
-                else:  # process others tables
-                    # Check if the key matches any patterns (excluding donor)
-                    is_known_pattern = any(
-                        re.match(pattern, key)
-                        for name, pattern in PATTERNS.items()
-                        if name not in ["donor", "dataset"]
-                    )
-                    if is_known_pattern:
-                        for field in items:
-                            table_name = field.get("omop_table")
-                            if table_name in TABLE_CONFIG and not field.get(
-                                "skip_errors"
-                            ):
-                                new_record = await create_record(
-                                    session, id_mapper, field, table_name
-                                )
-                                return_obj.append(new_record)
+            donor_list = body["donors"]
+            for donor_data in donor_list:
+                record = await ingest_donor_with_clinical_data(session, donor_data)
+                records.extend(record) # type: ignore
 
             await session.commit()
             logger.info("Successfully created all records and committed transaction.")
-            return {"records": return_obj}, 201
+            return {"records": records}, 201
 
         except ProblemException:
             await session.rollback()
@@ -910,3 +764,8 @@ async def insert_from_moh(body: dict):
         except Exception as e:
             await session.rollback()
             await raise_problem_exception(e)
+    raise ProblemException(
+        status=500,
+        title="Internal Server Error",
+        detail="Database session error"
+    )

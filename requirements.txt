@@ -1,4 +1,5 @@
-connexion[swagger-ui,uvicorn]
-SQLAlchemy[asyncio]
-asyncpg
-candigv2-logging@git+https://github.com/CanDIG/candigv2-logging.git@v1.0.1 # CANDIG logging wrapper
+connexion[swagger-ui,uvicorn]     # Web framework for OpenAPI schema 
+SQLAlchemy[asyncio]               # Object Relational Mapping 
+asyncpg                           # PostgreSQL driver 
+watchdog                          # Watch for files change 
+candigv2-logging@git+https://github.com/CanDIG/candigv2-logging.git@v1.0.1  # CanDIG logging wrapper

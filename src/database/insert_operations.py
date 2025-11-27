@@ -1,13 +1,23 @@
+"""
+Database insert operations for OMOP tables.
+
+Currently only have basic validation for dates, datetimes, and integers.
+
+TODO: need to guard against SQL injection,
+not sure to do it through the OpenAPI schema or in the code.
+"""
+from datetime import date, datetime
+from typing import Any, Dict, Optional
+
 from candigv2_logging.logging import CanDIGLogger
-from typing import Dict, Any, List, Optional, Tuple
-from sqlalchemy.ext.asyncio import AsyncSession
-import re
 from connexion.exceptions import ProblemException
-from datetime import datetime, date
+from sqlalchemy import Row, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from ..config import settings
-from sqlalchemy import Row, select, text
 
 logger = CanDIGLogger(__file__)
+
 
 def safe_int(value: Any) -> Optional[int]:
     if value is None:
@@ -17,6 +27,7 @@ def safe_int(value: Any) -> Optional[int]:
     except (ValueError, TypeError):
         return None
 
+
 def row_to_dict(row: Optional[Row]) -> Dict[str, Any]:
     if row is None:
         raise ProblemException(
@@ -24,13 +35,14 @@ def row_to_dict(row: Optional[Row]) -> Dict[str, Any]:
             title="Database Error",
             detail="No data returned from database insert operation.",
         )
-    
+
     return {key: getattr(row, key) for key in row._fields}
+
 
 async def create_person(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     # Handle birth_datetime conversion
     if "birth_datetime" in record_data and record_data["birth_datetime"] is not None:
         if isinstance(record_data["birth_datetime"], str):
@@ -79,11 +91,15 @@ async def create_person(
         "care_site_id": safe_int(record_data.get("care_site_id")),
         "person_source_value": record_data.get("person_source_value"),
         "gender_source_value": record_data.get("gender_source_value"),
-        "gender_source_concept_id": safe_int(record_data.get("gender_source_concept_id")),
+        "gender_source_concept_id": safe_int(
+            record_data.get("gender_source_concept_id")
+        ),
         "race_source_value": record_data.get("race_source_value"),
         "race_source_concept_id": safe_int(record_data.get("race_source_concept_id")),
         "ethnicity_source_value": record_data.get("ethnicity_source_value"),
-        "ethnicity_source_concept_id": safe_int(record_data.get("ethnicity_source_concept_id")),
+        "ethnicity_source_concept_id": safe_int(
+            record_data.get("ethnicity_source_concept_id")
+        ),
     }
 
     # Execute sql
@@ -99,7 +115,7 @@ async def create_person(
 async def create_observation(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new observation record into the database.
     """
@@ -165,7 +181,9 @@ async def create_observation(
         "observation_concept_id": safe_int(record_data.get("observation_concept_id")),
         "observation_date": record_data.get("observation_date"),
         "observation_datetime": record_data.get("observation_datetime"),
-        "observation_type_concept_id": safe_int(record_data.get("observation_type_concept_id")),
+        "observation_type_concept_id": safe_int(
+            record_data.get("observation_type_concept_id")
+        ),
         "value_as_number": record_data.get("value_as_number"),
         "value_as_string": record_data.get("value_as_string"),
         "value_as_concept_id": safe_int(record_data.get("value_as_concept_id")),
@@ -175,12 +193,16 @@ async def create_observation(
         "visit_occurrence_id": safe_int(record_data.get("visit_occurrence_id")),
         "visit_detail_id": safe_int(record_data.get("visit_detail_id")),
         "observation_source_value": record_data.get("observation_source_value"),
-        "observation_source_concept_id": safe_int(record_data.get("observation_source_concept_id")),
+        "observation_source_concept_id": safe_int(
+            record_data.get("observation_source_concept_id")
+        ),
         "unit_source_value": record_data.get("unit_source_value"),
         "qualifier_source_value": record_data.get("qualifier_source_value"),
         "value_source_value": record_data.get("value_source_value"),
         "observation_event_id": safe_int(record_data.get("observation_event_id")),
-        "obs_event_field_concept_id": safe_int(record_data.get("obs_event_field_concept_id")),
+        "obs_event_field_concept_id": safe_int(
+            record_data.get("obs_event_field_concept_id")
+        ),
     }
 
     result = await session.execute(insert_sql, observation_params)
@@ -195,7 +217,7 @@ async def create_observation(
 async def create_condition_occurrence(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new condition_occurrence record into the database.
     """
@@ -260,15 +282,23 @@ async def create_condition_occurrence(
         "condition_start_datetime": record_data.get("condition_start_datetime"),
         "condition_end_date": record_data.get("condition_end_date"),
         "condition_end_datetime": record_data.get("condition_end_datetime"),
-        "condition_type_concept_id": safe_int(record_data.get("condition_type_concept_id")),
-        "condition_status_concept_id": safe_int(record_data.get("condition_status_concept_id")),
+        "condition_type_concept_id": safe_int(
+            record_data.get("condition_type_concept_id")
+        ),
+        "condition_status_concept_id": safe_int(
+            record_data.get("condition_status_concept_id")
+        ),
         "stop_reason": record_data.get("stop_reason"),
         "provider_id": safe_int(record_data.get("provider_id")),
         "visit_occurrence_id": safe_int(record_data.get("visit_occurrence_id")),
         "visit_detail_id": safe_int(record_data.get("visit_detail_id")),
         "condition_source_value": record_data.get("condition_source_value"),
-        "condition_source_concept_id": safe_int(record_data.get("condition_source_concept_id")),
-        "condition_status_source_value": record_data.get("condition_status_source_value"),
+        "condition_source_concept_id": safe_int(
+            record_data.get("condition_source_concept_id")
+        ),
+        "condition_status_source_value": record_data.get(
+            "condition_status_source_value"
+        ),
     }
 
     result = await session.execute(insert_sql, condition_occurrence_params)
@@ -283,7 +313,7 @@ async def create_condition_occurrence(
 async def create_episode(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new episode record into the database.
     """
@@ -347,10 +377,14 @@ async def create_episode(
         "episode_end_datetime": record_data.get("episode_end_datetime"),
         "episode_parent_id": safe_int(record_data.get("episode_parent_id")),
         "episode_number": safe_int(record_data.get("episode_number")),
-        "episode_object_concept_id": safe_int(record_data.get("episode_object_concept_id")),
+        "episode_object_concept_id": safe_int(
+            record_data.get("episode_object_concept_id")
+        ),
         "episode_type_concept_id": safe_int(record_data.get("episode_type_concept_id")),
         "episode_source_value": record_data.get("episode_source_value"),
-        "episode_source_concept_id": safe_int(record_data.get("episode_source_concept_id")),
+        "episode_source_concept_id": safe_int(
+            record_data.get("episode_source_concept_id")
+        ),
     }
 
     result = await session.execute(insert_sql, episode_params)
@@ -365,7 +399,7 @@ async def create_episode(
 async def create_episode_event(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new episode_event record into the database.
     """
@@ -398,7 +432,7 @@ async def create_episode_event(
 async def create_measurement(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new measurement record into the database.
     """
@@ -468,7 +502,9 @@ async def create_measurement(
         "measurement_date": record_data.get("measurement_date"),
         "measurement_datetime": record_data.get("measurement_datetime"),
         "measurement_time": record_data.get("measurement_time"),
-        "measurement_type_concept_id": safe_int(record_data.get("measurement_type_concept_id")),
+        "measurement_type_concept_id": safe_int(
+            record_data.get("measurement_type_concept_id")
+        ),
         "operator_concept_id": safe_int(record_data.get("operator_concept_id")),
         "value_as_number": record_data.get("value_as_number"),
         "value_as_concept_id": safe_int(record_data.get("value_as_concept_id")),
@@ -479,12 +515,16 @@ async def create_measurement(
         "visit_occurrence_id": safe_int(record_data.get("visit_occurrence_id")),
         "visit_detail_id": safe_int(record_data.get("visit_detail_id")),
         "measurement_source_value": record_data.get("measurement_source_value"),
-        "measurement_source_concept_id": safe_int(record_data.get("measurement_source_concept_id")),
+        "measurement_source_concept_id": safe_int(
+            record_data.get("measurement_source_concept_id")
+        ),
         "unit_source_value": record_data.get("unit_source_value"),
         "unit_source_concept_id": safe_int(record_data.get("unit_source_concept_id")),
         "value_source_value": record_data.get("value_source_value"),
         "measurement_event_id": safe_int(record_data.get("measurement_event_id")),
-        "meas_event_field_concept_id": safe_int(record_data.get("meas_event_field_concept_id")),
+        "meas_event_field_concept_id": safe_int(
+            record_data.get("meas_event_field_concept_id")
+        ),
     }
 
     result = await session.execute(insert_sql, measurement_params)
@@ -499,7 +539,7 @@ async def create_measurement(
 async def create_specimen(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new specimen record into the database.
     """
@@ -554,13 +594,19 @@ async def create_specimen(
     specimen_params = {
         "person_id": safe_int(record_data.get("person_id")),
         "specimen_concept_id": safe_int(record_data.get("specimen_concept_id")),
-        "specimen_type_concept_id": safe_int(record_data.get("specimen_type_concept_id")),
+        "specimen_type_concept_id": safe_int(
+            record_data.get("specimen_type_concept_id")
+        ),
         "specimen_date": record_data.get("specimen_date"),
         "specimen_datetime": record_data.get("specimen_datetime"),
         "quantity": record_data.get("quantity"),
         "unit_concept_id": safe_int(record_data.get("unit_concept_id")),
-        "anatomic_site_concept_id": safe_int(record_data.get("anatomic_site_concept_id")),
-        "disease_status_concept_id": safe_int(record_data.get("disease_status_concept_id")),
+        "anatomic_site_concept_id": safe_int(
+            record_data.get("anatomic_site_concept_id")
+        ),
+        "disease_status_concept_id": safe_int(
+            record_data.get("disease_status_concept_id")
+        ),
         "specimen_source_id": record_data.get("specimen_source_id"),
         "specimen_source_value": record_data.get("specimen_source_value"),
         "unit_source_value": record_data.get("unit_source_value"),
@@ -580,7 +626,7 @@ async def create_specimen(
 async def create_procedure_occurrence(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new procedure_occurrence record into the database.
     """
@@ -645,14 +691,18 @@ async def create_procedure_occurrence(
         "procedure_datetime": record_data.get("procedure_datetime"),
         "procedure_end_date": record_data.get("procedure_end_date"),
         "procedure_end_datetime": record_data.get("procedure_end_datetime"),
-        "procedure_type_concept_id": safe_int(record_data.get("procedure_type_concept_id")),
+        "procedure_type_concept_id": safe_int(
+            record_data.get("procedure_type_concept_id")
+        ),
         "modifier_concept_id": safe_int(record_data.get("modifier_concept_id")),
         "quantity": safe_int(record_data.get("quantity")),
         "provider_id": safe_int(record_data.get("provider_id")),
         "visit_occurrence_id": safe_int(record_data.get("visit_occurrence_id")),
         "visit_detail_id": safe_int(record_data.get("visit_detail_id")),
         "procedure_source_value": record_data.get("procedure_source_value"),
-        "procedure_source_concept_id": safe_int(record_data.get("procedure_source_concept_id")),
+        "procedure_source_concept_id": safe_int(
+            record_data.get("procedure_source_concept_id")
+        ),
         "modifier_source_value": record_data.get("modifier_source_value"),
     }
 
@@ -669,7 +719,7 @@ async def create_procedure_occurrence(
 async def create_drug_exposure(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new drug_exposure record into the database.
     """
@@ -770,7 +820,7 @@ async def create_drug_exposure(
 async def create_fact_relationship(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new fact_relationship record into the database.
     """
@@ -802,7 +852,7 @@ async def create_fact_relationship(
 async def create_death(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new death record into the database.
     """
@@ -867,7 +917,7 @@ async def create_death(
 async def create_dataset(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Inserts a new dataset record into the database.
     """
@@ -886,7 +936,7 @@ async def create_dataset(
     row = result.fetchone()
 
     # Convert row to dictionary
-    dataset_dict = {"id": row.id, "source_value": row.source_value, "info": row.info}
+    dataset_dict = row_to_dict(row)
 
     return dataset_dict
 
@@ -894,7 +944,7 @@ async def create_dataset(
 async def create_person_in_dataset(
     session: AsyncSession,
     record_data: dict,
-):
+) -> Dict[str, Any]:
     """
     Create FK between person and dataset
     """
@@ -916,3 +966,98 @@ async def create_person_in_dataset(
     result_dict = row_to_dict(row)
 
     return result_dict
+
+
+async def create_visit_occurrence(
+    session: AsyncSession,
+    record_data: dict,
+) -> Dict[str, Any]:
+    """
+    Inserts a new visit_occurrence record into the database.
+    """
+    # Handle datetime conversions
+    for field in ["visit_start_datetime", "visit_end_datetime"]:
+        if (
+            field in record_data
+            and record_data[field] is not None
+            and isinstance(record_data[field], str)
+        ):
+            try:
+                record_data[field] = datetime.fromisoformat(
+                    record_data[field].replace("Z", "+00:00")
+                )
+            except ValueError:
+                raise ProblemException(
+                    status=400,
+                    title="Bad Request",
+                    detail=f"Invalid datetime format: {record_data[field]}. Expected ISO 8601 format.",
+                )
+
+    # Handle date conversions
+    for field in ["visit_start_date", "visit_end_date"]:
+        if (
+            field in record_data
+            and record_data[field] is not None
+            and isinstance(record_data[field], str)
+        ):
+            try:
+                record_data[field] = date.fromisoformat(record_data[field])
+            except ValueError:
+                raise ProblemException(
+                    status=400,
+                    title="Bad Request",
+                    detail=f"Invalid date format: {record_data[field]}. Expected ISO 8601 format.",
+                )
+
+    insert_sql = text(f"""
+        INSERT INTO {settings.CDM_SCHEMA}.visit_occurrence (
+            person_id, visit_concept_id, visit_start_date, visit_start_datetime,
+            visit_end_date, visit_end_datetime, visit_type_concept_id, provider_id,
+            care_site_id, visit_source_value, visit_source_concept_id,
+            admitted_from_concept_id, admitted_from_source_value, discharged_to_concept_id,
+            discharged_to_source_value, preceding_visit_occurrence_id
+        ) VALUES (
+            :person_id, :visit_concept_id, :visit_start_date, :visit_start_datetime,
+            :visit_end_date, :visit_end_datetime, :visit_type_concept_id, :provider_id,
+            :care_site_id, :visit_source_value, :visit_source_concept_id,
+            :admitted_from_concept_id, :admitted_from_source_value, :discharged_to_concept_id,
+            :discharged_to_source_value, :preceding_visit_occurrence_id
+        ) RETURNING visit_occurrence_id, person_id, visit_concept_id, visit_start_date, visit_start_datetime,
+            visit_end_date, visit_end_datetime, visit_type_concept_id, provider_id,
+            care_site_id, visit_source_value, visit_source_concept_id,
+            admitted_from_concept_id, admitted_from_source_value, discharged_to_concept_id,
+            discharged_to_source_value, preceding_visit_occurrence_id
+    """)
+
+    visit_occurrence_params = {
+        "person_id": safe_int(record_data.get("person_id")),
+        "visit_concept_id": safe_int(record_data.get("visit_concept_id")),
+        "visit_start_date": record_data.get("visit_start_date"),
+        "visit_start_datetime": record_data.get("visit_start_datetime"),
+        "visit_end_date": record_data.get("visit_end_date"),
+        "visit_end_datetime": record_data.get("visit_end_datetime"),
+        "visit_type_concept_id": safe_int(record_data.get("visit_type_concept_id")),
+        "provider_id": safe_int(record_data.get("provider_id")),
+        "care_site_id": safe_int(record_data.get("care_site_id")),
+        "visit_source_value": record_data.get("visit_source_value"),
+        "visit_source_concept_id": safe_int(record_data.get("visit_source_concept_id")),
+        "admitted_from_concept_id": safe_int(
+            record_data.get("admitted_from_concept_id")
+        ),
+        "admitted_from_source_value": record_data.get("admitted_from_source_value"),
+        "discharged_to_concept_id": safe_int(
+            record_data.get("discharged_to_concept_id")
+        ),
+        "discharged_to_source_value": record_data.get("discharged_to_source_value"),
+        "preceding_visit_occurrence_id": safe_int(
+            record_data.get("preceding_visit_occurrence_id")
+        ),
+    }
+
+    result = await session.execute(insert_sql, visit_occurrence_params)
+    row = result.fetchone()
+
+    # Convert row to dictionary
+    visit_occurrence_dict = row_to_dict(row)
+
+    return visit_occurrence_dict

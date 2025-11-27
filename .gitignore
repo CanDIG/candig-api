@@ -12,6 +12,7 @@
 /lib/*/tmp
 .tox
 _local/*
+/upload/*
 
 # project files
 .venv

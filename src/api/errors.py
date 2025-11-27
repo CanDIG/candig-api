@@ -1,10 +1,12 @@
-# in utils.py or a similar shared module
-
-import logging
-from sqlalchemy.exc import IntegrityError
+"""
+Custom error handling functions for the CanDIG API with
+appropriate status codes and error messages.
+"""
+from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
+from sqlalchemy.exc import IntegrityError
 
-logger = logging.getLogger(__name__)
+logger = CanDIGLogger(__file__)
 
 
 async def raise_integrity_error(e: IntegrityError):
@@ -41,6 +43,8 @@ async def raise_problem_exception(e: Exception):
 
 
 async def raise_bad_request(obj: str):
+    logger.error(f"Bad Request: Payload must contain one valid {obj}")
+    
     raise ProblemException(
         status=400,
         title="Bad Request",
