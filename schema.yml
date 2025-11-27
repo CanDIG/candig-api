@@ -1013,10 +1013,8 @@ components:
     LinkedRecord:
       type: object
       description: >
-        A link which contains one OMOP-like object (observation, measurement etc.) and optionally nested linked_records.
-        The payload you provided uses a list of such objects under `linked_records`. Each item should be an object
+        A link which contains one OMOP-like object (observation, measurement etc.) Each item is an object
         with a single key (the OMOP record type) mapping to the appropriate OMOP object schema.
-      # allow additionalProperties false would force single-key; instead we allow flexibility but validate keys below
       properties:
         observation:
           $ref: '#/components/schemas/IngestObservation'
