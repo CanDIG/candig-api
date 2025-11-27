@@ -881,11 +881,11 @@ components:
         linked_records:
           type: array
           items:
-            $ref: '#/componenets/schemas/PersonWithClinicalData'
+            $ref: '#/components/schemas/IngestPersonWithClinicalData'
         dataset_source_value:
           description: The name of the dataset from the source system, should not contain spaces
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,50}$
       additionalProperties: false
 
     IngestPersonWithClinicalData:
@@ -902,7 +902,7 @@ components:
         linked_records:
           type: array
           items:
-            $ref: '#/componenets/schemas/LinkedRecord'
+            $ref: '#/components/schemas/LinkedRecord'
 
     IngestPerson:
       type: object
@@ -915,7 +915,7 @@ components:
       properties:
         person_source_value:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,50}$
           example: "SITE_PM2C~SYNTH_01~DONOR_0001"
           description: "Source system person identifier (string in your payload)."
         gender_concept_id:
@@ -1000,7 +1000,7 @@ components:
       properties:
         observation_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         observation_concept_id:
           type: integer
         observation_date:
@@ -1079,7 +1079,7 @@ components:
       properties:
         condition_occurrence_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         condition_concept_id:
           type: integer
         condition_start_date:
@@ -1122,7 +1122,7 @@ components:
       properties:
         episode_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         episode_concept_id:
           type: integer
         episode_start_datetime:
@@ -1133,7 +1133,7 @@ components:
           format: date-time
         episode_parent_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         episode_number:
           type: integer
         episode_object_concept_id:
@@ -1154,10 +1154,10 @@ components:
       properties:
         episode_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         event_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         event_field_concept_id:
           type: integer
 
@@ -1170,7 +1170,7 @@ components:
       properties:
         measurement_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         measurement_concept_id:
           type: integer
         measurement_date:
@@ -1195,10 +1195,10 @@ components:
           type: number
         provider_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         visit_occurrence_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         visit_detail_id:
           type: integer
         measurement_source_value:
@@ -1220,7 +1220,7 @@ components:
       properties:
         specimen_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         specimen_concept_id:
           type: integer
           format: int32
@@ -1288,7 +1288,7 @@ components:
       properties:
         procedure_occurrence_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         procedure_concept_id:
           type: integer
         procedure_date:
@@ -1305,10 +1305,10 @@ components:
           type: integer
         provider_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         visit_occurrence_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         visit_detail_id:
           type: integer
         procedure_source_value:
@@ -1327,7 +1327,7 @@ components:
       properties:
         drug_exposure_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         drug_concept_id:
           type: integer
         drug_exposure_start_date:
@@ -1363,13 +1363,13 @@ components:
           type: string
         provider_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         visit_occurrence_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         visit_detail_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         drug_source_value:
           type: string
         drug_source_concept_id:
@@ -1392,7 +1392,7 @@ components:
       properties:
         drug_era_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         drug_concept_id:
           type: integer
         drug_era_start_date:
@@ -1415,7 +1415,7 @@ components:
       properties:
         condition_era_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         condition_concept_id:
           type: integer
         condition_era_start_date:
@@ -1438,7 +1438,7 @@ components:
       properties:
         dose_era_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         drug_concept_id:
           type: integer
         unit_concept_id:
@@ -1465,12 +1465,12 @@ components:
           type: integer
         fact_id_1:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         domain_concept_id_2:
           type: integer
         fact_id_2:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,64}$
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         relationship_concept_id:
           type: integer
 
