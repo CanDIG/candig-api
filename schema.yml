@@ -867,15 +867,15 @@ components:
         location_id:
           description: The location refers to the physical address of the person. This field should capture the last known location of the person.  Put the location_id from the LOCATION table here that represents the most granular location information for the person. For additional information on how to populate this field, please refer to the THEMIS repository.
           type: integer
-          nullable: true
+          
         provider_id:
           description: The Provider refers to the last known primary care provider (General Practitioner).  Put the provider_id from the PROVIDER table of the last known general practitioner of the person. If there are multiple providers, it is up to the ETL to decide which to put here.
           type: integer
-          nullable: true
+          
         care_site_id:
           description: The Care Site refers to where the Provider typically provides the primary care.
           type: integer
-          nullable: true
+          
         person_source_value:
           description: Use this field to link back to persons in the source data. This is typically used for error checking of ETL logic. Some use cases require the ability to link back to persons in the source data. This field allows for the storing of the person value as it appears in the source. This field is not required but strongly recommended.
           type: string
@@ -885,21 +885,21 @@ components:
         gender_source_concept_id:
           description: Due to the small number of options, this tends to be zero. If the source data codes assigned sex at birth in a non-standard vocabulary, store the concept_id here.
           type: integer
-          nullable: true
+          
         race_source_value:
           description: This field is used to store the race of the person from the source data. It is not intended for use in standard analytics but for reference only. Put the race of the person as it appears in the source data.
           type: string
         race_source_concept_id:
           description: Due to the small number of options, this tends to be zero. If the source data codes race in an OMOP supported vocabulary store the concept_id here.
           type: integer
-          nullable: true
+          
         ethnicity_source_value:
           description: This field is used to store the ethnicity of the person from the source data. It is not intended for use in standard analytics but for reference only. If the person has an ethnicity other than the OMB standard of "Hispanic" or "Not Hispanic" store that value from the source data here.
           type: string
         ethnicity_source_concept_id:
           description: Due to the small number of options, this tends to be zero. If the source data codes ethnicity in an OMOP supported vocabulary, store the concept_id here.
           type: integer
-          nullable: true
+          
       required:
         - gender_concept_id
         - race_concept_id
@@ -1166,7 +1166,7 @@ components:
         death_datetime:
           type: string
           format: date-time
-          nullable: true
+          
           description: Exact datetime of death, when available
         death_type_concept_id:
           type: integer
@@ -1175,16 +1175,16 @@ components:
         cause_concept_id:
           type: integer
           format: int32
-          nullable: true
+          
           description: Concept representing the primary cause of death
         cause_source_value:
           type: string
-          nullable: true
+          
           description: Source code recorded as cause of death
         cause_source_concept_id:
           type: integer
           format: int32
-          nullable: true
+          
           description: Source concept ID for the cause of death
 
     IngestConditionOccurrence:
@@ -1353,47 +1353,37 @@ components:
         specimen_datetime:
           type: string
           format: date-time
-          nullable: true
           description: Exact datetime the specimen was obtained, if available
         quantity:
           type: number
           format: float
-          nullable: true
           description: Amount of specimen collected (e.g., mL)
         unit_concept_id:
           type: integer
           format: int32
-          nullable: true
           description: Concept ID for the unit of measure for specimen quantity
         anatomic_site_concept_id:
           type: integer
           format: int32
-          nullable: true
           description: Concept representing the collection anatomical site
         disease_status_concept_id:
           type: integer
           format: int32
-          nullable: true
           description: Disease status of the organism at collection time
         specimen_source_id:
           type: string
-          nullable: true
           description: Source identifier for the specimen
         specimen_source_value:
           type: string
-          nullable: true
           description: Source code for the specimen type
         unit_source_value:
           type: string
-          nullable: true
           description: Source code for unit of measure
         anatomic_site_source_value:
           type: string
-          nullable: true
           description: Source value for the anatomical site
         disease_status_source_value:
           type: string
-          nullable: true
           description: Source value for the disease status
 
     IngestProcedureOccurrence:
