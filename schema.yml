@@ -98,7 +98,7 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
-        
+
   /datasets/statistics:
     get:
       summary: Grab summary statistics for all datasets.
@@ -214,7 +214,7 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
-        
+
   /datasets/{id}/info:
     get:
       summary: Retrieve a dataset's info
@@ -319,18 +319,7 @@ paths:
         Upload a JSON file for dataset creation.
       operationId: query_operations.upload_file
       requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                file:
-                  type: string
-                  format: binary
-                  description: File to upload JSON
-              required:
-                - file
+        $ref: '#/components/requestBodies/DatasetsIngestRequest'
       responses:
         200:
           description: File uploaded successfully
@@ -344,6 +333,8 @@ paths:
           $ref: "#/components/responses/401UnauthorizedError"
         5XX:
           $ref: "#/components/responses/5xxServerError"
+      tags:
+        - Datasets
 
   /datasets/upload/status/{queue_id}:
     get:
@@ -372,6 +363,8 @@ paths:
           $ref: "#/components/responses/404NotFoundError"
         5XX:
           $ref: "#/components/responses/5xxServerError"
+      tags:
+        - Datasets
 
   /datasets/{dataset_id}/persons:
     get:
@@ -440,7 +433,7 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Persons
-        
+
   /datasets/{dataset_id}/persons/{id}:
     get:
       summary: Get all details about a person
@@ -602,7 +595,7 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Persons
-        
+
 components:
   responses:
     400BadRequestError:
@@ -641,7 +634,7 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
-            
+
   requestBodies:
     DatasetSingleRequestBody:
       description: A full dataset, including all persons within it
@@ -679,7 +672,13 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/PersonBaseBody"
-            
+    DatasetsIngestRequest:
+      content:
+        'application/json':
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/IngestOmopDatasets"
+
   schemas:
     Error:
       type: object
@@ -701,7 +700,7 @@ components:
             - message
       required:
         - query
-        
+
     BadRequestError:
       allOf:
         - $ref: "#/components/schemas/Error"
@@ -712,7 +711,7 @@ components:
                   example: InvalidInput
                 message:
                   example: "FOO is not an acceptable field"
-                  
+
     NotFoundError:
       allOf:
         - $ref: "#/components/schemas/Error"
@@ -723,7 +722,7 @@ components:
                   example: NotFound
                 message:
                   example: The requested resource could not be located
-                  
+
     ConflictError:
       allOf:
         - $ref: "#/components/schemas/Error"
@@ -734,7 +733,7 @@ components:
                   example: Conflict
                 message:
                   example: The request conflicts with the current state of the resource
-                  
+
     DatasetSingleNoInfoBody:
       type: object
       properties:
@@ -744,12 +743,12 @@ components:
           type: string
         count:
           type: integer
-          
+
     DatasetAggregateBody:
       type: array
       items:
         $ref: "#/components/schemas/DatasetSingleNoInfoBody"
-        
+
     DatasetSingleNoPeopleBody:
       type: object
       properties:
@@ -759,7 +758,7 @@ components:
           type: string
         info:
           $ref: "#/components/schemas/DatasetInfoBody"
-          
+
     DatasetSingleBody:
       type: object
       properties:
@@ -774,7 +773,7 @@ components:
           $ref: "#/components/schemas/DatasetInfoBody"
       required:
         - source_value
-        
+
     DatasetSinglePutBody:
       type: object
       properties:
@@ -791,19 +790,19 @@ components:
           $ref: "#/components/schemas/DatasetInfoBody"
       required:
         - source_value
-        
+
     DatasetRowLevelBody:
       type: array
       items:
         $ref: "#/components/schemas/DatasetSingleBody"
-        
+
     SuccessBody:
       type: object
       properties:
         message:
           type: string
           default: "Operation completed successfully."
-          
+
     DatasetInfoBody:
       type: object
       properties:
@@ -812,7 +811,7 @@ components:
           type: string
       additionalProperties: true
       description: Dataset information object that can contain various metadata fields
-      
+
     DatasetStatsBody:
       type: object
       properties:
@@ -823,24 +822,24 @@ components:
         persons_per_dataset:
           type: object
           description: Keys are dataset IDs, values are the number of Persons
-          
+
     IndividualDatasetStatsBody:
       type: object
       properties:
         person_count:
           type: integer
-          
+
     PersonRowLevelBody:
       type: array
       items:
         $ref: "#/components/schemas/PersonDetailedBody"
-        
+
     PersonAggregateBody:
       type: array
       items:
         type: integer
         description: Person ID.
-        
+
     PersonBaseBody:
       type: object
       properties:
@@ -916,7 +915,7 @@ components:
               type: integer
           required:
             - person_id
-    
+
     IngestOmopDatasets:
       type: object
       required:
@@ -936,7 +935,7 @@ components:
         - linked_records
       properties:
         info:
-          $ref: '#/components/schemas/DatasetInfo'
+          $ref: '#/components/schemas/IngestDatasetInfo'
         linked_records:
           type: array
           items:
@@ -1047,8 +1046,69 @@ components:
           $ref: '#/components/schemas/IngestFactRelationship'
       additionalProperties: false
 
-    DatasetInfo:
+    IngestDatasetInfo:
       type: object
+      properties:
+        study_id:
+          type: string
+        study_name:
+          type: string
+        study_description:
+          type: string
+        program_name:
+          type: string
+        keywords:
+          type: string
+        status:
+          type: string
+          enum:
+            - Ongoing
+            - Completed
+        context:
+          type: string
+          enum:
+            - Clinical
+            - Research
+        domain:
+          type: string
+          enum:
+            - Aging
+            - Birth Defects
+            - Cancer
+            - Circulatory and Respiratory Health
+            - General Health
+            - Infection and Immunity
+            - Musculoskeletal Health and Arthritis
+            - Neurodevelopmental Conditions
+            - Neurosciences, Mental Health and Addiction
+            - Nutrition, Metabolism and Diabetes
+            - Population Genomics
+            - Rare Diseases
+            - Other
+        dac_id:
+          type: string
+        participant_criteria:
+          type: string
+        principal_investigators:
+          type: array
+          items:
+            type: string
+        lead_organizations:
+          type: array
+          items:
+            type: string
+        collaborators:
+          type: array
+          items:
+            type: string
+        funding_sources:
+          type: array
+          items:
+            type: string
+        publication_links:
+          type: array
+          items:
+            type: string
 
     IngestObservation:
       type: object
@@ -1437,10 +1497,6 @@ components:
           type: string
         dose_unit_source_value:
           type: string
-
-    # --------------------------
-    # Era & Relationship tables (requested)
-    # --------------------------
 
     IngestDrugEra:
       type: object
