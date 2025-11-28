@@ -2,12 +2,11 @@ import logging
 from typing import Dict, List, Optional
 # from beacon.omop.filters import apply_alphanumeric_filter, apply_filters
 # from beacon.omop.utils import  get_count, get_cross_query, get_documents, search_ontologies, basic_query
-from beacon.omop.utils import  search_ontologies, basic_query, peek
-from beacon.omop import client
-import beacon.omop.mappings as mappings
+from ...beacon.omop.utils import  search_ontologies, basic_query, peek
+from ...beacon.omop import engine, mappings
 # from beacon.request.model import AlphanumericFilter, Operator, RequestParams
-from beacon.request.model import RequestParams
-from beacon.omop.schemas import DefaultSchemas
+from ...beacon.request.model import RequestParams
+from ...beacon.omop.schemas import DefaultSchemas
 import re
 import aiosql
 import itertools
@@ -24,17 +23,17 @@ individual_queries = aiosql.from_path(queries_file, "psycopg2")
 
 def get_individual_id(offset=0, limit=10, person_id=None):
     if person_id == None:
-        records = individual_queries.sql_get_individuals(client, offset=offset, limit=limit)
+        records = individual_queries.sql_get_individuals(engine, offset=offset, limit=limit)
         listId = [str(record[0]) for record in records]
     else:
-        records = individual_queries.sql_get_individual_id(client, person_id=person_id)
+        records = individual_queries.sql_get_individual_id(engine, person_id=person_id)
         listId = [str(records[0])]
     return listId
 
 def get_individuals_person(listIds):
     dict_person = {}
     for person_id in listIds:
-        records = individual_queries.sql_get_person(client, person_id=person_id)
+        records = individual_queries.sql_get_person(engine, person_id=person_id)
         listValues = []
         for record in records:
             listValues.append({"gender_concept_id" : record[0],
@@ -46,7 +45,7 @@ def get_individuals_person(listIds):
 def get_individuals_condition(listIds):
     dict_condition = {}
     for person_id in listIds:
-        records = individual_queries.sql_get_condition(client, person_id=person_id)
+        records = individual_queries.sql_get_condition(engine, person_id=person_id)
         listValues = []
         for record in records:
             if record[1] == None:
@@ -62,7 +61,7 @@ def get_individuals_condition(listIds):
 def get_individuals_procedure(listIds):
     dict_procedure = {}
     for person_id in listIds:
-        records = individual_queries.sql_get_procedure(client, person_id=person_id)
+        records = individual_queries.sql_get_procedure(engine, person_id=person_id)
         listValues = []
         for record in records:
             if record[1] == "None":
@@ -79,7 +78,7 @@ def get_individuals_procedure(listIds):
 def get_individuals_measures(listIds):
     dict_measures = {}
     for person_id in listIds:
-        records = individual_queries.sql_get_measure(client, person_id=person_id)
+        records = individual_queries.sql_get_measure(engine, person_id=person_id)
         listValues = []
         for record in records:
             if record[1] == "None":
@@ -98,8 +97,8 @@ def get_individuals_measures(listIds):
 def get_individuals_exposures(listIds):
     dict_exposures = {}
     for person_id in listIds:
-        records = individual_queries.sql_get_exposure(client, person_id=person_id)
-        records_duration = individual_queries.sql_get_exposure_period(client, person_id=person_id)
+        records = individual_queries.sql_get_exposure(engine, person_id=person_id)
+        records_duration = individual_queries.sql_get_exposure_period(engine, person_id=person_id)
         listValues = []
         for record in records:
             if record[1] == "None":
@@ -121,7 +120,7 @@ def get_individuals_exposures(listIds):
 def get_individuals_treatments(listIds):
     dict_treatments = {}
     for person_id in listIds:
-        records = individual_queries.sql_get_treatment(client, person_id=person_id)
+        records = individual_queries.sql_get_treatment(engine, person_id=person_id)
         listValues = []
         for record in records:
             if record[1] == "None":
@@ -171,7 +170,7 @@ def map_domains(domain_id):
     return dictMapping[domain_id]
 
 def search_descendants(concept_id):
-    records = individual_queries.sql_get_descendants(client, concept_id=concept_id)
+    records = individual_queries.sql_get_descendants(engine, concept_id=concept_id)
 
     l_descendants = set()
     for descendant in records:
@@ -442,7 +441,7 @@ def checkFilters(filtersDict, offset, limit, typeQuery):
 
         if typeFilter=="Ontology" or  typeFilter=="Alphanumeric":
             vocabulary_id, concept_code = filterId.split(':')
-            records = individual_queries.sql_get_concept_domain(client,
+            records = individual_queries.sql_get_concept_domain(engine,
                                                                 vocabulary_id=vocabulary_id,
                                                                 concept_code=concept_code)
             # Check if records is empty
@@ -501,7 +500,7 @@ def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=Request
         listIds = get_individual_id(offset=qparams.query.pagination.skip,
                                             limit=qparams.query.pagination.limit,
                                             person_id=entry_id)                 # List with all Ids
-        count_ids = individual_queries.count_individuals(client)   # Count individuals
+        count_ids = individual_queries.count_individuals(engine)   # Count individuals
         print('Number of ids',count_ids)
 
     dictPerson = get_individuals_person(listIds)        # List with Id, sex, ethnicity
@@ -564,12 +563,12 @@ def get_biosamples_of_individual(entry_id: Optional[str], qparams: RequestParams
 def get_filtering_terms_of_individual(entry_id: Optional[str], qparams: RequestParams):
     schema = DefaultSchemas.FILTERINGTERMS
 
-    l_sql_filters = [individual_queries.sql_filtering_terms_race_gender(client),
-                    individual_queries.sql_filtering_terms_condition(client),
-                    individual_queries.sql_filtering_terms_measurement(client),
-                    individual_queries.sql_filtering_terms_procedure(client),
-                    individual_queries.sql_filtering_terms_observation(client),
-                    individual_queries.sql_filtering_terms_drug_exposure(client)]
+    l_sql_filters = [individual_queries.sql_filtering_terms_race_gender(engine),
+                    individual_queries.sql_filtering_terms_condition(engine),
+                    individual_queries.sql_filtering_terms_measurement(engine),
+                    individual_queries.sql_filtering_terms_procedure(engine),
+                    individual_queries.sql_filtering_terms_observation(engine),
+                    individual_queries.sql_filtering_terms_drug_exposure(engine)]
     l_indFilters = []
     for ind_filters in l_sql_filters:
         for filters in ind_filters:
@@ -585,11 +584,11 @@ def get_cohort_individuals(cohort_id, offset=0, limit=10):
     count_ids = 0
 
 
-    listIds = individual_queries.cohort_individuals(client,
+    listIds = individual_queries.cohort_individuals(engine,
                                 offset=offset,
                                 limit=limit,
                                 cohort_id=cohort_id)                 # List with all Ids
-    count_ids = individual_queries.count_cohort_individuals(client, cohort_id=cohort_id)   # Count individuals
+    count_ids = individual_queries.count_cohort_individuals(engine, cohort_id=cohort_id)   # Count individuals
 
     dictPerson = get_individuals_person(listIds)        # List with Id, sex, ethnicity
     dictCondition = get_individuals_condition(listIds)  # List with al the diseases per Id
@@ -619,7 +618,7 @@ def get_cohort_individuals(cohort_id, offset=0, limit=10):
 #         if re.match(CURIE_REGEX, value):
 #             vocabulary_id, concept_code = value.split(':')
 #             # Get OMOP Id from the vocabulary:concept_code (SNOMED:1234)
-#             records = individual_queries.sql_get_concept_domain(client,
+#             records = individual_queries.sql_get_concept_domain(engine,
 #                                                                 vocabulary_id=vocabulary_id,
 #                                                                 concept_code=concept_code)
 #             # Check if records is empty
@@ -651,8 +650,8 @@ def get_variants_of_individual(entry_id: Optional[str], qparams: RequestParams):
     # query = {"$and": [{"id": entry_id}]}
     # query = apply_request_parameters(query, qparams)
     # query = apply_filters(query, qparams.query.filters, collection)
-    # count = get_count(client.beacon.individuals, query)
-    # individual_ids = client.beacon.individuals \
+    # count = get_count(engine.beacon.individuals, query)
+    # individual_ids = engine.beacon.individuals \
     #     .find_one(query, {"id": 1, "_id": 0})
     # LOG.debug(individual_ids)
     # individual_ids=get_cross_query(individual_ids,'id','caseLevelData.biosampleId')
@@ -660,9 +659,9 @@ def get_variants_of_individual(entry_id: Optional[str], qparams: RequestParams):
     # query = apply_filters(individual_ids, qparams.query.filters, collection)
 
     # schema = DefaultSchemas.GENOMICVARIATIONS
-    # count = get_count(client.beacon.genomicVariations, query)
+    # count = get_count(engine.beacon.genomicVariations, query)
     # docs = get_documents(
-    #     client.beacon.genomicVariations,
+    #     engine.beacon.genomicVariations,
     #     query,
     #     qparams.query.pagination.skip,
     #     qparams.query.pagination.limit
@@ -678,9 +677,9 @@ def get_runs_of_individual(entry_id: Optional[str], qparams: RequestParams):
     # query = apply_request_parameters(query, qparams)
     # query = apply_filters(query, qparams.query.filters, collection)
     # schema = DefaultSchemas.RUNS
-    # count = get_count(client.beacon.runs, query)
+    # count = get_count(engine.beacon.runs, query)
     # docs = get_documents(
-    #     client.beacon.runs,
+    #     engine.beacon.runs,
     #     query,
     #     qparams.query.pagination.skip,
     #     qparams.query.pagination.limit
@@ -697,9 +696,9 @@ def get_analyses_of_individual(entry_id: Optional[str], qparams: RequestParams):
     # query = apply_request_parameters(query, qparams)
     # query = apply_filters(query, qparams.query.filters, collection)
     # schema = DefaultSchemas.ANALYSES
-    # count = get_count(client.beacon.analyses, query)
+    # count = get_count(engine.beacon.analyses, query)
     # docs = get_documents(
-    #     client.beacon.analyses,
+    #     engine.beacon.analyses,
     #     query,
     #     qparams.query.pagination.skip,
     #     qparams.query.pagination.limit

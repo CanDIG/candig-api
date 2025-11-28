@@ -1,5 +1,5 @@
 #from ..beacon.request.handlers import filtering_terms_handler
-from ..beacon.omop import datasets #filtering_terms
+from ..beacon.omop import datasets, filtering_terms
 from ..beacon.omop.schemas import DefaultSchemas
 from ..beacon.response import framework, service_info, build_response
 from ..beacon.request import RequestParams
@@ -20,20 +20,22 @@ LOG = logging.getLogger(__name__)
 API_VERSION = '1.0.0'
 BEACON_ID = 'org.candig.api.beacon'
 
-async def init_omop():
-    init()
-
 # /datasets/info
 async def get_beacon_info_root():
     return service_info.handler
 
 # /datasets/filtering_terms
-async def get_filtering_terms():
+async def get_filtering_terms(body: dict):
     # We have return values from individuals.get_filtering_terms_of_individual
     # and biosamples.get_filtering_terms_of_biosample
     # Unsure what we want to return, per se. There's a datasets.get_filtering_terms_of_dataset but it's a TODO?
-    #return filtering_terms_handler(db_fn=filtering_terms.get_filtering_terms)
-    return {}, 200
+    #return filtering_terms_handler(db_fn=filtering_terms.get_filtering_terms), 200
+    qparams = RequestParams(**body).from_request(body)
+
+    entity_schema, count, records = filtering_terms.get_filtering_terms(qparams=qparams)
+    # Get response
+    response = build_filtering_terms_response(records, count, qparams, lambda x, y: x, entity_schema )
+    return await response, 200
 
 # /datasets/filtering_terms
 async def post_filtering_terms():
@@ -85,3 +87,5 @@ async def post(body: dict):
 
     #LOG.info(retval)
     return retval, 200
+
+# /persons/
