@@ -1132,6 +1132,7 @@ components:
           type: number
         value_as_string:
           type: string
+          maxLength: 60
         value_as_concept_id:
           type: integer
         qualifier_concept_id:
@@ -1146,12 +1147,18 @@ components:
           type: integer
         observation_source_value:
           type: string
+          maxLength: 50
         observation_source_concept_id:
           type: integer
         unit_source_value:
           type: string
+          maxLength: 50
         qualifier_source_value:
           type: string
+          maxLength: 50
+        observation_event_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
 
     IngestDeath:
       type: object
@@ -1166,7 +1173,6 @@ components:
         death_datetime:
           type: string
           format: date-time
-          
           description: Exact datetime of death, when available
         death_type_concept_id:
           type: integer
@@ -1175,16 +1181,14 @@ components:
         cause_concept_id:
           type: integer
           format: int32
-          
           description: Concept representing the primary cause of death
         cause_source_value:
           type: string
-          
+          maxLength: 50
           description: Source code recorded as cause of death
         cause_source_concept_id:
           type: integer
           format: int32
-          
           description: Source concept ID for the cause of death
 
     IngestConditionOccurrence:
@@ -1217,14 +1221,19 @@ components:
           type: integer
         stop_reason:
           type: string
+          maxLength: 20
         provider_id:
-          type: integer
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         visit_occurrence_id:
-          type: integer
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         visit_detail_id:
-          type: integer
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         condition_source_value:
           type: string
+          maxLength: 50
         condition_source_concept_id:
           type: integer
         condition_status_source_value:
@@ -1242,9 +1251,15 @@ components:
           pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         episode_concept_id:
           type: integer
+        episode_start_date:
+          type: string
+          format: date
         episode_start_datetime:
           type: string
           format: date-time
+        episode_end_date:
+          type: string
+          format: date
         episode_end_datetime:
           type: string
           format: date-time
@@ -1261,6 +1276,7 @@ components:
           type: integer
         episode_source_value:
           type: string
+          maxLength: 50
 
     IngestEpisodeEvent:
       type: object
@@ -1296,6 +1312,9 @@ components:
         measurement_datetime:
           type: string
           format: date-time
+        measurement_type:
+          type: string
+          maxLength: 10
         measurement_type_concept_id:
           type: integer
         operator_concept_id:
@@ -1317,15 +1336,25 @@ components:
           type: string
           pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         visit_detail_id:
-          type: integer
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         measurement_source_value:
           type: string
         measurement_source_concept_id:
           type: integer
         unit_source_value:
           type: string
+          maxLength: 50
+        unit_source_concept_id:
+          type: integer
         value_source_value:
           type: string
+          maxLength: 50
+        measurement_event_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        meas_event_field_concept_id:
+          type: integer
 
     IngestSpecimen:
       type: object
@@ -1372,18 +1401,23 @@ components:
           description: Disease status of the organism at collection time
         specimen_source_id:
           type: string
+          maxLength: 50
           description: Source identifier for the specimen
         specimen_source_value:
           type: string
+          maxLength: 50
           description: Source code for the specimen type
         unit_source_value:
           type: string
+          maxLength: 50
           description: Source code for unit of measure
         anatomic_site_source_value:
           type: string
+          maxLength: 50
           description: Source value for the anatomical site
         disease_status_source_value:
           type: string
+          maxLength: 50
           description: Source value for the disease status
 
     IngestProcedureOccurrence:
@@ -1404,6 +1438,12 @@ components:
         procedure_datetime:
           type: string
           format: date-time
+        procedure_end_date:
+          type: string
+          format: date
+        procedure_end_datetime:
+          type: string
+          format: date-time
         procedure_type_concept_id:
           type: integer
         modifier_concept_id:
@@ -1417,13 +1457,16 @@ components:
           type: string
           pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         visit_detail_id:
-          type: integer
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         procedure_source_value:
           type: string
+          maxLength: 50
         procedure_source_concept_id:
           type: integer
         modifier_source_value:
           type: string
+          maxLength: 50
 
     IngestDrugExposure:
       type: object
@@ -1456,6 +1499,7 @@ components:
           type: integer
         stop_reason:
           type: string
+          maxLength: 20
         refills:
           type: integer
         quantity:
@@ -1468,6 +1512,7 @@ components:
           type: integer
         lot_number:
           type: string
+          maxLength: 50
         provider_id:
           type: string
           pattern: ^[A-Za-z0-9\-\._~]{1,100}$
@@ -1479,12 +1524,15 @@ components:
           pattern: ^[A-Za-z0-9\-\._~]{1,100}$
         drug_source_value:
           type: string
+          maxLength: 50
         drug_source_concept_id:
           type: integer
         route_source_value:
           type: string
+          maxLength: 50
         dose_unit_source_value:
           type: string
+          maxLength: 50
 
     IngestDrugEra:
       type: object
