@@ -10,12 +10,12 @@ from connexion import AsyncApp
 from .api import query_operations
 from .api import dataset_operations
 from .api import person_operations
-from .database.db_setup import (
-    create_tables,
-    update_FK_delete_cascade,
-    update_tables_identity,
-    update_column_limits,
-)
+# from .database.db_setup import (
+#     create_tables,
+#     update_FK_delete_cascade,
+#     update_tables_identity,
+#     update_column_limits,
+# )
 
 from candigv2_logging.logging import CanDIGLogger, initialize
 
@@ -34,10 +34,10 @@ async def lifespan(app):
     """
     # Startup
     logger.info("Application starting up...")
-    await create_tables()
-    await update_tables_identity()
-    await update_column_limits()
-    await update_FK_delete_cascade()
+    # await create_tables()
+    # await update_tables_identity()
+    # await update_column_limits()
+    # await update_FK_delete_cascade()
     logger.info("Application startup complete.")
 
     yield
