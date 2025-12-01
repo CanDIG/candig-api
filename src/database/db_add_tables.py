@@ -10,44 +10,44 @@ Tables added:
 
 """
 
-from typing import Any, Dict, Optional
+# from typing import Any, Dict, Optional
 
-from sqlalchemy import JSON, ForeignKey, Integer, PrimaryKeyConstraint, String
-from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
+# from sqlalchemy import JSON, ForeignKey, Integer, PrimaryKeyConstraint, String
+# from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 
-from ..config import settings
+# from ..config import settings
 
-Base = declarative_base()
-
-
-class Dataset(Base):
-    __tablename__ = "dataset"
-    __table_args__ = {"schema": settings.CANDIG_SCHEMA}
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    source_value: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
-    info: Mapped[Optional[Dict[str, Any]]] = mapped_column(
-        JSON, nullable=True, default={}
-    )
-
-    person_mappings = relationship(
-        "PersonInDataset", back_populates="dataset", cascade="all, delete-orphan"
-    )
+# Base = declarative_base()
 
 
-class PersonInDataset(Base):
-    __tablename__ = "person_in_dataset"
+# class Dataset(Base):
+#     __tablename__ = "dataset"
+#     __table_args__ = {"schema": settings.CANDIG_SCHEMA}
 
-    dataset_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey(f"{settings.CANDIG_SCHEMA}.dataset.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    person_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
+#     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+#     source_value: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+#     info: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+#         JSON, nullable=True, default={}
+#     )
 
-    __table_args__ = (
-        PrimaryKeyConstraint("dataset_id", "person_id"),
-        {"schema": settings.CANDIG_SCHEMA},
-    )
+#     person_mappings = relationship(
+#         "PersonInDataset", back_populates="dataset", cascade="all, delete-orphan"
+#     )
 
-    dataset = relationship("Dataset", back_populates="person_mappings")
+
+# class PersonInDataset(Base):
+#     __tablename__ = "person_in_dataset"
+
+#     dataset_id: Mapped[int] = mapped_column(
+#         Integer,
+#         ForeignKey(f"{settings.CANDIG_SCHEMA}.dataset.id", ondelete="CASCADE"),
+#         nullable=False,
+#     )
+#     person_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
+
+#     __table_args__ = (
+#         PrimaryKeyConstraint("dataset_id", "person_id"),
+#         {"schema": settings.CANDIG_SCHEMA},
+#     )
+
+#     dataset = relationship("Dataset", back_populates="person_mappings")
