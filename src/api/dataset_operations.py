@@ -16,7 +16,7 @@ from src.api.errors import (
 from src.api.helpers import (
     ingest_donor_with_clinical_data,
 )
-from src.database.db_add_tables import Dataset, PersonInDataset
+
 from src.database.db_operations import get_db_session
 
 from ..config import settings  # Import settings
@@ -28,20 +28,16 @@ logger = CanDIGLogger(__file__)
 async def list_all():
     """Lists all datasets"""
 
-    stmt = (
-        select(
-            Dataset.id,
-            Dataset.source_value,
-            func.count(PersonInDataset.person_id).label("person_count"),
-        )
-        .join(
-            PersonInDataset,
-            Dataset.id == PersonInDataset.dataset_id,
-            isouter=True,
-        )
-        .group_by(Dataset.id)
-        .order_by(Dataset.id)
-    )
+    stmt = text(f"""
+            SELECT 
+                d.id,
+                COUNT(pid.person_id) AS person_count
+            FROM {settings.CANDIG_SCHEMA}.dataset d
+            LEFT OUTER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid 
+                ON d.id = pid.dataset_id
+            GROUP BY d.id
+            ORDER BY d.id
+        """)
 
     async for session in get_db_session():
         try:
@@ -51,7 +47,6 @@ async def list_all():
             datasets = [
                 {
                     "id": record.id,
-                    "source_value": record.source_value,
                     "count": record.person_count or 0,
                 }
                 for record in records
@@ -74,12 +69,18 @@ async def create(body: dict):
     """
     async for session in get_db_session():
         try:
-            source_value = body["source_value"]
+            dataset_id = body["id"]
             info = body.get("info", {})
             persons = body.get("persons", [])
-            new_dataset = Dataset(source_value=source_value, info=info)
-            session.add(new_dataset)
-            await session.flush()
+            insert_dataset_sql = text(f"""
+                INSERT INTO {settings.CANDIG_SCHEMA}.dataset (id, info)
+                VALUES (:id, :info)
+            """)
+            
+            await session.execute(
+                insert_dataset_sql,
+                {"id": dataset_id, "info": json.dumps(info)}
+            )
 
             # insert persons if included
             if persons:
@@ -145,16 +146,15 @@ async def create(body: dict):
                     """)
                     await session.execute(
                         insert_person_dataset_sql,
-                        {"person_id": person_id, "dataset_id": new_dataset.id},
+                        {"person_id": person_id, "dataset_id": dataset_id},
                     )
 
             await session.commit()
 
             # Return the created dataset
             dataset = {
-                "id": new_dataset.id,
-                "source_value": new_dataset.source_value,
-                "info": new_dataset.info,
+                "id": dataset_id,
+                "info": info,
             }
             return dataset, 201
 
@@ -163,7 +163,7 @@ async def create(body: dict):
             raise
         except IntegrityError as e:
             await session.rollback()
-            logger.error(f"Database Integrity Error in dataset.put_by_id: {str(e)}")
+            logger.error(f"Database Integrity Error in dataset.create: {str(e)}")
             extra_details = ""
             if "foreignkeyviolationerror" in str(e).lower():
                 extra_details += "Foreign key invalid.\n"
@@ -189,27 +189,23 @@ async def create(body: dict):
 
 
 # --- Get dataset Endpoint ---
-async def get_by_id(id: int):
+async def get_by_id(id: str):
     """Gets a single dataset"""
 
-    stmt = (
-        select(
-            Dataset.id,
-            Dataset.source_value,
-            func.count(PersonInDataset.person_id).label("person_count"),
-        )
-        .join(
-            PersonInDataset,
-            Dataset.id == PersonInDataset.dataset_id,
-            isouter=True,
-        )
-        .where(Dataset.id == id)
-        .group_by(Dataset.id, Dataset.source_value)
-    )
+    stmt = text(f"""
+    SELECT 
+        d.id,
+        COUNT(pid.person_id) AS person_count
+    FROM {settings.CANDIG_SCHEMA}.dataset d
+    LEFT OUTER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid 
+        ON d.id = pid.dataset_id
+    WHERE d.id = :id
+    GROUP BY d.id
+""")
 
     async for session in get_db_session():
         try:
-            result = await session.execute(stmt)
+            result = await session.execute(stmt, {"id": id})
             record = result.one_or_none()
 
             if not record:
@@ -221,7 +217,6 @@ async def get_by_id(id: int):
 
             dataset = {
                 "id": record.id,
-                "source_value": record.source_value,
                 "count": record.person_count or 0,
             }
 
@@ -238,14 +233,20 @@ async def get_by_id(id: int):
 
 
 # --- Update dataset Endpoint ---
-async def put_by_id(id: int, body: dict):
+async def put_by_id(id: str, body: dict):
     """
     Update an existing dataset with person(s)
     """
     async for session in get_db_session():
         try:
-            # Get existing dataset
-            existing_dataset = await session.get(Dataset, id)
+            # Check if dataset exists and get current data
+            check_dataset_sql = text(f"""
+                SELECT id, info FROM {settings.CANDIG_SCHEMA}.dataset 
+                WHERE id = :id
+            """)
+            result = await session.execute(check_dataset_sql, {"id": id})
+            existing_dataset = result.one_or_none()
+            
             if not existing_dataset:
                 raise ProblemException(
                     status=404,
@@ -254,14 +255,26 @@ async def put_by_id(id: int, body: dict):
                 )
 
             # Update dataset fields
-            existing_dataset.source_value = body["source_value"]
-            existing_dataset.info = body.get("info", {})
+            info = body.get("info", {})
+            
+            update_dataset_sql = text(f"""
+                UPDATE {settings.CANDIG_SCHEMA}.dataset 
+                SET info = :info
+                WHERE id = :id
+            """)
+            await session.execute(
+                update_dataset_sql,
+                {"id": id, "info": json.dumps(info)}
+            )
 
             # Get all existing person_ids for this dataset
-            existing_persons_stmt = select(PersonInDataset.person_id).where(
-                PersonInDataset.dataset_id == id
+            existing_persons_sql = text(f"""
+                SELECT person_id FROM {settings.CANDIG_SCHEMA}.person_in_dataset
+                WHERE dataset_id = :dataset_id
+            """)
+            existing_persons_result = await session.execute(
+                existing_persons_sql, {"dataset_id": id}
             )
-            existing_persons_result = await session.execute(existing_persons_stmt)
             existing_person_ids = {row[0] for row in existing_persons_result.fetchall()}
 
             # Handle persons if provided
@@ -475,9 +488,8 @@ async def put_by_id(id: int, body: dict):
 
             # Return the updated dataset
             dataset = {
-                "id": existing_dataset.id,
-                "source_value": existing_dataset.source_value,
-                "info": existing_dataset.info,
+                "id": id,
+                "info": info,
             }
             return dataset, 200
 
@@ -512,14 +524,17 @@ async def put_by_id(id: int, body: dict):
 
 
 # --- Get dataset info Endpoint ---
-async def get_info(id: int):
+async def get_info(id: str):
     """Gets dataset info"""
 
-    stmt = select(Dataset.info).where(Dataset.id == id)
+    stmt = text(f"""
+        SELECT info FROM {settings.CANDIG_SCHEMA}.dataset 
+        WHERE id = :id
+    """)
 
     async for session in get_db_session():
         try:
-            result = await session.execute(stmt)
+            result = await session.execute(stmt, {"id": id})
             record = result.one_or_none()
 
             if not record:
@@ -546,14 +561,20 @@ async def get_info(id: int):
 
 
 # --- Update dataset Endpoint ---
-async def patch_info(id: int, body: dict):
+async def patch_info(id: str, body: dict):
     """
     Updates dataset info
     """
 
     async for session in get_db_session():
         try:
-            existing_dataset = await session.get(Dataset, id)
+            # Check if dataset exists
+            check_dataset_sql = text(f"""
+                SELECT id FROM {settings.CANDIG_SCHEMA}.dataset 
+                WHERE id = :id
+            """)
+            result = await session.execute(check_dataset_sql, {"id": id})
+            existing_dataset = result.one_or_none()
 
             if not existing_dataset:
                 raise ProblemException(
@@ -562,16 +583,27 @@ async def patch_info(id: int, body: dict):
                     detail=f"Dataset with id {id} not found",
                 )
 
-            existing_dataset.info = body if body else {}
+            # Update dataset info
+            info = body if body else {}
+            update_info_sql = text(f"""
+                UPDATE {settings.CANDIG_SCHEMA}.dataset 
+                SET info = :info
+                WHERE id = :id
+            """)
+            await session.execute(
+                update_info_sql,
+                {"id": id, "info": json.dumps(info)}
+            )
             await session.commit()
 
-            info = existing_dataset.info
+            # Return the updated info
             if isinstance(info, str):
                 info = json.loads(info)
 
             return info, 200
 
         except ProblemException:
+            await session.rollback()
             raise
         except Exception as e:
             await session.rollback()
@@ -590,18 +622,15 @@ async def statistics():
     """
 
     # Get total dataset count and person counts per dataset
-    stmt = (
-        select(
-            Dataset.id,
-            func.count(PersonInDataset.person_id).label("person_count"),
-        )
-        .join(
-            PersonInDataset,
-            Dataset.id == PersonInDataset.dataset_id,
-            isouter=True,
-        )
-        .group_by(Dataset.id)
-    )
+    stmt = text(f"""
+    SELECT 
+        d.id,
+        COUNT(pid.person_id) AS person_count
+    FROM {settings.CANDIG_SCHEMA}.dataset d
+    LEFT OUTER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid 
+        ON d.id = pid.dataset_id
+    GROUP BY d.id
+""")
 
     async for session in get_db_session():
         try:
@@ -633,28 +662,25 @@ async def statistics():
 
 
 # --- Get dataset stats Endpoint ---
-async def statistics_by_id(id: int):
+async def statistics_by_id(id: str):
     """
     Gets summary statistics for a specific dataset
     """
 
-    stmt = (
-        select(
-            Dataset.id,
-            func.count(PersonInDataset.person_id).label("person_count"),
-        )
-        .join(
-            PersonInDataset,
-            Dataset.id == PersonInDataset.dataset_id,
-            isouter=True,
-        )
-        .where(Dataset.id == id)
-        .group_by(Dataset.id)
-    )
+    stmt = text(f"""
+    SELECT 
+        d.id,
+        COUNT(pid.person_id) AS person_count
+    FROM {settings.CANDIG_SCHEMA}.dataset d
+    LEFT OUTER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid 
+        ON d.id = pid.dataset_id
+    WHERE d.id = :id
+    GROUP BY d.id
+""")
 
     async for session in get_db_session():
         try:
-            result = await session.execute(stmt)
+            result = await session.execute(stmt, {"id": id})
             record = result.one_or_none()
 
             if not record:
@@ -679,7 +705,7 @@ async def statistics_by_id(id: int):
 
 
 # --- Delete dataset Endpoint ---
-async def delete_by_id(id: int):
+async def delete_by_id(id: str):
     """
     Delete a dataset and all associated data.
 
@@ -689,10 +715,15 @@ async def delete_by_id(id: int):
     """
     async for session in get_db_session():
         try:
-            # Get the dataset
-            dataset_to_delete = await session.get(Dataset, id)
+            # Check if dataset exists
+            check_dataset_sql = text(f"""
+                SELECT id FROM {settings.CANDIG_SCHEMA}.dataset 
+                WHERE id = :id
+            """)
+            result = await session.execute(check_dataset_sql, {"id": id})
+            dataset_exists = result.one_or_none()
 
-            if not dataset_to_delete:
+            if not dataset_exists:
                 raise ProblemException(
                     status=404,
                     title="Not Found",
@@ -700,10 +731,11 @@ async def delete_by_id(id: int):
                 )
 
             # Get all person_ids associated with this dataset
-            person_in_dataset_stmt = select(PersonInDataset.person_id).where(
-                PersonInDataset.dataset_id == id
-            )
-            person_result = await session.execute(person_in_dataset_stmt)
+            get_persons_sql = text(f"""
+                SELECT person_id FROM {settings.CANDIG_SCHEMA}.person_in_dataset
+                WHERE dataset_id = :dataset_id
+            """)
+            person_result = await session.execute(get_persons_sql, {"dataset_id": id})
             person_ids = [row[0] for row in person_result.fetchall()]
 
             # Delete persons first if any exist
@@ -716,7 +748,11 @@ async def delete_by_id(id: int):
                 await session.execute(delete_persons_sql, {"person_ids": person_ids})
 
             # Finally delete the dataset
-            await session.delete(dataset_to_delete)
+            delete_dataset_sql = text(f"""
+                DELETE FROM {settings.CANDIG_SCHEMA}.dataset 
+                WHERE id = :id
+            """)
+            await session.execute(delete_dataset_sql, {"id": id})
             await session.commit()
 
             return {
@@ -728,7 +764,7 @@ async def delete_by_id(id: int):
             raise
         except Exception as e:
             await session.rollback()
-            logger.error(f"Database Error in dataset.delete: {str(e)}")
+            logger.error(f"Database Error in dataset.delete_by_id: {str(e)}")
             raise ProblemException(
                 status=500,
                 title="Database Error",
