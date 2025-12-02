@@ -124,50 +124,50 @@ WHERE ancestor_concept_id = :concept_id
 
 -- name: sql_get_concept_domain
 -- Get OMOP concept_id and domain of the concept
-SELECT concept_id, domain_id
-FROM vocabularies.concept
-WHERE vocabulary_id = :vocabulary_id and concept_code = :concept_code
+SELECT vocabulary_concept_id as concept_id, domain_id
+FROM omop.vocabulary
+WHERE vocabulary_id = :vocabulary_id and vocabulary_reference = :concept_code
 
 -- name: sql_get_ontology^
 -- Get ontology 
-SELECT concept_name as label,
-    vocabulary_id || ':' || concept_code as id
-FROM vocabularies.concept 
-WHERE concept_id = :concept_id
+SELECT vocabulary_name as label,
+    vocabulary_id || ':' || vocabulary_reference as id
+FROM omop.vocabulary 
+WHERE vocabulary_concept_id = :concept_id
 
 -- name: sql_filtering_terms_race_gender
 -- Get all the race and gender filtering terms for individual
-select distinct CONCAT(vocabulary_id,':',concept_code) as uri, c.concept_name
-from vocabularies.concept as c
-join cdm.person as p on p.race_concept_id=c.concept_id or p.gender_concept_id=c.concept_id
+select distinct CONCAT(vocabulary_id,':',vocabulary_reference) as uri, c.vocabulary_name as concept_name
+from omop.vocabulary as c
+join omop.person as p on p.race_concept_id=c.vocabulary_concept_id or p.gender_concept_id=c.vocabulary_concept_id
 
 -- name: sql_filtering_terms_condition
 -- Get all the condition_occurrence filtering terms for individual
-select distinct CONCAT(vocabulary_id,':',concept_code) as uri, c.concept_name
-from vocabularies.concept as c
-join cdm.condition_occurrence as con on con.condition_concept_id=c.concept_id
+select distinct CONCAT(vocabulary_id,':',vocabulary_reference) as uri, c.vocabulary_name as concept_name
+from omop.vocabulary as c
+join omop.condition_occurrence as con on con.condition_concept_id=c.vocabulary_concept_id
 
 -- name: sql_filtering_terms_measurement
 -- Get all the measurement filtering terms for individual
-select distinct CONCAT(vocabulary_id,':',concept_code) as uri, c.concept_name
-from vocabularies.concept as c
-join cdm.measurement as con on con.measurement_concept_id=c.concept_id
+select distinct CONCAT(vocabulary_id,':',vocabulary_reference) as uri, c.vocabulary_name as concept_name
+from omop.vocabulary as c
+join omop.measurement as con on con.measurement_concept_id=c.vocabulary_concept_id
 
 -- name: sql_filtering_terms_procedure
 -- Get all the procedure_occurrence filtering terms for individual
-select distinct CONCAT(vocabulary_id,':',concept_code) as uri, c.concept_name
-from vocabularies.concept as c
-join cdm.procedure_occurrence as con on con.procedure_concept_id=c.concept_id
+select distinct CONCAT(vocabulary_id,':',vocabulary_reference) as uri, c.vocabulary_name as concept_name
+from omop.vocabulary as c
+join omop.procedure_occurrence as con on con.procedure_concept_id=c.vocabulary_concept_id
 
 -- name: sql_filtering_terms_observation
 -- Get all the observation filtering terms for individual
-select distinct CONCAT(vocabulary_id,':',concept_code) as uri, c.concept_name
-from vocabularies.concept as c
-join cdm.observation as con on con.observation_concept_id=c.concept_id
+select distinct CONCAT(vocabulary_id,':',vocabulary_reference) as uri, c.vocabulary_name as concept_name
+from omop.vocabulary as c
+join omop.observation as con on con.observation_concept_id=c.vocabulary_concept_id
 
 -- name: sql_filtering_terms_drug_exposure
 -- Get all the drug exposure filtering terms for individual
-select distinct CONCAT(vocabulary_id,':',concept_code) as uri, c.concept_name
-from vocabularies.concept as c
-join cdm.drug_exposure as con on con.drug_concept_id=c.concept_id
+select distinct CONCAT(vocabulary_id,':',vocabulary_reference) as uri, c.vocabulary_name as concept_name
+from omop.vocabulary as c
+join omop.drug_exposure as con on con.drug_concept_id=c.vocabulary_concept_id
 

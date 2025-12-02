@@ -3,17 +3,17 @@ from ...beacon.omop import engine
 from ...beacon.omop.filters import apply_filters
 from ...beacon.omop.utils import query_id, get_documents, get_count
 from ...beacon.omop.individuals import get_filtering_terms_of_individual
-from ...beacon.omop.biosamples import get_filtering_terms_of_biosample
+#from ...beacon.omop.biosamples import get_filtering_terms_of_biosample
 
 from ...beacon.request.model import RequestParams
 
 
-def get_filtering_terms(entry_id: Optional[str], qparams: RequestParams):
-    schema = None
-    schemaInd, indCount, indDocs = get_filtering_terms_of_individual(None, None)
-    schemaInd, bioCount, bioDocs = get_filtering_terms_of_biosample(None, None)
+async def get_filtering_terms(entry_id: Optional[str], qparams: RequestParams):
+    schemaInd, indCount, indDocs = await get_filtering_terms_of_individual(None, None)
+    #schemaInd, bioCount, bioDocs = get_filtering_terms_of_biosample(None, None)
 
-    return schema, indCount + bioCount, indDocs + bioDocs
+    return schemaInd, indCount, indDocs
+    #return schema, indCount + bioCount, indDocs + bioDocs
 
 
 def get_filtering_term_with_id(entry_id: Optional[str], qparams: RequestParams):

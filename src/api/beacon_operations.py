@@ -25,17 +25,19 @@ async def get_beacon_info_root():
     return service_info.handler
 
 # /datasets/filtering_terms
-async def get_filtering_terms(body: dict):
+async def get_filtering_terms(skip: int = 0, limit: int = 0):
     # We have return values from individuals.get_filtering_terms_of_individual
     # and biosamples.get_filtering_terms_of_biosample
     # Unsure what we want to return, per se. There's a datasets.get_filtering_terms_of_dataset but it's a TODO?
     #return filtering_terms_handler(db_fn=filtering_terms.get_filtering_terms), 200
-    qparams = RequestParams(**body).from_request(body)
+    req_params = {"skip": skip, "limit": limit}
+    qparams = RequestParams(**req_params).from_request(req_params)
 
-    entity_schema, count, records = filtering_terms.get_filtering_terms(qparams=qparams)
+    entity_schema, count, records = await filtering_terms.get_filtering_terms(None, qparams)
+    LOG.info(records)
     # Get response
     response = build_filtering_terms_response(records, count, qparams, lambda x, y: x, entity_schema )
-    return await response, 200
+    return response, 200
 
 # /datasets/filtering_terms
 async def post_filtering_terms():

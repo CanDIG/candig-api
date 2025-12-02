@@ -1,13 +1,13 @@
 import logging
 from typing import Dict, List, Optional
 # from beacon.omop.filters import apply_alphanumeric_filter, apply_filters
-# from beacon.omop.utils import query_id, query_ids, get_count, get_documents, get_cross_query
-from beacon.omop.utils import  search_ontologies, basic_query, peek
-from beacon.omop import client
+from ...beacon.omop.utils import query_id, query_ids, get_count, get_documents, get_cross_query
+from ...beacon.omop.utils import  search_ontologies, basic_query, peek
+from ...beacon.omop import engine
 # from beacon.request.model import AlphanumericFilter, Operator, RequestParams
 # from beacon.omop.filters import *
-from beacon.omop.schemas import DefaultSchemas
-from beacon.request.model import RequestParams
+from ...beacon.omop.schemas import DefaultSchemas
+from ...beacon.request.model import RequestParams
 import re
 import aiosql
 import itertools
@@ -35,10 +35,10 @@ LOG = logging.getLogger(__name__)
 
 def get_biosample_id(offset=0, limit=10, biosample_id=None):
     if biosample_id == None:
-        records = biosamples_queries.sql_get_biosamples(client, offset=offset, limit=limit)
+        records = biosamples_queries.sql_get_biosamples(engine, offset=offset, limit=limit)
         listId = [str(record[0]) for record in records]
     else:
-        records = biosamples_queries.sql_get_biosample_id(client, specimen_id=biosample_id)
+        records = biosamples_queries.sql_get_biosample_id(engine, specimen_id=biosample_id)
         listId = [str(records[0])]
     return listId
 
@@ -46,7 +46,7 @@ def get_biosample_id(offset=0, limit=10, biosample_id=None):
 def get_specimens(listIds):
     dict_specimens = {}
     for biosample_id in listIds:
-        records = biosamples_queries.sql_get_specimen(client, specimen_id = biosample_id)
+        records = biosamples_queries.sql_get_specimen(engine, specimen_id = biosample_id)
         listValues = []
         for record in records:
             listValues.append({'person_id': record[0],
@@ -90,7 +90,7 @@ def map_domains(domain_id):
     return dictMapping[domain_id]
 
 def search_descendants(concept_id):
-    records = biosamples_queries.sql_get_descendants(client, concept_id=concept_id)
+    records = biosamples_queries.sql_get_descendants(engine, concept_id=concept_id)
 
     l_descendants = set()
     for descendant in records:
@@ -162,7 +162,7 @@ def checkFilters(filtersDict, offset, limit, typeQuery):
 
         vocabulary_id, concept_code = filterId.split(':')
         print(vocabulary_id, concept_code)
-        records = biosamples_queries.sql_get_concept_domain(client,
+        records = biosamples_queries.sql_get_concept_domain(engine,
                                                             vocabulary_id=vocabulary_id,
                                                             concept_code=concept_code)
         # Check if records is empty
@@ -218,7 +218,7 @@ def get_biosamples(entry_id: Optional[str], qparams: RequestParams):
         listIds = get_biosample_id(offset=qparams.query.pagination.skip,
                                             limit=qparams.query.pagination.limit,
                                             biosample_id=entry_id)                 # List with all Ids
-        count_ids = biosamples_queries.get_count_specimen(client)   # Count specimen
+        count_ids = biosamples_queries.get_count_specimen(engine)   # Count specimen
 
     specimens = get_specimens(listIds)
     specimens = search_ontologies(specimens)
@@ -234,7 +234,7 @@ def get_biosample_with_id(entry_id: Optional[str], qparams: RequestParams):
     listIds = get_biosample_id(biosample_id=entry_id)
 
     schema = DefaultSchemas.BIOSAMPLES
-    count = 1 # biosamples_queries.get_count_specimen(client)
+    count = 1 # biosamples_queries.get_count_specimen(engine)
     specimens = get_specimens(listIds)
     specimens = search_ontologies(specimens)
 
@@ -244,7 +244,7 @@ def get_biosample_with_id(entry_id: Optional[str], qparams: RequestParams):
 
 def specimen_to_biosample(listSpecimens):
     schema = DefaultSchemas.BIOSAMPLES
-    count = len(listSpecimens) # biosamples_queries.get_count_specimen(client)
+    count = len(listSpecimens) # biosamples_queries.get_count_specimen(engine)
     specimens = get_specimens(listSpecimens)
     specimens = search_ontologies(specimens)
     print(listSpecimens)
@@ -257,14 +257,14 @@ def get_biosamples_with_person_id(person_id: Optional[str], qparams: RequestPara
 
     collection = 'biosamples'
     schema = DefaultSchemas.BIOSAMPLES
-    specimens = biosamples_queries.get_specimen_by_person_id(client, person_id=person_id)
+    specimens = biosamples_queries.get_specimen_by_person_id(engine, person_id=person_id)
     listSpecimens = [specimen[0] for specimen in specimens ]
     schema, count, docs  = specimen_to_biosample(listSpecimens)
     return schema, count, docs
 
 def get_filtering_terms_of_biosample(entry_id: Optional[str], qparams: RequestParams):
     schema = DefaultSchemas.FILTERINGTERMS
-    bio_filters = biosamples_queries.sql_filtering_terms_biosample(client)
+    bio_filters = biosamples_queries.sql_filtering_terms_biosample(engine)
     l_bioFilters = []
     for filters in bio_filters:
         dict_filter = {"id":filters[0],"label":filters[1],"scopes":["biosample"],"type":"ontology"}
@@ -273,6 +273,7 @@ def get_filtering_terms_of_biosample(entry_id: Optional[str], qparams: RequestPa
 
 # TO DO
 def get_variants_of_biosample(entry_id: Optional[str], qparams: RequestParams):
+    raise NotImplementedError("Still need to port: biosamples.get_variants_of_biosample")
     collection = 'biosamples'
     query = {"$and": [{"id": entry_id}]}
     query = apply_request_parameters(query, qparams)
@@ -286,9 +287,9 @@ def get_variants_of_biosample(entry_id: Optional[str], qparams: RequestParams):
     query = apply_filters(biosamples_ids, qparams.query.filters, collection)
 
     schema = DefaultSchemas.GENOMICVARIATIONS
-    count = get_count(client.beacon.genomicVariations, query)
+    count = get_count('omop.genomic_variations', query)
     docs = get_documents(
-        client.beacon.genomicVariations,
+        'omop.genomic_variations',
         query,
         qparams.query.pagination.skip,
         qparams.query.pagination.limit
@@ -297,6 +298,7 @@ def get_variants_of_biosample(entry_id: Optional[str], qparams: RequestParams):
 
 # TO DO
 def get_analyses_of_biosample(entry_id: Optional[str], qparams: RequestParams):
+    raise NotImplementedError("Still need to port: biosamples.get_analyses_of_biosample")
     collection = 'biosamples'
     query = {"biosampleId": entry_id}
     query = apply_request_parameters(query, qparams)
@@ -313,6 +315,7 @@ def get_analyses_of_biosample(entry_id: Optional[str], qparams: RequestParams):
 
 # TO DO
 def get_runs_of_biosample(entry_id: Optional[str], qparams: RequestParams):
+    raise NotImplementedError("Still need to port: biosamples.get_runs_of_biosample")
     collection = 'biosamples'
     query = {"biosampleId": entry_id}
     query = apply_request_parameters(query, qparams)

@@ -10,13 +10,14 @@ from ...beacon.omop.schemas import DefaultSchemas
 import re
 import aiosql
 import itertools
-from beacon.conf import MAX_LIMIT
+from sqlalchemy import text
+from ..conf import MAX_LIMIT
 
 LOG = logging.getLogger(__name__)
 
 
-from beacon.omop.utils import CDM_SCHEMA, VOCABULARIES_SCHEMA
-from beacon.omop.biosamples import get_biosamples_with_person_id
+from ...beacon.omop.utils import CDM_SCHEMA, VOCABULARIES_SCHEMA
+from ...beacon.omop.biosamples import get_biosamples_with_person_id
 from pathlib import Path
 queries_file = Path(__file__).parent / "sql" / "individuals.sql"
 individual_queries = aiosql.from_path(queries_file, "psycopg2")
@@ -560,22 +561,27 @@ def get_biosamples_of_individual(entry_id: Optional[str], qparams: RequestParams
     schema, count, docs = get_biosamples_with_person_id(entry_id, qparams)
     return schema, count, docs
 
-def get_filtering_terms_of_individual(entry_id: Optional[str], qparams: RequestParams):
+async def get_filtering_terms_of_individual(entry_id: Optional[str], qparams: RequestParams):
     schema = DefaultSchemas.FILTERINGTERMS
 
-    l_sql_filters = [individual_queries.sql_filtering_terms_race_gender(engine),
-                    individual_queries.sql_filtering_terms_condition(engine),
-                    individual_queries.sql_filtering_terms_measurement(engine),
-                    individual_queries.sql_filtering_terms_procedure(engine),
-                    individual_queries.sql_filtering_terms_observation(engine),
-                    individual_queries.sql_filtering_terms_drug_exposure(engine)]
+    l_sql_filters = [individual_queries.sql_filtering_terms_race_gender.sql,
+                    individual_queries.sql_filtering_terms_condition.sql,
+                    individual_queries.sql_filtering_terms_measurement.sql,
+                    individual_queries.sql_filtering_terms_procedure.sql,
+                    individual_queries.sql_filtering_terms_observation.sql,
+                    individual_queries.sql_filtering_terms_drug_exposure.sql]
     l_indFilters = []
-    for ind_filters in l_sql_filters:
-        for filters in ind_filters:
-            if filters[0].endswith("OMOP generated"):
-                continue
-            dict_filter = {"id":filters[0],"label":filters[1],"scopes":["individual"],"type":"ontology"}
-            l_indFilters.append(dict_filter)
+    async with engine.connect() as conn:
+        for ind_filters in l_sql_filters:
+            results = await conn.execute(text(ind_filters))
+            # NB: Hopefully the filtering terms doesn't get long enough that this fetchall stalls?
+            for filters in results.fetchall():
+                # Unknown what the following is for:
+                if filters[0].endswith("OMOP generated"):
+                    continue
+                dict_filter = {"id":filters[0],"label":filters[1],"scopes":["individual"],"type":"ontology"}
+                l_indFilters.append(dict_filter)
+    LOG.info(l_indFilters)
     return schema, len(l_indFilters), l_indFilters
 
 def get_cohort_individuals(cohort_id, offset=0, limit=10):
