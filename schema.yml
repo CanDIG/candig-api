@@ -44,7 +44,7 @@ paths:
     put:
       summary: Create a new dataset.
       description: |
-        Creates a new dataset with the provided source_value, info, and optionally persons.
+        Creates a new dataset with the provided info, and optionally persons.
       operationId: dataset_operations.create
       requestBody:
         $ref: "#/components/requestBodies/DatasetSingleRequestBody"
@@ -132,7 +132,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Retrieved dataset information
@@ -163,7 +163,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Updated dataset information
@@ -194,7 +194,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Response completed successfully
@@ -228,7 +228,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Retrieved dataset info
@@ -257,7 +257,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       requestBody:
         description: Dataset info to update
         required: true
@@ -297,7 +297,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Retrieved dataset information
@@ -387,7 +387,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Retrieved dataset information
@@ -420,7 +420,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       requestBody:
         $ref: "#/components/requestBodies/PersonSingleRequestNoIdBody"
       responses:
@@ -453,7 +453,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
         - in: path
           name: id
           required: true
@@ -491,7 +491,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
         - in: path
           name: id
           required: true
@@ -530,7 +530,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
         - in: path
           name: id
           required: true
@@ -576,7 +576,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
         - in: path
           name: id
           required: true
@@ -739,8 +739,6 @@ components:
       type: object
       properties:
         id:
-          type: integer
-        source_value:
           type: string
         count:
           type: integer
@@ -754,8 +752,6 @@ components:
       type: object
       properties:
         id:
-          type: integer
-        source_value:
           type: string
         info:
           $ref: "#/components/schemas/DatasetInfoBody"
@@ -763,24 +759,16 @@ components:
     DatasetSingleBody:
       type: object
       properties:
-        source_value:
-          type: string
-          description: The source value for the dataset
         persons:
           type: array
           items:
             $ref: "#/components/schemas/PersonBaseBody"
         info:
           $ref: "#/components/schemas/DatasetInfoBody"
-      required:
-        - source_value
         
     DatasetSinglePutBody:
       type: object
       properties:
-        source_value:
-          type: string
-          description: The source value for the dataset
         persons:
           type: array
           items:
@@ -789,8 +777,6 @@ components:
               - $ref: "#/components/schemas/PersonDetailedBody"
         info:
           $ref: "#/components/schemas/DatasetInfoBody"
-      required:
-        - source_value
         
     DatasetRowLevelBody:
       type: array
