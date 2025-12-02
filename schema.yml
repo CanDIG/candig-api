@@ -940,7 +940,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/IngestPersonWithClinicalData'
-        dataset_source_value:
+        id:
           description: The name of the dataset from the source system, should not contain spaces
           type: string
           pattern: ^[A-Za-z0-9\-\._~]{1,50}$
