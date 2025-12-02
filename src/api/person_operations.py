@@ -2,9 +2,8 @@
 Provides CRUD operations for person like LIST, GET, CREATE, UPDATE, DELETE
 """
 from connexion.exceptions import ProblemException
-from sqlalchemy import select, text
+from sqlalchemy import text
 
-from ..database.db_add_tables import PersonInDataset
 from ..database.db_operations import get_db_session
 from datetime import datetime
 from ..config import settings
@@ -13,18 +12,20 @@ from candigv2_logging.logging import CanDIGLogger
 logger = CanDIGLogger(__file__)
 
 # --- List persons Endpoint ---
-async def list(dataset_id: int):
+async def list(dataset_id: str):
     """Lists all person for a given dataset"""
     # TODO: implement authorize
     authorized = True
     if not authorized:
-        stmt = select(PersonInDataset.person_id).where(
-            PersonInDataset.dataset_id == dataset_id
-        )
+        stmt = text(f"""
+                SELECT person_id 
+                FROM {settings.CANDIG_SCHEMA}.person_in_dataset 
+                WHERE dataset_id = :dataset_id
+            """)
 
         async for session in get_db_session():
             try:
-                result = await session.execute(stmt)
+                result = await session.execute(stmt, {"dataset_id": dataset_id})
                 person_ids = [row.person_id for row in result]
 
                 return person_ids, 200
@@ -113,7 +114,7 @@ async def list(dataset_id: int):
                 )
 
 # --- Get person Endpoint ---
-async def get_by_id(dataset_id: int, id: int):
+async def get_by_id(dataset_id: str, id: int):
     """Get a person by ID within a dataset."""
     raw_sql = raw_sql = text(f"""
         SELECT 
@@ -191,7 +192,7 @@ async def get_by_id(dataset_id: int, id: int):
             )
 
 # --- Create person Endpoint ---
-async def create(dataset_id: int, body: dict):
+async def create(dataset_id: str, body: dict):
     """Create a new person in the dataset"""
 
     # First check if the dataset exists
@@ -344,7 +345,7 @@ async def create(dataset_id: int, body: dict):
             )
 
 # --- Update person Endpoint ---
-async def put(dataset_id: int, id: int, body: dict):
+async def put(dataset_id: str, id: int, body: dict):
     """Update an existing person"""
 
     # First check if the dataset exists
