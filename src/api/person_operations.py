@@ -1,15 +1,18 @@
 """
 Provides CRUD operations for person like LIST, GET, CREATE, UPDATE, DELETE
 """
+
+from datetime import datetime
+
+from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
 from sqlalchemy import text
 
-from ..database.db_operations import get_db_session
-from datetime import datetime
 from ..config import settings
-from candigv2_logging.logging import CanDIGLogger
+from ..database.db_operations import get_db_session
 
 logger = CanDIGLogger(__file__)
+
 
 # --- List persons Endpoint ---
 async def list(dataset_id: str):
@@ -99,6 +102,7 @@ async def list(dataset_id: str):
                     detail="An error occurred while fetching detailed person information from the database.",
                 )
 
+
 # --- Get person Endpoint ---
 async def get_by_id(dataset_id: str, id: int):
     """Get a person by ID within a dataset."""
@@ -176,6 +180,7 @@ async def get_by_id(dataset_id: str, id: int):
                 title="Database Error",
                 detail="An error occurred while fetching person information from the database.",
             )
+
 
 # --- Create person Endpoint ---
 async def create(dataset_id: str, body: dict):
@@ -329,6 +334,7 @@ async def create(dataset_id: str, body: dict):
                 title="Database Error",
                 detail="An error occurred while creating the person in the database.",
             )
+
 
 # --- Update person Endpoint ---
 async def put(dataset_id: str, id: int, body: dict):
@@ -514,6 +520,7 @@ async def put(dataset_id: str, id: int, body: dict):
                 detail="An error occurred while updating the person in the database.",
             )
 
+
 # --- Delete person Endpoint ---
 async def delete(dataset_id: str, id: str):
     """
@@ -576,6 +583,7 @@ async def delete(dataset_id: str, id: str):
                 title="Database Error",
                 detail="An error occurred while deleting the person from the database.",
             )
+
 
 # --- Update person Endpoint ---
 async def patch_user(dataset_id: str, id: str, body: dict):
