@@ -22,115 +22,144 @@ from pathlib import Path
 queries_file = Path(__file__).parent / "sql" / "individuals.sql"
 individual_queries = aiosql.from_path(queries_file, "psycopg2")
 
-def get_individual_id(offset=0, limit=10, person_id=None):
-    if person_id == None:
-        records = individual_queries.sql_get_individuals(engine, offset=offset, limit=limit)
-        listId = [str(record[0]) for record in records]
-    else:
-        records = individual_queries.sql_get_individual_id(engine, person_id=person_id)
-        listId = [str(records[0])]
+async def get_individual_id(offset=0, limit=10, person_id=None):
+    async with engine.connect() as conn:
+        if person_id == None:
+            # aiosql likes to swap params like :limit and :offset to %(limit)s and %(offset)s, which is unsafe
+            # we swap it back before continuing
+            transformed_sql = individual_queries.sql_get_individuals.sql \
+                .replace("%(limit)s", ":limit") \
+                .replace("%(offset)s", ":offset")
+            records = await conn.execute(text(transformed_sql), {"limit": limit, "offset": offset})
+            # records = individual_queries.sql_get_individuals(engine, offset=offset, limit=limit)
+            listId = [str(record[0]) for record in records]
+        else:
+            transformed_sql = individual_queries.sql_get_individual_id.sql.replace("%(person_id)s", ":person_id")
+            records = await conn.execute(text(transformed_sql), {"person_id": person_id})
+            # records = individual_queries.sql_get_individual_id(engine, person_id=person_id)
+            listId = [str(records[0])]
     return listId
 
-def get_individuals_person(listIds):
+async def get_individuals_person(listIds):
     dict_person = {}
-    for person_id in listIds:
-        records = individual_queries.sql_get_person(engine, person_id=person_id)
-        listValues = []
-        for record in records:
-            listValues.append({"gender_concept_id" : record[0],
-                                "race_concept_id" : record[1]})
-        dict_person[person_id] = listValues
+    async with engine.connect() as conn:
+        transformed_sql = text(individual_queries.sql_get_person.sql.replace("%(person_id)s", ":person_id"))
+        for person_id in listIds:
+            records = await conn.execute(transformed_sql, {"person_id": int(person_id)})
+            # records = individual_queries.sql_get_person(engine, person_id=person_id)
+            listValues = []
+            for record in records:
+                listValues.append({"gender_concept_id" : record[0],
+                                    "race_concept_id" : record[1]})
+            dict_person[person_id] = listValues
     return dict_person
 
 
-def get_individuals_condition(listIds):
+async def get_individuals_condition(listIds):
     dict_condition = {}
-    for person_id in listIds:
-        records = individual_queries.sql_get_condition(engine, person_id=person_id)
-        listValues = []
-        for record in records:
-            if record[1] == None:
-                ageOfOnset = "Not Available"
-            else:
-                ageOfOnset = f"P{record[1]}Y"
-            listValues.append({"condition_concept_id" : record[0],
-                               "condition_ageOfOnset" : ageOfOnset})
-        dict_condition[person_id] = listValues
+    async with engine.connect() as conn:
+        transformed_sql = text(individual_queries.sql_get_condition.sql.replace("%(person_id)s", ":person_id"))
+        for person_id in listIds:
+            records = await conn.execute(transformed_sql, {"person_id": int(person_id)})
+            # records = individual_queries.sql_get_condition(engine, person_id=person_id)
+            listValues = []
+            for record in records:
+                if record[1] == None:
+                    ageOfOnset = "Not Available"
+                else:
+                    ageOfOnset = f"P{record[1]}Y"
+                listValues.append({"condition_concept_id" : record[0],
+                                "condition_ageOfOnset" : ageOfOnset})
+            dict_condition[person_id] = listValues
 
     return dict_condition
 
-def get_individuals_procedure(listIds):
+async def get_individuals_procedure(listIds):
     dict_procedure = {}
-    for person_id in listIds:
-        records = individual_queries.sql_get_procedure(engine, person_id=person_id)
-        listValues = []
-        for record in records:
-            if record[1] == "None":
-                ageOfOnset = "Not Available"
-            else:
-                ageOfOnset = f"P{record[1]}Y"            
-            listValues.append({"procedure_concept_id" : record[0],
-                                "procedure_ageOfOnset" : ageOfOnset,
-                                "procedure_date" : record[2]})
-        dict_procedure[person_id] = listValues
+    async with engine.connect() as conn:
+        transformed_sql = text(individual_queries.sql_get_procedure.sql.replace("%(person_id)s", ":person_id"))
+        for person_id in listIds:
+            records = await conn.execute(transformed_sql, {"person_id": int(person_id)})
+            # records = individual_queries.sql_get_procedure(engine, person_id=person_id)
+            listValues = []
+            for record in records:
+                if record[1] == "None":
+                    ageOfOnset = "Not Available"
+                else:
+                    ageOfOnset = f"P{record[1]}Y"            
+                listValues.append({"procedure_concept_id" : record[0],
+                                    "procedure_ageOfOnset" : ageOfOnset,
+                                    "procedure_date" : record[2]})
+            dict_procedure[person_id] = listValues
     return dict_procedure        
 
 
-def get_individuals_measures(listIds):
+async def get_individuals_measures(listIds):
     dict_measures = {}
-    for person_id in listIds:
-        records = individual_queries.sql_get_measure(engine, person_id=person_id)
-        listValues = []
-        for record in records:
-            if record[1] == "None":
-                ageOfOnset = "Not Available"
-            else:
-                ageOfOnset = f"P{record[1]}Y"
-            listValues.append({"measurement_concept_id" : record[0],
-                                "measurement_ageOfOnset" : ageOfOnset,
-                                "measurement_date" : record[2],
-                                "unit_concept_id" : record[3],
-                                "value_source_value" : record[4]})
-        dict_measures[person_id] = listValues
+    async with engine.connect() as conn:
+        transformed_sql = text(individual_queries.sql_get_measure.sql.replace("%(person_id)s", ":person_id"))
+        for person_id in listIds:
+            records = await conn.execute(transformed_sql, {"person_id": int(person_id)})
+            # records = individual_queries.sql_get_measure(engine, person_id=person_id)
+            listValues = []
+            for record in records:
+                if record[1] == "None":
+                    ageOfOnset = "Not Available"
+                else:
+                    ageOfOnset = f"P{record[1]}Y"
+                listValues.append({"measurement_concept_id" : record[0],
+                                    "measurement_ageOfOnset" : ageOfOnset,
+                                    "measurement_date" : record[2],
+                                    "unit_concept_id" : record[3],
+                                    "value_source_value" : record[4]})
+            dict_measures[person_id] = listValues
     return dict_measures
 
 
-def get_individuals_exposures(listIds):
+async def get_individuals_exposures(listIds):
     dict_exposures = {}
-    for person_id in listIds:
-        records = individual_queries.sql_get_exposure(engine, person_id=person_id)
-        records_duration = individual_queries.sql_get_exposure_period(engine, person_id=person_id)
-        listValues = []
-        for record in records:
-            if record[1] == "None":
-                ageOfOnset = "Not Available"
-            else:
-                ageOfOnset = f"P{record[1]}Y"
-            if records_duration:
-                records_duration = str(records_duration[0])
-            else:
-                records_duration = "Not Available"
-            listValues.append({"observation_concept_id" : record[0],
-                                "observation_ageOfOnset" : ageOfOnset,
-                                "observation_date" : record[2],
-                                "unit_concept_id" : record[3],
-                                "duration": records_duration})
-        dict_exposures[person_id] = listValues
+    async with engine.connect() as conn:
+        transformed_sql = text(individual_queries.sql_get_exposure.sql.replace("%(person_id)s", ":person_id"))
+        transformed_sql_duration = text(individual_queries.sql_get_exposure_period.sql.replace("%(person_id)s", ":person_id"))
+        for person_id in listIds:
+            records = (await conn.execute(transformed_sql, {"person_id": int(person_id)})).fetchall()
+            records_duration = (await conn.execute(transformed_sql_duration, {"person_id": int(person_id)})).fetchall()
+            # records = individual_queries.sql_get_exposure(engine, person_id=person_id)
+            # records_duration = individual_queries.sql_get_exposure_period(engine, person_id=person_id)
+            listValues = []
+            for record in records:
+                if record[1] == "None":
+                    ageOfOnset = "Not Available"
+                else:
+                    ageOfOnset = f"P{record[1]}Y"
+                if records_duration:
+                    records_duration = str(records_duration[0])
+                else:
+                    records_duration = "Not Available"
+                listValues.append({"observation_concept_id" : record[0],
+                                    "observation_ageOfOnset" : ageOfOnset,
+                                    "observation_date" : record[2],
+                                    "unit_concept_id" : record[3],
+                                    "duration": records_duration})
+            dict_exposures[person_id] = listValues
     return dict_exposures
 
-def get_individuals_treatments(listIds):
+async def get_individuals_treatments(listIds):
     dict_treatments = {}
-    for person_id in listIds:
-        records = individual_queries.sql_get_treatment(engine, person_id=person_id)
-        listValues = []
-        for record in records:
-            if record[1] == "None":
-                ageOfOnset = "Not Available"
-            else:
-                ageOfOnset = f"P{record[1]}Y"
-            listValues.append({"drugExposure_concept_id" : record[0],
-                                "drugExposure_ageOfOnset" : ageOfOnset})
-        dict_treatments[person_id] = listValues
+    async with engine.connect() as conn:
+        transformed_sql = text(individual_queries.sql_get_treatment.sql.replace("%(person_id)s", ":person_id"))
+        for person_id in listIds:
+            records = await conn.execute(transformed_sql, {"person_id": int(person_id)})
+            # records = individual_queries.sql_get_treatment(engine, person_id=person_id)
+            listValues = []
+            for record in records:
+                if record[1] == "None":
+                    ageOfOnset = "Not Available"
+                else:
+                    ageOfOnset = f"P{record[1]}Y"
+                listValues.append({"drugExposure_concept_id" : record[0],
+                                    "drugExposure_ageOfOnset" : ageOfOnset})
+            dict_treatments[person_id] = listValues
     return dict_treatments 
 
 
@@ -485,7 +514,7 @@ def filters(filtersDict, offset, limit):
 
     return listFilters, count
                                                       
-def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=RequestParams()):
+async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=RequestParams()):
 
     schema = DefaultSchemas.INDIVIDUALS
     count_ids = 0
@@ -498,25 +527,27 @@ def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=Request
         if count_ids == 0:
             return schema, count_ids, []
     else:
-        listIds = get_individual_id(offset=qparams.query.pagination.skip,
+        listIds = await get_individual_id(offset=qparams.query.pagination.skip,
                                             limit=qparams.query.pagination.limit,
                                             person_id=entry_id)                 # List with all Ids
-        count_ids = individual_queries.count_individuals(engine)   # Count individuals
+        async with engine.connect() as conn:
+            count_ids = await conn.execute(text(individual_queries.count_individuals.sql)) # Count individuals
+            count_ids = count_ids.first()[0]
         print('Number of ids',count_ids)
 
-    dictPerson = get_individuals_person(listIds)        # List with Id, sex, ethnicity
-    dictCondition = get_individuals_condition(listIds)  # List with al the diseases per Id
-    dictProcedures = get_individuals_procedure(listIds)
-    dictMeasures = get_individuals_measures(listIds)
-    dictExposures = get_individuals_exposures(listIds)
-    dictTreatments = get_individuals_treatments(listIds)
+    dictPerson = await get_individuals_person(listIds)        # List with Id, sex, ethnicity
+    dictCondition = await get_individuals_condition(listIds)  # List with al the diseases per Id
+    dictProcedures = await get_individuals_procedure(listIds)
+    dictMeasures = await get_individuals_measures(listIds)
+    dictExposures = await get_individuals_exposures(listIds)
+    dictTreatments = await get_individuals_treatments(listIds)
 
-    dictPerson = search_ontologies(dictPerson)
-    dictCondition = search_ontologies(dictCondition)
-    dictProcedures = search_ontologies(dictProcedures)
-    dictMeasures = search_ontologies(dictMeasures)
-    dictExposures = search_ontologies(dictExposures)
-    dictTreatments = search_ontologies(dictTreatments)
+    dictPerson = await search_ontologies(dictPerson)
+    dictCondition = await search_ontologies(dictCondition)
+    dictProcedures = await search_ontologies(dictProcedures)
+    dictMeasures = await search_ontologies(dictMeasures)
+    dictExposures = await search_ontologies(dictExposures)
+    dictTreatments = await search_ontologies(dictTreatments)
 
     docs = format_query(listIds, dictPerson, dictCondition, dictProcedures, dictMeasures, dictExposures, dictTreatments)
 
@@ -569,7 +600,7 @@ async def get_filtering_terms_of_individual(entry_id: Optional[str], qparams: Re
                     individual_queries.sql_filtering_terms_measurement.sql,
                     individual_queries.sql_filtering_terms_procedure.sql,
                     individual_queries.sql_filtering_terms_observation.sql,
-                    individual_queries.sql_filtering_terms_drug_exposure.sql]
+                individual_queries.sql_filtering_terms_drug_exposure.sql]
     l_indFilters = []
     async with engine.connect() as conn:
         for ind_filters in l_sql_filters:

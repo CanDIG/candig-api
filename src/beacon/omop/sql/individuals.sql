@@ -2,14 +2,14 @@
 -- name: sql_get_individuals
 -- Get individuals
 SELECT person_id
-FROM cdm.person
+FROM omop.person
 LIMIT :limit
 OFFSET :offset
 
 -- name: cohort_individuals
 -- Get individuals
 SELECT subject_id as person_id
-FROM cdm.cohort
+FROM omop.cohort
 where cohort_definition_id = :cohort_id
 LIMIT :limit
 OFFSET :offset
@@ -17,24 +17,24 @@ OFFSET :offset
 -- name: count_cohort_individuals$
 -- Get individuals count
 SELECT count(*)
-FROM cdm.cohort
+FROM omop.cohort
 where cohort_definition_id = :cohort_id
 
 -- name: count_individuals$
 -- Get individuals count
 SELECT count(*)
-FROM cdm.person
+FROM omop.person
 
 -- name: sql_get_individual_id^
 -- Get individual by id
 SELECT DISTINCT person_id
-FROM cdm.person
+FROM omop.person
 WHERE person_id = :person_id
 
 -- name: sql_get_person
 -- Get gender and race by id
 SELECT gender_concept_id, race_concept_id
-FROM cdm.person
+FROM omop.person
 WHERE person_id = :person_id
 
 -- name: sql_get_condition
@@ -45,8 +45,8 @@ SELECT condition_concept_id,
         WHEN birth_datetime IS NOT NULL THEN extract(Year from age(condition_start_date, birth_datetime)) 
         ELSE extract(Year from condition_start_date) - year_of_birth
 	END AS condition_ageOfOnset
-FROM cdm.person as p,
-    cdm.condition_occurrence as c
+FROM omop.person as p,
+    omop.condition_occurrence as c
 WHERE p.person_id = :person_id and p.person_id = c.person_id;
 
 -- name: sql_get_procedure
@@ -57,8 +57,8 @@ SELECT procedure_concept_id,
         ELSE extract(Year from procedure_date) - year_of_birth
 	END AS procedure_ageOfOnset,
     to_char(procedure_date, 'YYYY-MM-DD')
-FROM cdm.person as p,
-    cdm.procedure_occurrence as c
+FROM omop.person as p,
+    omop.procedure_occurrence as c
 WHERE p.person_id = :person_id and p.person_id=c.person_id
 
 -- name: sql_get_measure
@@ -71,8 +71,8 @@ Select measurement_concept_id,
     to_char(measurement_date, 'YYYY-MM-DD'),
     unit_concept_id,
     value_source_value
-FROM cdm.person as p,
-    cdm.measurement c
+FROM omop.person as p,
+    omop.measurement c
 WHERE p.person_id = :person_id and p.person_id=c.person_id
 
 -- name: sql_get_exposure
@@ -84,8 +84,8 @@ Select observation_concept_id,
 	END AS observation_ageOfOnset,
     to_char(observation_date, 'YYYY-MM-DD'),
     unit_concept_id
-FROM cdm.person as p,
-    cdm.observation c
+FROM omop.person as p,
+    omop.observation c
 WHERE p.person_id = :person_id and p.person_id=c.person_id
 
 -- name: sql_get_exposure_period^
@@ -100,7 +100,7 @@ SELECT
         extract(days from age(observation_period_end_date, observation_period_start_date)), 
         'D'
     ) as duration
-FROM cdm.observation_period c
+FROM omop.observation_period c
 WHERE c.person_id = :person_id
 
 -- name: sql_get_treatment
@@ -111,8 +111,8 @@ SELECT drug_concept_id,
         WHEN birth_datetime IS NOT NULL THEN extract(Year from age(drug_exposure_start_date, birth_datetime)) 
         ELSE extract(Year from drug_exposure_start_date) - year_of_birth
 	END AS drug_exposure_ageOfOnset
-FROM cdm.person as p,
-    cdm.drug_exposure as c
+FROM omop.person as p,
+    omop.drug_exposure as c
 WHERE p.person_id = :person_id and p.person_id = c.person_id;
 
 
@@ -130,44 +130,44 @@ WHERE vocabulary_id = :vocabulary_id and vocabulary_reference = :concept_code
 
 -- name: sql_get_ontology^
 -- Get ontology 
-SELECT vocabulary_name as label,
-    vocabulary_id || ':' || vocabulary_reference as id
-FROM omop.vocabulary 
-WHERE vocabulary_concept_id = :concept_id
+SELECT concept_name as label,
+    vocabulary_id || ':' || concept_code as id
+FROM omop.concept 
+WHERE concept_id = :concept_id
 
 -- name: sql_filtering_terms_race_gender
 -- Get all the race and gender filtering terms for individual
-select distinct CONCAT(vocabulary_id,':',vocabulary_reference) as uri, c.vocabulary_name as concept_name
-from omop.vocabulary as c
-join omop.person as p on p.race_concept_id=c.vocabulary_concept_id or p.gender_concept_id=c.vocabulary_concept_id
+select distinct CONCAT(vocabulary_id,':',concept_code) as uri, c.concept_name
+from omop.concept as c
+join omop.person as p on p.race_concept_id=c.concept_id or p.gender_concept_id=c.concept_id
 
 -- name: sql_filtering_terms_condition
 -- Get all the condition_occurrence filtering terms for individual
-select distinct CONCAT(vocabulary_id,':',vocabulary_reference) as uri, c.vocabulary_name as concept_name
-from omop.vocabulary as c
-join omop.condition_occurrence as con on con.condition_concept_id=c.vocabulary_concept_id
+select distinct CONCAT(vocabulary_id,':',concept_code) as uri, c.concept_name
+from omop.concept as c
+join omop.condition_occurrence as con on con.condition_concept_id=c.concept_id
 
 -- name: sql_filtering_terms_measurement
 -- Get all the measurement filtering terms for individual
-select distinct CONCAT(vocabulary_id,':',vocabulary_reference) as uri, c.vocabulary_name as concept_name
-from omop.vocabulary as c
-join omop.measurement as con on con.measurement_concept_id=c.vocabulary_concept_id
+select distinct CONCAT(vocabulary_id,':',concept_code) as uri, c.concept_name
+from omop.concept as c
+join omop.measurement as con on con.measurement_concept_id=c.concept_id
 
 -- name: sql_filtering_terms_procedure
 -- Get all the procedure_occurrence filtering terms for individual
-select distinct CONCAT(vocabulary_id,':',vocabulary_reference) as uri, c.vocabulary_name as concept_name
-from omop.vocabulary as c
-join omop.procedure_occurrence as con on con.procedure_concept_id=c.vocabulary_concept_id
+select distinct CONCAT(vocabulary_id,':',concept_code) as uri, c.concept_name
+from omop.concept as c
+join omop.procedure_occurrence as con on con.procedure_concept_id=c.concept_id
 
 -- name: sql_filtering_terms_observation
 -- Get all the observation filtering terms for individual
-select distinct CONCAT(vocabulary_id,':',vocabulary_reference) as uri, c.vocabulary_name as concept_name
-from omop.vocabulary as c
-join omop.observation as con on con.observation_concept_id=c.vocabulary_concept_id
+select distinct CONCAT(vocabulary_id,':',concept_code) as uri, c.concept_name
+from omop.concept as c
+join omop.observation as con on con.observation_concept_id=c.concept_id
 
 -- name: sql_filtering_terms_drug_exposure
 -- Get all the drug exposure filtering terms for individual
-select distinct CONCAT(vocabulary_id,':',vocabulary_reference) as uri, c.vocabulary_name as concept_name
-from omop.vocabulary as c
-join omop.drug_exposure as con on con.drug_concept_id=c.vocabulary_concept_id
+select distinct CONCAT(vocabulary_id,':',concept_code) as uri, c.concept_name
+from omop.concept as c
+join omop.drug_exposure as con on con.drug_concept_id=c.concept_id
 

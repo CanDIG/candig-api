@@ -1,5 +1,5 @@
 #from ..beacon.request.handlers import filtering_terms_handler
-from ..beacon.omop import datasets, filtering_terms
+from ..beacon.omop import datasets, filtering_terms, individuals
 from ..beacon.omop.schemas import DefaultSchemas
 from ..beacon.response import framework, service_info, build_response
 from ..beacon.request import RequestParams
@@ -91,3 +91,30 @@ async def post(body: dict):
     return retval, 200
 
 # /persons/
+async def post_person(body: dict):
+    retval = {}
+    # Figure out what kind of search we should be doing (see beacon/request/routes)
+    #LOG.info(body)
+    params = RequestParams(**body).from_request(body)
+
+    # Pass out the parsed search parameters to SQL (see beacon/omop/)
+    #LOG.info(params)
+    schema, count, records = await individuals.get_individuals(None, params)
+
+    # Fill out the return value with all parameters that belong there (see beacon/response/build_response)
+    # Start by assuming max granularity, and downgrade as needed
+    granularity = Granularity.RECORD
+    if conf.max_beacon_granularity != Granularity.RECORD or params.query.requested_granularity != Granularity.RECORD:
+        granularity = Granularity.COUNT
+        if conf.max_beacon_granularity == Granularity.BOOLEAN or params.query.requested_granularity == Granularity.BOOLEAN:
+            granularity = Granularity.BOOLEAN
+
+    # Format proper response
+    if (granularity == Granularity.RECORD):
+        retval = build_beacon_resultset_response(records, count, params, lambda x, y: x, schema)
+    elif granularity == Granularity.COUNT:
+        retval = build_beacon_count_response(records, count, params, lambda x, y: x, schema)
+    else:
+        retval = build_beacon_boolean_response(records, count, params, lambda x, y: x, schema)
+
+    return retval, 200

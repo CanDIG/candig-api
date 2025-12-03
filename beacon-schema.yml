@@ -7,6 +7,23 @@ servers:
 security:
   - {}
 paths:
+  /persons:
+    post:
+      description: Get a Beacon response for datasets
+      operationId: beacon_operations.post_person
+      requestBody:
+        $ref: '#/components/requestBodies/BeaconRequestBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/ResultsOKResponse'
+        default:
+          description: An unsuccessful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/BeaconErrorResponse'
+      tags:
+        - Persons
   /datasets:
     post:
       description: Get a Beacon response for datasets

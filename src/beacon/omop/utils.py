@@ -28,13 +28,16 @@ def peek(iterable):
     return first, itertools.chain([first], iterable)
 
 
-def search_ontology(concept_id):
-    records = individual_queries.sql_get_ontology(engine,
-                                                    concept_id=concept_id)
-    return records
+async def search_ontology(concept_id):
+    async with engine.connect() as conn:
+        transformed_sql = individual_queries.sql_get_ontology.sql.replace("%(concept_id)s", ":concept_id")
+        records = (await conn.execute(text(transformed_sql), {"concept_id": concept_id})).fetchone()
+        #records = individual_queries.sql_get_ontology(engine,
+        #                                                concept_id=concept_id)
+        return records
 
 
-def search_ontologies(dictValues):
+async def search_ontologies(dictValues):
     for person_id, listVariableValues in dictValues.items():    # For each id
         for dictVariableValue in listVariableValues:                        # For each object of the list   
             for variable, value in dictVariableValue.items():                                     
@@ -43,7 +46,7 @@ def search_ontologies(dictValues):
                     if value == 0:
                         dictVariableValue[variable] = {'id':"None:No matching concept", 'label':"No matching concept"}
                         continue
-                    records = search_ontology(value)
+                    records = await search_ontology(value)
                     if records:
                         label = records[0]
                         id = records[1]
