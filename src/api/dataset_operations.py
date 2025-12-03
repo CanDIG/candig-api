@@ -1,12 +1,13 @@
 """
 Provides CRUD operations for dataset like LIST, GET, CREATE, UPDATE, DELETE
 """
+
 import json
 from datetime import datetime
 
 from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
-from sqlalchemy import func, select, text
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from src.api.errors import (
@@ -16,7 +17,6 @@ from src.api.errors import (
 from src.api.helpers import (
     ingest_donor_with_clinical_data,
 )
-
 from src.database.db_operations import get_db_session
 
 from ..config import settings  # Import settings
@@ -76,10 +76,9 @@ async def create(body: dict):
                 INSERT INTO {settings.CANDIG_SCHEMA}.dataset (id, info)
                 VALUES (:id, :info)
             """)
-            
+
             await session.execute(
-                insert_dataset_sql,
-                {"id": dataset_id, "info": json.dumps(info)}
+                insert_dataset_sql, {"id": dataset_id, "info": json.dumps(info)}
             )
 
             # insert persons if included
@@ -246,7 +245,7 @@ async def put_by_id(id: str, body: dict):
             """)
             result = await session.execute(check_dataset_sql, {"id": id})
             existing_dataset = result.one_or_none()
-            
+
             if not existing_dataset:
                 raise ProblemException(
                     status=404,
@@ -256,15 +255,14 @@ async def put_by_id(id: str, body: dict):
 
             # Update dataset fields
             info = body.get("info", {})
-            
+
             update_dataset_sql = text(f"""
                 UPDATE {settings.CANDIG_SCHEMA}.dataset 
                 SET info = :info
                 WHERE id = :id
             """)
             await session.execute(
-                update_dataset_sql,
-                {"id": id, "info": json.dumps(info)}
+                update_dataset_sql, {"id": id, "info": json.dumps(info)}
             )
 
             # Get all existing person_ids for this dataset
@@ -528,7 +526,7 @@ async def get_info(id: str):
     """Gets dataset info"""
 
     stmt = text(f"""
-        SELECT info FROM {settings.CANDIG_SCHEMA}.dataset 
+        SELECT * FROM {settings.CANDIG_SCHEMA}.dataset 
         WHERE id = :id
     """)
 
@@ -545,7 +543,9 @@ async def get_info(id: str):
                 )
 
             info = record.info
-            if isinstance(info, str):
+            if info is None:
+                info = {}
+            elif isinstance(info, str):
                 info = json.loads(info)
 
             return info, 200
@@ -590,10 +590,7 @@ async def patch_info(id: str, body: dict):
                 SET info = :info
                 WHERE id = :id
             """)
-            await session.execute(
-                update_info_sql,
-                {"id": id, "info": json.dumps(info)}
-            )
+            await session.execute(update_info_sql, {"id": id, "info": json.dumps(info)})
             await session.commit()
 
             # Return the updated info
@@ -785,7 +782,7 @@ async def handle_multiple_donors_data_ingestion(body: dict) -> tuple[dict, int]:
             donor_list = body["donors"]
             for donor_data in donor_list:
                 record = await ingest_donor_with_clinical_data(session, donor_data)
-                records.extend(record) # type: ignore
+                records.extend(record)  # type: ignore
 
             await session.commit()
             logger.info("Successfully created all records and committed transaction.")
@@ -801,7 +798,5 @@ async def handle_multiple_donors_data_ingestion(body: dict) -> tuple[dict, int]:
             await session.rollback()
             await raise_problem_exception(e)
     raise ProblemException(
-        status=500,
-        title="Internal Server Error",
-        detail="Database session error"
+        status=500, title="Internal Server Error", detail="Database session error"
     )
