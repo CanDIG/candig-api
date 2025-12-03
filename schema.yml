@@ -928,11 +928,10 @@ components:
 
     IngestDataset:
       description: >
-        Object that contains a group of persons and all linked clinical data in OMOP format.
+        Object that contains dataset information and a group of persons with all linked clinical data in OMOP format.
       type: object
       required:
         - id
-        - linked_records
       properties:
         info:
           $ref: '#/components/schemas/IngestDatasetInfo'
