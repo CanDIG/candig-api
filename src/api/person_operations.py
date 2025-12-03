@@ -74,33 +74,19 @@ async def list(dataset_id: str):
                         "year_of_birth": row.year_of_birth,
                         "month_of_birth": row.month_of_birth,
                         "day_of_birth": row.day_of_birth,
-                        "birth_datetime": row.birth_datetime.isoformat()
-                        if row.birth_datetime
-                        else None,
+                        "birth_datetime": row.birth_datetime,
                         "race_concept_id": row.race_concept_id,
                         "ethnicity_concept_id": row.ethnicity_concept_id,
-                        "location_id": row.location_id
-                        if row.location_id is not None
-                        else 0,
-                        "provider_id": row.provider_id
-                        if row.provider_id is not None
-                        else 0,
-                        "care_site_id": row.care_site_id
-                        if row.care_site_id is not None
-                        else 0,
+                        "location_id": row.location_id,
+                        "provider_id": row.provider_id,
+                        "care_site_id": row.care_site_id,
                         "person_source_value": row.person_source_value,
                         "gender_source_value": row.gender_source_value,
-                        "gender_source_concept_id": row.gender_source_concept_id
-                        if row.gender_source_concept_id is not None
-                        else 0,
+                        "gender_source_concept_id": row.gender_source_concept_id,
                         "race_source_value": row.race_source_value,
-                        "race_source_concept_id": row.race_source_concept_id
-                        if row.race_source_concept_id is not None
-                        else 0,
+                        "race_source_concept_id": row.race_source_concept_id,
                         "ethnicity_source_value": row.ethnicity_source_value,
-                        "ethnicity_source_concept_id": row.ethnicity_source_concept_id
-                        if row.ethnicity_source_concept_id is not None
-                        else 0,
+                        "ethnicity_source_concept_id": row.ethnicity_source_concept_id,
                     }
                     persons.append(person_dict)
 
