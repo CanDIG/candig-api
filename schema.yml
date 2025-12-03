@@ -931,7 +931,7 @@ components:
         Object that contains a group of persons and all linked clinical data in OMOP format.
       type: object
       required:
-        - dataset_source_value
+        - id
         - linked_records
       properties:
         info:
