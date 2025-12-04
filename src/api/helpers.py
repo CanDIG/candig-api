@@ -5,16 +5,15 @@ import re
 
 from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
-from sqlalchemy import select
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from ..config import settings 
 from src.api.errors import (
     raise_bad_request,
     raise_integrity_error,
     raise_problem_exception,
 )
-from src.database.db_add_tables import Dataset
 from src.database.db_operations import get_db_session
 from src.database.insert_operations import (
     create_condition_occurrence,
@@ -228,18 +227,19 @@ async def ingest_donor_with_clinical_data(
             if field.get("omop_table") == "dataset" and not field.get(
                 "skip_errors"
             ):
-                # Check if dataset already exists in the database by source_value
+                # Check if dataset already exists in the database by id
                 dataset_record = field.get("omop_record")
-                source_value = dataset_record.get("source_value")
+                dataset_id = dataset_record.get("source_value")
 
                 # Query database for existing dataset
-                existing_dataset_stmt = select(Dataset).where(
-                    Dataset.source_value == source_value
-                )
+                existing_dataset_stmt = text(f"""
+                    SELECT id, info FROM {settings.CANDIG_SCHEMA}.dataset 
+                    WHERE id = :id
+                """)
                 existing_dataset_result = await session.execute(
-                    existing_dataset_stmt
+                    existing_dataset_stmt, {"id": dataset_id}
                 )
-                existing_dataset = existing_dataset_result.scalar_one_or_none()
+                existing_dataset = existing_dataset_result.one_or_none()
 
                 if existing_dataset:
                     # Use existing dataset
@@ -248,7 +248,6 @@ async def ingest_donor_with_clinical_data(
                     return_objs.append(
                         {
                             "id": existing_dataset.id,
-                            "source_value": existing_dataset.source_value,
                             "info": existing_dataset.info,
                             "omop_table": "dataset",
                         }

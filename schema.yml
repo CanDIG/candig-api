@@ -44,7 +44,7 @@ paths:
     put:
       summary: Create a new dataset.
       description: |
-        Creates a new dataset with the provided source_value, info, and optionally persons.
+        Creates a new dataset with the provided info, and optionally persons.
       operationId: dataset_operations.create
       requestBody:
         $ref: "#/components/requestBodies/DatasetSingleRequestBody"
@@ -132,7 +132,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Retrieved dataset information
@@ -163,7 +163,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Updated dataset information
@@ -194,7 +194,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Response completed successfully
@@ -228,7 +228,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Retrieved dataset info
@@ -257,7 +257,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       requestBody:
         description: Dataset info to update
         required: true
@@ -297,7 +297,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Retrieved dataset information
@@ -387,7 +387,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       responses:
         200:
           description: Retrieved dataset information
@@ -420,7 +420,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
       requestBody:
         $ref: "#/components/requestBodies/PersonSingleRequestNoIdBody"
       responses:
@@ -453,7 +453,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
         - in: path
           name: id
           required: true
@@ -491,7 +491,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
         - in: path
           name: id
           required: true
@@ -530,7 +530,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
         - in: path
           name: id
           required: true
@@ -576,7 +576,7 @@ paths:
           required: true
           schema:
             title: Dataset Id
-            type: integer
+            type: string
         - in: path
           name: id
           required: true
@@ -739,8 +739,6 @@ components:
       type: object
       properties:
         id:
-          type: integer
-        source_value:
           type: string
         count:
           type: integer
@@ -754,8 +752,6 @@ components:
       type: object
       properties:
         id:
-          type: integer
-        source_value:
           type: string
         info:
           $ref: "#/components/schemas/DatasetInfoBody"
@@ -763,24 +759,20 @@ components:
     DatasetSingleBody:
       type: object
       properties:
-        source_value:
-          type: string
-          description: The source value for the dataset
         persons:
           type: array
           items:
             $ref: "#/components/schemas/PersonBaseBody"
         info:
           $ref: "#/components/schemas/DatasetInfoBody"
+        id:
+          type: string
       required:
-        - source_value
+        - id
         
     DatasetSinglePutBody:
       type: object
       properties:
-        source_value:
-          type: string
-          description: The source value for the dataset
         persons:
           type: array
           items:
@@ -789,8 +781,6 @@ components:
               - $ref: "#/components/schemas/PersonDetailedBody"
         info:
           $ref: "#/components/schemas/DatasetInfoBody"
-      required:
-        - source_value
         
     DatasetRowLevelBody:
       type: array
@@ -859,6 +849,7 @@ components:
         birth_datetime:
           description: This field is not required but highly encouraged. For data sources that provide the precise datetime of birth, that value should be stored in this field. For more information on how to populate this field, please refer to the THEMIS repository.
           type: string
+          nullable: true
         race_concept_id:
           description: This field captures race or ethnic background of the person.  Only use this field if you have information about race or ethnic background. The Vocabulary contains Concepts about the main races and ethnic backgrounds in a hierarchical system. Due to the imprecise nature of human races and ethnic backgrounds, this is not a perfect system. Mixed races are not supported. If a clear race or ethnic background cannot be established, use Concept_Id.
           type: integer
@@ -883,6 +874,7 @@ components:
         gender_source_value:
           description: This field is used to store the biological sex of the person from the source data. It is not intended for use in standard analytics but for reference only. Put the assigned sex at birth of the person as it appears in the source data.
           type: string
+          nullable: true
         gender_source_concept_id:
           description: Due to the small number of options, this tends to be zero. If the source data codes assigned sex at birth in a non-standard vocabulary, store the concept_id here.
           type: integer
@@ -890,6 +882,7 @@ components:
         race_source_value:
           description: This field is used to store the race of the person from the source data. It is not intended for use in standard analytics but for reference only. Put the race of the person as it appears in the source data.
           type: string
+          nullable: true
         race_source_concept_id:
           description: Due to the small number of options, this tends to be zero. If the source data codes race in an OMOP supported vocabulary store the concept_id here.
           type: integer
@@ -897,6 +890,7 @@ components:
         ethnicity_source_value:
           description: This field is used to store the ethnicity of the person from the source data. It is not intended for use in standard analytics but for reference only. If the person has an ethnicity other than the OMB standard of "Hispanic" or "Not Hispanic" store that value from the source data here.
           type: string
+          nullable: true
         ethnicity_source_concept_id:
           description: Due to the small number of options, this tends to be zero. If the source data codes ethnicity in an OMOP supported vocabulary, store the concept_id here.
           type: integer

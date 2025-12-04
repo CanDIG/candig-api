@@ -922,13 +922,13 @@ async def create_dataset(
     Inserts a new dataset record into the database.
     """
     insert_sql = text(f"""
-                INSERT INTO {settings.CANDIG_SCHEMA}.dataset (source_value, info)
-                VALUES (:source_value, :info)
-                RETURNING id, source_value, info
+                INSERT INTO {settings.CANDIG_SCHEMA}.dataset (id, info)
+                VALUES (:id, :info)
+                RETURNING id, info
                 """)
 
     dataset_params = {
-        "source_value": record_data.get("source_value"),
+        "id": str(record_data.get("source_value")),
         "info": record_data.get("info") if record_data.get("info") else None,
     }
 
