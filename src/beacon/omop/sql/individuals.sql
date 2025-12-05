@@ -119,14 +119,14 @@ WHERE p.person_id = :person_id and p.person_id = c.person_id;
 -- name: sql_get_descendants
 -- Get descendants from concept_id
 SELECT descendant_concept_id
-FROM vocabularies.concept_ancestor 
+FROM omop.concept_ancestor 
 WHERE ancestor_concept_id = :concept_id
 
 -- name: sql_get_concept_domain
 -- Get OMOP concept_id and domain of the concept
-SELECT vocabulary_concept_id as concept_id, domain_id
-FROM omop.vocabulary
-WHERE vocabulary_id = :vocabulary_id and vocabulary_reference = :concept_code
+SELECT concept_id, domain_id
+FROM omop.concept
+WHERE vocabulary_id = :vocabulary_id and concept_code = :concept_code
 
 -- name: sql_get_ontology^
 -- Get ontology 

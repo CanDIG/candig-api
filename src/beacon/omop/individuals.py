@@ -199,8 +199,10 @@ def map_domains(domain_id):
     }
     return dictMapping[domain_id]
 
-def search_descendants(concept_id):
-    records = individual_queries.sql_get_descendants(engine, concept_id=concept_id)
+async def search_descendants(concept_id):
+    async with engine.connect() as conn:
+        get_descendants = individual_queries.sql_get_descendants.sql.replace("%(concept_id)s", ":concept_id")
+        records = (await conn.execute(text(get_descendants), {"concept_id": concept_id})).fetchall()
 
     l_descendants = set()
     for descendant in records:
@@ -261,7 +263,7 @@ def create_dynamic_filter(filters):
             query_condition += f"""
                 and exists (
                     select 1
-                    from cdm.condition_occurrence co
+                    from omop.condition_occurrence co
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
@@ -289,7 +291,7 @@ def create_dynamic_filter(filters):
             query_measurement += f"""
                 and exists (
                     select 1
-                    from cdm.measurement co
+                    from omop.measurement co
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
@@ -313,7 +315,7 @@ def create_dynamic_filter(filters):
             query_procedure += f"""
                 and exists (
                     select 1
-                    from cdm.procedure_occurrence co
+                    from omop.procedure_occurrence co
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
@@ -337,7 +339,7 @@ def create_dynamic_filter(filters):
             query_exposure += f"""
                 and exists (
                     select 1
-                    from cdm.observation co
+                    from omop.observation co
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
@@ -361,7 +363,7 @@ def create_dynamic_filter(filters):
             query_treatment += f"""
                 and exists (
                     select 1
-                    from cdm.drug_exposure co
+                    from omop.drug_exposure co
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """         
@@ -385,7 +387,7 @@ def create_dynamic_filter(filters):
 
 def super_query_count(filter):
     return  f""" select count(distinct person_id)
-        from cdm.person p
+        from omop.person p
         where true
         {filter['demografic_filters']}
         {filter['condition_filters']}
@@ -398,7 +400,7 @@ def super_query_count(filter):
 
 def super_query_get(filter, offset, limit):
     return  f""" select person_id
-        from cdm.person p
+        from omop.person p
         where true
         {filter['demografic_filters']}
         {filter['condition_filters']}
@@ -421,96 +423,104 @@ def mapBeaconScopeToOMOP(scope):
     scopeMapping = {mappingDict[scope]:'Age'}
     return scopeMapping
 
-def checkFilters(filtersDict, offset, limit, typeQuery):
+async def checkFilters(filtersDict, offset, limit, typeQuery):
     listOfList = []
     dictTableMap = []
-    for filter in filtersDict:
-        listConcept_id = set()
-        operator = None
-        value = None
-        includeDescendantTerms = True
-        typeFilter = 'Ontology'     # Default filter option
-        # Check query
-        # Parse query depend on POST/GET query
-        if typeQuery == 'POST':
-            if 'includeDescendantTerms' in filter:
-                if filter['includeDescendantTerms'] == False:
+    async with engine.connect() as conn:
+        for filter in filtersDict:
+            listConcept_id = set()
+            operator = None
+            value = None
+            includeDescendantTerms = True
+            typeFilter = 'Ontology'     # Default filter option
+            # Check query
+            # Parse query depend on POST/GET query
+            if typeQuery == 'POST':
+                if 'includeDescendantTerms' in filter:
+                    if filter['includeDescendantTerms'] == False:
+                        includeDescendantTerms = False
+                if 'operator' in filter:
+                    typeFilter = 'Alphanumeric'
+                    operator = filter['operator']
+                    value = filter['value']
                     includeDescendantTerms = False
-            if 'operator' in filter:
-                typeFilter = 'Alphanumeric'
-                operator = filter['operator']
-                value = filter['value']
-                includeDescendantTerms = False
-            if 'id' in filter:
-                filterId = filter['id']
-            else:
-                return [], 0
-            if (filterId == 'ageOfOnset' or
-                filterId == 'ageAtProcedure' or
-                filterId == 'observationMoment' or
-                filterId == 'ageAtExposure'):
-                    # Convert scope to tableMap
-                    # listConcept_id empty
-                    typeFilter = "Age"
-                    listConcept_id = ['None']
-                    if filterId == 'ageOfOnset':
-                        try:
-                            scope = filter['scope']
-                        except:
-                            print("You need an scope if you are using 'ageOfOnset'") 
-                        if "disease" in scope:
-                            filterId = 'ageAtDisease'
-                        elif "treatments" in scope:
-                            filterId = 'ageAtTreatment'
-                    tableMap = mapBeaconScopeToOMOP(filterId)
-                    dictTableMap.append([tableMap, listConcept_id, operator, value])
-                    continue
+                if 'id' in filter:
+                    filterId = filter['id']
+                else:
+                    return [], 0
+                if (filterId == 'ageOfOnset' or
+                    filterId == 'ageAtProcedure' or
+                    filterId == 'observationMoment' or
+                    filterId == 'ageAtExposure'):
+                        # Convert scope to tableMap
+                        # listConcept_id empty
+                        typeFilter = "Age"
+                        listConcept_id = ['None']
+                        if filterId == 'ageOfOnset':
+                            try:
+                                scope = filter['scope']
+                            except:
+                                print("You need an scope if you are using 'ageOfOnset'") 
+                            if "disease" in scope:
+                                filterId = 'ageAtDisease'
+                            elif "treatments" in scope:
+                                filterId = 'ageAtTreatment'
+                        tableMap = mapBeaconScopeToOMOP(filterId)
+                        dictTableMap.append([tableMap, listConcept_id, operator, value])
+                        continue
 
-        else: # If GET
-            filterId = filter
+            else: # If GET
+                filterId = filter
 
-        if typeFilter=="Ontology" or  typeFilter=="Alphanumeric":
-            vocabulary_id, concept_code = filterId.split(':')
-            records = individual_queries.sql_get_concept_domain(engine,
-                                                                vocabulary_id=vocabulary_id,
-                                                                concept_code=concept_code)
-            # Check if records is empty
-            res = peek(records)
-            if res is None:
-                return [], 0
-            _, records = res
-            for record in records:
-                original_concept_id = record[0]
-                domain_id = record[1]
-            listConcept_id.add(original_concept_id)
-            # Look in which domains the concept_id belongs
-            tableMap=map_domains(domain_id)
-            if includeDescendantTerms:
-                # Import descendants of the concept_id
-                concept_ids= search_descendants(original_concept_id)
-                # Concept_id and descendants in same set()
-                listConcept_id = listConcept_id.union(concept_ids)
-            dictTableMap.append([tableMap, listConcept_id, operator, value])
+            if typeFilter=="Ontology" or  typeFilter=="Alphanumeric":
+                vocabulary_id, concept_code = filterId.split(':')
+                concept_domain_sql = text(individual_queries.sql_get_concept_domain.sql
+                    .replace("%(vocabulary_id)s", ":vocabulary_id")
+                    .replace("%(concept_code)s", ":concept_code"))
+                records = await conn.execute(concept_domain_sql,
+                                            {
+                                                "vocabulary_id": vocabulary_id,
+                                                "concept_code": concept_code
+                                            })
+                #records = individual_queries.sql_get_concept_domain(engine,
+                #                                                    vocabulary_id=vocabulary_id,
+                #                                                    concept_code=concept_code)
+                # Check if records is empty
+                if records.rowcount <= 0:
+                    return [], 0
+                records = records.fetchall()
+                for record in records:
+                    original_concept_id = record[0]
+                    domain_id = record[1]
+                listConcept_id.add(original_concept_id)
+                # Look in which domains the concept_id belongs
+                tableMap = map_domains(domain_id)
+                if includeDescendantTerms:
+                    # Import descendants of the concept_id
+                    concept_ids = await search_descendants(original_concept_id)
+                    # Concept_id and descendants in same set()
+                    listConcept_id = listConcept_id.union(concept_ids)
+                dictTableMap.append([tableMap, listConcept_id, operator, value])
     print(dictTableMap)
     base_filter = create_dynamic_filter(dictTableMap)
     query_count = super_query_count(base_filter)
-    count_records = basic_query(query_count)
+    count_records = await basic_query(query_count)
     query_get = super_query_get(base_filter, offset, limit)
     print(query_get)
-    records_get = basic_query(query_get)
+    records_get = await basic_query(query_get)
     listOfList = [str(record[0]) for record in records_get]
 
-    return listOfList, count_records[0][0]
+    return listOfList, count_records.fetchone()[0]
 
 # /individuals/?filters=SNOMED:0&filters=OMOP:23
-def filters(filtersDict, offset, limit):
+async def filters(filtersDict, offset, limit):
+    LOG.info(filtersDict)
     if type(filtersDict[0]) is dict:         # If filter is from Post
-        print(filtersDict)
-        print("post")
-        listFilters, count = checkFilters(filtersDict, offset, limit, 'POST')
+        LOG.info("post")
+        listFilters, count = await checkFilters(filtersDict, offset, limit, 'POST')
     else:
-        print("get")
-        listFilters, count = checkFilters(filtersDict, offset, limit, 'GET')
+        LOG.info("get")
+        listFilters, count = await checkFilters(filtersDict, offset, limit, 'GET')
 
     return listFilters, count
                                                       
@@ -521,7 +531,8 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
     if qparams.query.pagination.limit == 0:
         qparams.query.pagination.limit = MAX_LIMIT
     if qparams.query.filters:
-        listIds, count_ids = filters(qparams.query.filters,
+        # NB: qparams.query.filters is a list, whereas we need it to be a dict?
+        listIds, count_ids = await filters(qparams.query.filters[0],
                         offset=qparams.query.pagination.skip,
                         limit=qparams.query.pagination.limit)
         if count_ids == 0:
@@ -534,6 +545,8 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
             count_ids = await conn.execute(text(individual_queries.count_individuals.sql)) # Count individuals
             count_ids = count_ids.first()[0]
         print('Number of ids',count_ids)
+
+    # NB: I'm concerned about the memory usage of the following
 
     dictPerson = await get_individuals_person(listIds)        # List with Id, sex, ethnicity
     dictCondition = await get_individuals_condition(listIds)  # List with al the diseases per Id
