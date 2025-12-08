@@ -460,7 +460,7 @@ async def checkFilters(filtersDict, offset, limit, typeQuery):
                             try:
                                 scope = filter['scope']
                             except:
-                                print("You need an scope if you are using 'ageOfOnset'") 
+                                LOG.info("You need an scope if you are using 'ageOfOnset'") 
                             if "disease" in scope:
                                 filterId = 'ageAtDisease'
                             elif "treatments" in scope:
@@ -501,12 +501,12 @@ async def checkFilters(filtersDict, offset, limit, typeQuery):
                     # Concept_id and descendants in same set()
                     listConcept_id = listConcept_id.union(concept_ids)
                 dictTableMap.append([tableMap, listConcept_id, operator, value])
-    print(dictTableMap)
+    # LOG.info(dictTableMap)
     base_filter = create_dynamic_filter(dictTableMap)
     query_count = super_query_count(base_filter)
     count_records = await basic_query(query_count)
     query_get = super_query_get(base_filter, offset, limit)
-    print(query_get)
+    # LOG.info(query_get)
     records_get = await basic_query(query_get)
     listOfList = [str(record[0]) for record in records_get]
 
@@ -514,12 +514,12 @@ async def checkFilters(filtersDict, offset, limit, typeQuery):
 
 # /individuals/?filters=SNOMED:0&filters=OMOP:23
 async def filters(filtersDict, offset, limit):
-    LOG.info(filtersDict)
+    # LOG.info(filtersDict)
     if type(filtersDict[0]) is dict:         # If filter is from Post
-        LOG.info("post")
+        # LOG.info("post")
         listFilters, count = await checkFilters(filtersDict, offset, limit, 'POST')
     else:
-        LOG.info("get")
+        # LOG.info("get")
         listFilters, count = await checkFilters(filtersDict, offset, limit, 'GET')
 
     return listFilters, count

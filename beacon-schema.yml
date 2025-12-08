@@ -315,7 +315,7 @@ components:
         entryTypes:
           $ref: '#/components/schemas/EntryTypes'
       required:
-        - schema
+        - $schema
         - maturityAttributes
         - entryTypes
       additionalProperties: true

@@ -40,25 +40,22 @@ async def get_filtering_terms(skip: int = 0, limit: int = 0):
     return response, 200
 
 # /datasets/filtering_terms
-async def post_filtering_terms():
+async def post_filtering_terms(skip: int = 0, limit: int = 0):
     # ??? The beacon.routes has this as the same thing as the GET, for some reason -- need to investigate
     #return filtering_terms_handler(db_fn=filtering_terms.get_filtering_terms)
-    return {}, 200
+    return await get_filtering_terms(skip, limit)
 
 # /datasets/configuration
 async def get_beacon_configuration():
-    #return framework.configuration
-    return {}, 200
+    return await framework.configuration()
 
 # /datasets/map
 async def get_beacon_map():
-    #return framework.beacon_map
-    return {}, 200
+    return await framework.beacon_map()
 
 # /datasets/entry_types
 async def get_entry_types():
-    #return framework.entry_types
-    return {}, 200
+    return framework.entry_types()
 
 # /datasets/
 async def post(body: dict):
