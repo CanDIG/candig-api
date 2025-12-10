@@ -5,7 +5,7 @@ from ...beacon.utils.stream import json_stream
 
 LOG = logging.getLogger(__name__)
 
-async def handler(request):
-    LOG.info('Running a GET service info request')
+#async def handler(request):
+async def handler():
     response_converted = build_beacon_service_info_response()
-    return await json_stream(request, response_converted)
+    return response_converted

@@ -1,13 +1,14 @@
 """Beacon Configuration."""
 from datetime import datetime
+import os
 
 #
 # Beacon general info
 #
-beacon_id = 'bsc.omop.impact.beacon-test'  # ID of the Beacon
-beacon_name = 'BSC OMOP-CDM Beacon'  # Name of the Beacon service
+beacon_id = 'candig.omop.beacon-test'  # ID of the Beacon
+beacon_name = 'CanDIG API Beacon'  # Name of the Beacon service
 api_version = 'v2.0.0'  # Version of the Beacon implementation
-uri = 'http://localhost:5050/api'
+uri = os.getenv('CANDIG_API_PUBLIC_URL', 'http://localhost:5080/candig-api/v1/beacon')
 
 #
 # Beacon granularity
@@ -19,19 +20,19 @@ max_beacon_granularity = "record"
 #
 #  Organization info
 #
-org_id = 'BSC'  # Id of the organization
-org_name = 'Barcelona Supercomputing Center'  # Full name
-org_description = ('INB/ELIXIR-ES group from the BSC')
-org_adress = ('Plaça Eusebi Güell, 1-3. 08034 Barcelona,  Spain')
-org_welcome_url = 'https://www.bsc.es/'
-org_contact_url = 'mailto:salvador.capella@bsc.es'
-org_logo_url = 'https://temu.bsc.es/assets/images/BSC-blue-small.png'
+org_id = 'CanDIG'  # Id of the organization
+org_name = 'CanDIG'  # Full name
+org_description = ('CanDIG genomics group')
+org_address = (os.getenv('CANDIG_SITE_LOCATION', ''))
+org_welcome_url = os.getenv('TYK_LOGIN_TARGET_URL', 'https://www.distributedgenomics.ca/')
+org_contact_url = 'mailto:' + os.getenv('CANDIG_DATA_PORTAL_SUPPORT_EMAIL', '')
+org_logo_url = 'https://www.distributedgenomics.ca/img/logo_only.png'
 org_info = ''
 
 #
 # Project info
 #
-description = ('This Beacon is a development funded by IMPaCT-Data where the data is queried from a OMOP-CDM relational database on-the-fly')
+description = ('This Beacon is based on a OMOP-CDM relational database')
 version = 'v2.0'
 welcome_url = ''
 alternative_url = ''

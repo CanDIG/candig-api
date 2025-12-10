@@ -1,7 +1,7 @@
 #from ..beacon.request.handlers import filtering_terms_handler
 from ..beacon.omop import datasets, filtering_terms, individuals
-from ..beacon.omop.schemas import DefaultSchemas
-from ..beacon.response import framework, service_info, build_response
+#from ..beacon.omop.schemas import DefaultSchemas
+from ..beacon.response import framework
 from ..beacon.request import RequestParams
 from ..beacon.request.model import Granularity
 from ..beacon import conf
@@ -10,6 +10,7 @@ from ..beacon.response.build_response import (
     #build_beacon_collection_response,
     build_beacon_boolean_response,
     build_beacon_count_response,
+    build_beacon_info_response,
     build_filtering_terms_response,
 )
 
@@ -22,7 +23,8 @@ BEACON_ID = 'org.candig.api.beacon'
 
 # /datasets/info
 async def get_beacon_info_root():
-    return service_info.handler
+    qparams = RequestParams()
+    return build_beacon_info_response([], qparams, lambda x,y,z: x), 200
 
 # /datasets/filtering_terms
 async def get_filtering_terms(skip: int = 0, limit: int = 0):
