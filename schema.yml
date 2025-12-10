@@ -288,7 +288,21 @@ paths:
         Upload a JSON file for dataset creation.
       operationId: query_operations.upload_file
       requestBody:
-        $ref: '#/components/requestBodies/DatasetsIngestRequest'
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: JSON file containing dataset information conforming to IngestOmopDatasets schema
+              required:
+                - file
+            encoding:
+              file:
+                contentType: application/json
       responses:
         200:
           description: File uploaded successfully
@@ -642,6 +656,9 @@ components:
           schema:
             $ref: "#/components/schemas/PersonBaseBody"
     DatasetsIngestRequest:
+      description: |
+        Dataset ingest request body. When uploading via multipart/form-data,
+        the JSON file should conform to the IngestOmopDatasets schema.
       content:
         'application/json':
           schema:
