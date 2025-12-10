@@ -1,30 +1,34 @@
 """
 Provides CRUD operations for person like LIST, GET, CREATE, UPDATE, DELETE
 """
-from connexion.exceptions import ProblemException
-from sqlalchemy import select, text
 
-from ..database.db_add_tables import PersonInDataset
-from ..database.db_operations import get_db_session
 from datetime import datetime
-from ..config import settings
+
 from candigv2_logging.logging import CanDIGLogger
+from connexion.exceptions import ProblemException
+from sqlalchemy import text
+
+from ..config import settings
+from ..database.db_operations import get_db_session
 
 logger = CanDIGLogger(__file__)
 
+
 # --- List persons Endpoint ---
-async def list(dataset_id: int):
+async def list(dataset_id: str):
     """Lists all person for a given dataset"""
     # TODO: implement authorize
     authorized = True
     if not authorized:
-        stmt = select(PersonInDataset.person_id).where(
-            PersonInDataset.dataset_id == dataset_id
-        )
+        stmt = text(f"""
+                SELECT person_id 
+                FROM {settings.CANDIG_SCHEMA}.person_in_dataset 
+                WHERE dataset_id = :dataset_id
+            """)
 
         async for session in get_db_session():
             try:
-                result = await session.execute(stmt)
+                result = await session.execute(stmt, {"dataset_id": dataset_id})
                 person_ids = [row.person_id for row in result]
 
                 return person_ids, 200
@@ -73,33 +77,19 @@ async def list(dataset_id: int):
                         "year_of_birth": row.year_of_birth,
                         "month_of_birth": row.month_of_birth,
                         "day_of_birth": row.day_of_birth,
-                        "birth_datetime": row.birth_datetime.isoformat()
-                        if row.birth_datetime
-                        else None,
+                        "birth_datetime": row.birth_datetime,
                         "race_concept_id": row.race_concept_id,
                         "ethnicity_concept_id": row.ethnicity_concept_id,
-                        "location_id": row.location_id
-                        if row.location_id is not None
-                        else 0,
-                        "provider_id": row.provider_id
-                        if row.provider_id is not None
-                        else 0,
-                        "care_site_id": row.care_site_id
-                        if row.care_site_id is not None
-                        else 0,
+                        "location_id": row.location_id,
+                        "provider_id": row.provider_id,
+                        "care_site_id": row.care_site_id,
                         "person_source_value": row.person_source_value,
                         "gender_source_value": row.gender_source_value,
-                        "gender_source_concept_id": row.gender_source_concept_id
-                        if row.gender_source_concept_id is not None
-                        else 0,
+                        "gender_source_concept_id": row.gender_source_concept_id,
                         "race_source_value": row.race_source_value,
-                        "race_source_concept_id": row.race_source_concept_id
-                        if row.race_source_concept_id is not None
-                        else 0,
+                        "race_source_concept_id": row.race_source_concept_id,
                         "ethnicity_source_value": row.ethnicity_source_value,
-                        "ethnicity_source_concept_id": row.ethnicity_source_concept_id
-                        if row.ethnicity_source_concept_id is not None
-                        else 0,
+                        "ethnicity_source_concept_id": row.ethnicity_source_concept_id,
                     }
                     persons.append(person_dict)
 
@@ -112,8 +102,9 @@ async def list(dataset_id: int):
                     detail="An error occurred while fetching detailed person information from the database.",
                 )
 
+
 # --- Get person Endpoint ---
-async def get_by_id(dataset_id: int, id: int):
+async def get_by_id(dataset_id: str, id: int):
     """Get a person by ID within a dataset."""
     raw_sql = raw_sql = text(f"""
         SELECT 
@@ -190,8 +181,9 @@ async def get_by_id(dataset_id: int, id: int):
                 detail="An error occurred while fetching person information from the database.",
             )
 
+
 # --- Create person Endpoint ---
-async def create(dataset_id: int, body: dict):
+async def create(dataset_id: str, body: dict):
     """Create a new person in the dataset"""
 
     # First check if the dataset exists
@@ -343,8 +335,9 @@ async def create(dataset_id: int, body: dict):
                 detail="An error occurred while creating the person in the database.",
             )
 
+
 # --- Update person Endpoint ---
-async def put(dataset_id: int, id: int, body: dict):
+async def put(dataset_id: str, id: int, body: dict):
     """Update an existing person"""
 
     # First check if the dataset exists
@@ -527,6 +520,7 @@ async def put(dataset_id: int, id: int, body: dict):
                 detail="An error occurred while updating the person in the database.",
             )
 
+
 # --- Delete person Endpoint ---
 async def delete(dataset_id: str, id: str):
     """
@@ -589,6 +583,7 @@ async def delete(dataset_id: str, id: str):
                 title="Database Error",
                 detail="An error occurred while deleting the person from the database.",
             )
+
 
 # --- Update person Endpoint ---
 async def patch_user(dataset_id: str, id: str, body: dict):
