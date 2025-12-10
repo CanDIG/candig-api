@@ -10,13 +10,6 @@ from connexion.exceptions import ProblemException
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
-from src.api.errors import (
-    raise_integrity_error,
-    raise_problem_exception,
-)
-from src.api.helpers import (
-    ingest_donor_with_clinical_data,
-)
 from src.database.db_operations import get_db_session
 
 from ..config import settings  # Import settings
@@ -767,36 +760,3 @@ async def delete_by_id(id: str):
                 title="Database Error",
                 detail=f"An error occurred while deleting the dataset: {str(e)}",
             )
-
-
-# --- Ingest Dataset with Multiple Persons Endpoint ---
-async def handle_multiple_donors_data_ingestion(body: dict) -> tuple[dict, int]:
-    """
-    Ingest multiple donors in 1 batch.
-    Note: this function is kept for reference until we confirm the file upload works correctly.
-    """
-
-    records = []
-    async for session in get_db_session():
-        try:
-            donor_list = body["donors"]
-            for donor_data in donor_list:
-                record = await ingest_donor_with_clinical_data(session, donor_data)
-                records.extend(record)  # type: ignore
-
-            await session.commit()
-            logger.info("Successfully created all records and committed transaction.")
-            return {"records": records}, 201
-
-        except ProblemException:
-            await session.rollback()
-            raise
-        except IntegrityError as e:
-            await session.rollback()
-            await raise_integrity_error(e)
-        except Exception as e:
-            await session.rollback()
-            await raise_problem_exception(e)
-    raise ProblemException(
-        status=500, title="Internal Server Error", detail="Database session error"
-    )
