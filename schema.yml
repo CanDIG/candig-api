@@ -98,7 +98,7 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
-        
+
   /datasets/statistics:
     get:
       summary: Grab summary statistics for all datasets.
@@ -214,7 +214,7 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
-        
+
   /datasets/{id}/info:
     get:
       summary: Retrieve a dataset's info
@@ -319,18 +319,7 @@ paths:
         Upload a JSON file for dataset creation.
       operationId: query_operations.upload_file
       requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                file:
-                  type: string
-                  format: binary
-                  description: File to upload JSON
-              required:
-                - file
+        $ref: '#/components/requestBodies/DatasetsIngestRequest'
       responses:
         200:
           description: File uploaded successfully
@@ -344,6 +333,8 @@ paths:
           $ref: "#/components/responses/401UnauthorizedError"
         5XX:
           $ref: "#/components/responses/5xxServerError"
+      tags:
+        - Datasets
 
   /datasets/upload/status/{queue_id}:
     get:
@@ -372,6 +363,8 @@ paths:
           $ref: "#/components/responses/404NotFoundError"
         5XX:
           $ref: "#/components/responses/5xxServerError"
+      tags:
+        - Datasets
 
   /datasets/{dataset_id}/persons:
     get:
@@ -440,7 +433,7 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Persons
-        
+
   /datasets/{dataset_id}/persons/{id}:
     get:
       summary: Get all details about a person
@@ -602,7 +595,7 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Persons
-        
+
 components:
   responses:
     400BadRequestError:
@@ -641,7 +634,7 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
-            
+
   requestBodies:
     DatasetSingleRequestBody:
       description: A full dataset, including all persons within it
@@ -679,7 +672,13 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/PersonBaseBody"
-            
+    DatasetsIngestRequest:
+      content:
+        'application/json':
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/IngestOmopDatasets"
+
   schemas:
     Error:
       type: object
@@ -701,7 +700,7 @@ components:
             - message
       required:
         - query
-        
+
     BadRequestError:
       allOf:
         - $ref: "#/components/schemas/Error"
@@ -712,7 +711,7 @@ components:
                   example: InvalidInput
                 message:
                   example: "FOO is not an acceptable field"
-                  
+
     NotFoundError:
       allOf:
         - $ref: "#/components/schemas/Error"
@@ -723,7 +722,7 @@ components:
                   example: NotFound
                 message:
                   example: The requested resource could not be located
-                  
+
     ConflictError:
       allOf:
         - $ref: "#/components/schemas/Error"
@@ -734,7 +733,7 @@ components:
                   example: Conflict
                 message:
                   example: The request conflicts with the current state of the resource
-                  
+
     DatasetSingleNoInfoBody:
       type: object
       properties:
@@ -742,12 +741,12 @@ components:
           type: string
         count:
           type: integer
-          
+
     DatasetAggregateBody:
       type: array
       items:
         $ref: "#/components/schemas/DatasetSingleNoInfoBody"
-        
+
     DatasetSingleNoPeopleBody:
       type: object
       properties:
@@ -755,7 +754,7 @@ components:
           type: string
         info:
           $ref: "#/components/schemas/DatasetInfoBody"
-          
+
     DatasetSingleBody:
       type: object
       properties:
@@ -769,7 +768,6 @@ components:
           type: string
       required:
         - id
-        
     DatasetSinglePutBody:
       type: object
       properties:
@@ -786,14 +784,14 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/DatasetSingleBody"
-        
+
     SuccessBody:
       type: object
       properties:
         message:
           type: string
           default: "Operation completed successfully."
-          
+
     DatasetInfoBody:
       type: object
       properties:
@@ -802,7 +800,7 @@ components:
           type: string
       additionalProperties: true
       description: Dataset information object that can contain various metadata fields
-      
+
     DatasetStatsBody:
       type: object
       properties:
@@ -813,24 +811,24 @@ components:
         persons_per_dataset:
           type: object
           description: Keys are dataset IDs, values are the number of Persons
-          
+
     IndividualDatasetStatsBody:
       type: object
       properties:
         person_count:
           type: integer
-          
+
     PersonRowLevelBody:
       type: array
       items:
         $ref: "#/components/schemas/PersonDetailedBody"
-        
+
     PersonAggregateBody:
       type: array
       items:
         type: integer
         description: Person ID.
-        
+
     PersonBaseBody:
       type: object
       properties:
@@ -859,15 +857,15 @@ components:
         location_id:
           description: The location refers to the physical address of the person. This field should capture the last known location of the person.  Put the location_id from the LOCATION table here that represents the most granular location information for the person. For additional information on how to populate this field, please refer to the THEMIS repository.
           type: integer
-          nullable: true
+          
         provider_id:
           description: The Provider refers to the last known primary care provider (General Practitioner).  Put the provider_id from the PROVIDER table of the last known general practitioner of the person. If there are multiple providers, it is up to the ETL to decide which to put here.
           type: integer
-          nullable: true
+          
         care_site_id:
           description: The Care Site refers to where the Provider typically provides the primary care.
           type: integer
-          nullable: true
+          
         person_source_value:
           description: Use this field to link back to persons in the source data. This is typically used for error checking of ETL logic. Some use cases require the ability to link back to persons in the source data. This field allows for the storing of the person value as it appears in the source. This field is not required but strongly recommended.
           type: string
@@ -878,7 +876,7 @@ components:
         gender_source_concept_id:
           description: Due to the small number of options, this tends to be zero. If the source data codes assigned sex at birth in a non-standard vocabulary, store the concept_id here.
           type: integer
-          nullable: true
+          
         race_source_value:
           description: This field is used to store the race of the person from the source data. It is not intended for use in standard analytics but for reference only. Put the race of the person as it appears in the source data.
           type: string
@@ -886,7 +884,7 @@ components:
         race_source_concept_id:
           description: Due to the small number of options, this tends to be zero. If the source data codes race in an OMOP supported vocabulary store the concept_id here.
           type: integer
-          nullable: true
+          
         ethnicity_source_value:
           description: This field is used to store the ethnicity of the person from the source data. It is not intended for use in standard analytics but for reference only. If the person has an ethnicity other than the OMB standard of "Hispanic" or "Not Hispanic" store that value from the source data here.
           type: string
@@ -894,7 +892,7 @@ components:
         ethnicity_source_concept_id:
           description: Due to the small number of options, this tends to be zero. If the source data codes ethnicity in an OMOP supported vocabulary, store the concept_id here.
           type: integer
-          nullable: true
+          
       required:
         - gender_concept_id
         - race_concept_id
@@ -910,7 +908,715 @@ components:
               type: integer
           required:
             - person_id
-    
+
+    IngestOmopDatasets:
+      type: object
+      required:
+        - datasets
+      properties:
+        datasets:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngestDataset'
+
+    IngestDataset:
+      description: >
+        Object that contains dataset information and a group of persons with all linked clinical data in OMOP format.
+      type: object
+      required:
+        - id
+      properties:
+        info:
+          $ref: '#/components/schemas/IngestDatasetInfo'
+        linked_records:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngestPersonWithClinicalData'
+        id:
+          description: The name of the dataset from the source system, should not contain spaces
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,50}$
+      additionalProperties: false
+
+    IngestPersonWithClinicalData:
+      description: >
+        Object that contains all metadata related to a single person
+      type: object
+      required:
+        - person
+        - linked_records
+      properties:
+        person:
+          type: object
+          $ref: '#/components/schemas/IngestPerson'
+        linked_records:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinkedRecord'
+
+    IngestPerson:
+      type: object
+      required:
+        - person_source_value
+        - gender_concept_id
+        - year_of_birth
+        - race_concept_id
+        - ethnicity_concept_id
+      properties:
+        person_source_value:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,50}$
+          example: "SITE_PM2C~SYNTH_01~DONOR_0001"
+          description: "Source system person identifier (string in your payload)."
+        gender_concept_id:
+          type: integer
+        year_of_birth:
+          type: integer
+        race_concept_id:
+          type: integer
+        ethnicity_concept_id:
+          type: integer
+        month_of_birth:
+          type: integer
+        day_of_birth:
+          type: integer
+        birth_datetime:
+          type: string
+          format: date-time
+        location_id:
+          type: integer
+        provider_id:
+          type: integer
+        care_site_id:
+          type: integer
+        gender_source_value:
+          type: string
+        gender_source_concept_id:
+          type: integer
+        race_source_value:
+          type: string
+        race_source_concept_id:
+          type: integer
+        ethnicity_source_value:
+          type: string
+        ethnicity_source_concept_id:
+          type: integer
+
+    LinkedRecord:
+      type: object
+      description: >
+        A link which contains one OMOP-like object (observation, measurement etc.) Each item is an object
+        with a single key (the OMOP record type) mapping to the appropriate OMOP object schema.
+      properties:
+        observation:
+          $ref: '#/components/schemas/IngestObservation'
+        death:
+          $ref: '#/components/schemas/IngestDeath'
+        condition_occurrence:
+          $ref: '#/components/schemas/IngestConditionOccurrence'
+        episode:
+          $ref: '#/components/schemas/IngestEpisode'
+        episode_event:
+          $ref: '#/components/schemas/IngestEpisodeEvent'
+        measurement:
+          $ref: '#/components/schemas/IngestMeasurement'
+        specimen:
+          $ref: '#/components/schemas/IngestSpecimen'
+        procedure_occurrence:
+          $ref: '#/components/schemas/IngestProcedureOccurrence'
+        drug_exposure:
+          $ref: '#/components/schemas/IngestDrugExposure'
+        drug_era:
+          $ref: '#/components/schemas/IngestDrugEra'
+        dose_era:
+          $ref: '#/components/schemas/IngestDoseEra'
+        condition_era:
+          $ref: '#/components/schemas/IngestConditionEra'
+        fact_relationship:
+          $ref: '#/components/schemas/IngestFactRelationship'
+      additionalProperties: false
+
+    IngestDatasetInfo:
+      type: object
+      properties:
+        study_id:
+          type: string
+        study_name:
+          type: string
+        study_description:
+          type: string
+        program_name:
+          type: string
+        keywords:
+          type: string
+        status:
+          type: string
+          enum:
+            - Ongoing
+            - Completed
+        context:
+          type: string
+          enum:
+            - Clinical
+            - Research
+        domain:
+          type: string
+          enum:
+            - Aging
+            - Birth Defects
+            - Cancer
+            - Circulatory and Respiratory Health
+            - General Health
+            - Infection and Immunity
+            - Musculoskeletal Health and Arthritis
+            - Neurodevelopmental Conditions
+            - Neurosciences, Mental Health and Addiction
+            - Nutrition, Metabolism and Diabetes
+            - Population Genomics
+            - Rare Diseases
+            - Other
+        dac_id:
+          type: string
+        participant_criteria:
+          type: string
+        principal_investigators:
+          type: array
+          items:
+            type: string
+        lead_organizations:
+          type: array
+          items:
+            type: string
+        collaborators:
+          type: array
+          items:
+            type: string
+        funding_sources:
+          type: array
+          items:
+            type: string
+        publication_links:
+          type: array
+          items:
+            type: string
+
+    IngestObservation:
+      type: object
+      required:
+        - observation_id
+        - observation_concept_id
+        - observation_date
+      properties:
+        observation_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        observation_concept_id:
+          type: integer
+        observation_date:
+          type: string
+          format: date
+        observation_datetime:
+          type: string
+          format: date-time
+        observation_type_concept_id:
+          type: integer
+        value_as_number:
+          type: number
+        value_as_string:
+          type: string
+          maxLength: 60
+        value_as_concept_id:
+          type: integer
+        qualifier_concept_id:
+          type: integer
+        unit_concept_id:
+          type: integer
+        provider_id:
+          type: integer
+        visit_occurrence_id:
+          type: integer
+        visit_detail_id:
+          type: integer
+        observation_source_value:
+          type: string
+          maxLength: 50
+        observation_source_concept_id:
+          type: integer
+        unit_source_value:
+          type: string
+          maxLength: 50
+        qualifier_source_value:
+          type: string
+          maxLength: 50
+        observation_event_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+
+    IngestDeath:
+      type: object
+      required:
+        - death_date
+        - death_type_concept_id
+      properties:
+        death_date:
+          type: string
+          format: date
+          description: The date the person died
+        death_datetime:
+          type: string
+          format: date-time
+          description: Exact datetime of death, when available
+        death_type_concept_id:
+          type: integer
+          format: int32
+          description: Identifies the provenance or source of the death record
+        cause_concept_id:
+          type: integer
+          format: int32
+          description: Concept representing the primary cause of death
+        cause_source_value:
+          type: string
+          maxLength: 50
+          description: Source code recorded as cause of death
+        cause_source_concept_id:
+          type: integer
+          format: int32
+          description: Source concept ID for the cause of death
+
+    IngestConditionOccurrence:
+      type: object
+      required:
+        - condition_occurrence_id
+        - condition_concept_id
+        - condition_start_date
+      properties:
+        condition_occurrence_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        condition_concept_id:
+          type: integer
+        condition_start_date:
+          type: string
+          format: date
+        condition_start_datetime:
+          type: string
+          format: date-time
+        condition_end_date:
+          type: string
+          format: date
+        condition_end_datetime:
+          type: string
+          format: date-time
+        condition_type_concept_id:
+          type: integer
+        condition_status_concept_id:
+          type: integer
+        stop_reason:
+          type: string
+          maxLength: 20
+        provider_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        visit_occurrence_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        visit_detail_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        condition_source_value:
+          type: string
+          maxLength: 50
+        condition_source_concept_id:
+          type: integer
+        condition_status_source_value:
+          type: string
+
+    IngestEpisode:
+      type: object
+      required:
+        - episode_id
+        - episode_concept_id
+        - episode_start_datetime
+      properties:
+        episode_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        episode_concept_id:
+          type: integer
+        episode_start_date:
+          type: string
+          format: date
+        episode_start_datetime:
+          type: string
+          format: date-time
+        episode_end_date:
+          type: string
+          format: date
+        episode_end_datetime:
+          type: string
+          format: date-time
+        episode_parent_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        episode_number:
+          type: integer
+        episode_object_concept_id:
+          type: integer
+        episode_type_concept_id:
+          type: integer
+        episode_source_concept_id:
+          type: integer
+        episode_source_value:
+          type: string
+          maxLength: 50
+
+    IngestEpisodeEvent:
+      type: object
+      required:
+        - episode_id
+        - event_id
+        - event_field_concept_id
+      properties:
+        episode_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        event_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        event_field_concept_id:
+          type: integer
+
+    IngestMeasurement:
+      type: object
+      required:
+        - measurement_id
+        - measurement_concept_id
+        - measurement_date
+      properties:
+        measurement_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        measurement_concept_id:
+          type: integer
+        measurement_date:
+          type: string
+          format: date
+        measurement_datetime:
+          type: string
+          format: date-time
+        measurement_type:
+          type: string
+          maxLength: 10
+        measurement_type_concept_id:
+          type: integer
+        operator_concept_id:
+          type: integer
+        value_as_number:
+          type: number
+        value_as_concept_id:
+          type: integer
+        unit_concept_id:
+          type: integer
+        range_low:
+          type: number
+        range_high:
+          type: number
+        provider_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        visit_occurrence_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        visit_detail_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        measurement_source_value:
+          type: string
+        measurement_source_concept_id:
+          type: integer
+        unit_source_value:
+          type: string
+          maxLength: 50
+        unit_source_concept_id:
+          type: integer
+        value_source_value:
+          type: string
+          maxLength: 50
+        measurement_event_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        meas_event_field_concept_id:
+          type: integer
+
+    IngestSpecimen:
+      type: object
+      required:
+        - specimen_id
+        - specimen_concept_id
+        - specimen_type_concept_id
+        - specimen_date
+      properties:
+        specimen_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        specimen_concept_id:
+          type: integer
+          format: int32
+          description: Concept ID representing the biological specimen
+        specimen_type_concept_id:
+          type: integer
+          format: int32
+          description: Source or provenance of the specimen record
+        specimen_date:
+          type: string
+          format: date
+          description: Date the specimen was obtained
+        specimen_datetime:
+          type: string
+          format: date-time
+          description: Exact datetime the specimen was obtained, if available
+        quantity:
+          type: number
+          format: float
+          description: Amount of specimen collected (e.g., mL)
+        unit_concept_id:
+          type: integer
+          format: int32
+          description: Concept ID for the unit of measure for specimen quantity
+        anatomic_site_concept_id:
+          type: integer
+          format: int32
+          description: Concept representing the collection anatomical site
+        disease_status_concept_id:
+          type: integer
+          format: int32
+          description: Disease status of the organism at collection time
+        specimen_source_id:
+          type: string
+          maxLength: 50
+          description: Source identifier for the specimen
+        specimen_source_value:
+          type: string
+          maxLength: 50
+          description: Source code for the specimen type
+        unit_source_value:
+          type: string
+          maxLength: 50
+          description: Source code for unit of measure
+        anatomic_site_source_value:
+          type: string
+          maxLength: 50
+          description: Source value for the anatomical site
+        disease_status_source_value:
+          type: string
+          maxLength: 50
+          description: Source value for the disease status
+
+    IngestProcedureOccurrence:
+      type: object
+      required:
+        - procedure_occurrence_id
+        - procedure_concept_id
+        - procedure_date
+      properties:
+        procedure_occurrence_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        procedure_concept_id:
+          type: integer
+        procedure_date:
+          type: string
+          format: date
+        procedure_datetime:
+          type: string
+          format: date-time
+        procedure_end_date:
+          type: string
+          format: date
+        procedure_end_datetime:
+          type: string
+          format: date-time
+        procedure_type_concept_id:
+          type: integer
+        modifier_concept_id:
+          type: integer
+        quantity:
+          type: integer
+        provider_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        visit_occurrence_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        visit_detail_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        procedure_source_value:
+          type: string
+          maxLength: 50
+        procedure_source_concept_id:
+          type: integer
+        modifier_source_value:
+          type: string
+          maxLength: 50
+
+    IngestDrugExposure:
+      type: object
+      required:
+        - drug_exposure_id
+        - drug_concept_id
+        - drug_exposure_start_date
+      properties:
+        drug_exposure_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        drug_concept_id:
+          type: integer
+        drug_exposure_start_date:
+          type: string
+          format: date
+        drug_exposure_start_datetime:
+          type: string
+          format: date-time
+        drug_exposure_end_date:
+          type: string
+          format: date
+        drug_exposure_end_datetime:
+          type: string
+          format: date-time
+        verbatim_end_date:
+          type: string
+          format: date
+        drug_type_concept_id:
+          type: integer
+        stop_reason:
+          type: string
+          maxLength: 20
+        refills:
+          type: integer
+        quantity:
+          type: number
+        days_supply:
+          type: integer
+        sig:
+          type: string
+        route_concept_id:
+          type: integer
+        lot_number:
+          type: string
+          maxLength: 50
+        provider_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        visit_occurrence_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        visit_detail_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        drug_source_value:
+          type: string
+          maxLength: 50
+        drug_source_concept_id:
+          type: integer
+        route_source_value:
+          type: string
+          maxLength: 50
+        dose_unit_source_value:
+          type: string
+          maxLength: 50
+
+    IngestDrugEra:
+      type: object
+      required:
+        - drug_era_id
+        - drug_concept_id
+        - drug_era_start_date
+      properties:
+        drug_era_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        drug_concept_id:
+          type: integer
+        drug_era_start_date:
+          type: string
+          format: date
+        drug_era_end_date:
+          type: string
+          format: date
+        drug_exposure_count:
+          type: integer
+        gap_days:
+          type: integer
+
+    IngestConditionEra:
+      type: object
+      required:
+        - condition_era_id
+        - condition_concept_id
+        - condition_era_start_date
+      properties:
+        condition_era_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        condition_concept_id:
+          type: integer
+        condition_era_start_date:
+          type: string
+          format: date
+        condition_era_end_date:
+          type: string
+          format: date
+        condition_occurrence_count:
+          type: integer
+
+    IngestDoseEra:
+      type: object
+      required:
+        - dose_era_id
+        - drug_concept_id
+        - unit_concept_id
+        - dose_value
+        - dose_era_start_date
+      properties:
+        dose_era_id:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        drug_concept_id:
+          type: integer
+        unit_concept_id:
+          type: integer
+        dose_value:
+          type: number
+        dose_era_start_date:
+          type: string
+          format: date
+        dose_era_end_date:
+          type: string
+          format: date
+
+    IngestFactRelationship:
+      type: object
+      required:
+        - domain_concept_id_1
+        - fact_id_1
+        - domain_concept_id_2
+        - fact_id_2
+        - relationship_concept_id
+      properties:
+        domain_concept_id_1:
+          type: integer
+        fact_id_1:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        domain_concept_id_2:
+          type: integer
+        fact_id_2:
+          type: string
+          pattern: ^[A-Za-z0-9\-\._~]{1,100}$
+        relationship_concept_id:
+          type: integer
+
     FileUploadResponseBody:
       type: object
       properties:
