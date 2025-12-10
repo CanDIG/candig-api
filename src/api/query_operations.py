@@ -1,6 +1,7 @@
 """
 API query operations like service info, file upload and status tracking...
 """
+
 import json
 import os
 import secrets
@@ -47,22 +48,24 @@ async def upload_file(file):
             temp_path = f.name
             f.write(content)
 
-        final_path = os.path.join(settings.TO_INGEST_DIR, queue_id)
-        shutil.move(temp_path, final_path)
-
         # Create an initial status file with filename and timestamp
         results_path = os.path.join(settings.RESULTS_DIR, queue_id)
         with open(results_path, "w") as f:
             json.dump(
                 {
-                    "status": "In Progress",
-                    "filename": file.filename,
+                    "status": "In Queue",
+                    "file_name": file.filename,
+                    "file_size": len(content),
                     "uploaded_at": datetime.now(timezone.utc).strftime(
                         "%Y-%m-%d %H:%M:%S UTC"
                     ),
                 },
                 f,
             )
+        
+        # move the file to trigger the daemon
+        final_path = os.path.join(settings.TO_INGEST_DIR, queue_id)
+        shutil.move(temp_path, final_path)
 
         logger.info(f"File '{file.filename}' queued with ID: {queue_id}")
 
