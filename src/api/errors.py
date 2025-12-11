@@ -29,7 +29,6 @@ async def raise_integrity_error(e: IntegrityError):
 
     # 1. Find specific error type
     if "foreign key constraint" in error_str or "foreignkeyviolation" in error_str:
-        status = 400
         title = "Invalid Reference"
         extra_hint = "You are referencing an ID that does not exist in the database."
 
