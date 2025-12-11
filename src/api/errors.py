@@ -38,7 +38,6 @@ async def raise_integrity_error(e: IntegrityError):
         extra_hint = "A record with this identifier already exists."
 
     elif "not null constraint" in error_str or "notnullviolation" in error_str:
-        status = 400
         title = "Missing Required Field"
         extra_hint = "A required database field was left empty."
 
