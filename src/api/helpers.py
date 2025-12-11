@@ -238,49 +238,28 @@ async def ingest_single_person(
             logger.info(f"Successfully ingested person: {person_id}")
             return True, person_source_val, None
 
+        except ProblemException as pe:
+            await session.rollback()
+            return False, person_source_val, f"Error Person '{person_source_val}': {pe.title} - {pe.detail}"
+
         except Exception as e:
             await session.rollback()
             err_str = str(e)
-
-            # 1. Log the FULL detailed error for debugging
+            
+            # Log the full detailed error for debug
             logger.error(f"Ingest Error for person '{person_source_val}': {err_str}")
 
-            # 2. Generate a short error for the user report
-            user_error_msg = ""
-
             # Check for Duplicate/Conflict (409)
-            if (
-                "409" in err_str
-                or "already exists" in err_str.lower()
-                or "Duplicate" in err_str
-            ):
-                logger.warning(
-                    f"Skipping Duplicate Person '{person_source_val}' (DB Constraint)."
-                )
-                return (
-                    False,
-                    person_source_val,
-                    f"Skipped Person '{person_source_val}': Already exists.",
-                )
+            if "409" in err_str or "already exists" in err_str.lower():
+                return False, person_source_val, f"Skipped Person '{person_source_val}': Already exists."
 
-            # Check for SQL Integrity Errors
-            elif "IntegrityError" in err_str or "ForeignKeyViolation" in err_str:
-                user_error_msg = f"Error Person '{person_source_val}': Database Constraint Violation. (e.g. Invalid or missing ID)"
-
-            # Check for Validation Mapping Errors (422)
-            elif "422" in err_str:
-                clean_detail = (
-                    err_str.split("422:")[-1].strip()
-                    if "422:" in err_str
-                    else "Validation Error"
-                )
-                user_error_msg = f"Error Person '{person_source_val}': Data Mapping Error - {clean_detail}"
-
-            # Generic Fallback
-            else:
-                user_error_msg = f"Error Person '{person_source_val}': {err_str}"
-
-            return False, person_source_val, user_error_msg
+            # Shorten error message
+            if "[SQL:" in err_str:
+                err_str = err_str.split("[SQL:")[0]
+            if "Error'>:" in err_str:
+                err_str = err_str.split("Error'>:")[-1]
+            
+            return False, person_source_val, f"Error Person '{person_source_val}': {err_str.strip()}"
 
     return False, person_source_val, "Failed to acquire database session."
 
