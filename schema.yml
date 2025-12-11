@@ -283,7 +283,7 @@ paths:
 
   /datasets/upload:
     post:
-      summary: Upload a JSON file for dataset creation
+      summary: Upload a JSON file for ingest data
       description: |
         Upload a JSON file for dataset creation.
       operationId: query_operations.upload_file
@@ -297,7 +297,7 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: JSON file containing dataset information conforming to IngestOmopDatasets schema
+                  description: JSON file from ETL pipeline
               required:
                 - file
             encoding:
@@ -657,8 +657,7 @@ components:
             $ref: "#/components/schemas/PersonBaseBody"
     DatasetsIngestRequest:
       description: |
-        Dataset ingest request body. When uploading via multipart/form-data,
-        the JSON file should conform to the IngestOmopDatasets schema.
+        Dataset ingest request body
       content:
         'application/json':
           schema:
