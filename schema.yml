@@ -66,39 +66,8 @@ paths:
       tags:
         - Datasets
 
-  /datasets/ingest_multiple_donors:
-    post:
-      summary: Create a new dataset.
-      description: |
-        Creates a new dataset with related clinical data
-      operationId: dataset_operations.handle_multiple_donors_data_ingestion
-      requestBody:
-        description: Generic JSON payload
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: true
-      responses:
-        201:
-          description: Dataset created successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-        400:
-          $ref: "#/components/responses/400BadRequestError"
-        401:
-          $ref: "#/components/responses/401UnauthorizedError"
-        404:
-          $ref: "#/components/responses/404NotFoundError"
-        5XX:
-          $ref: "#/components/responses/5xxServerError"
-      tags:
-        - Datasets
-
+  
+        
   /datasets/statistics:
     get:
       summary: Grab summary statistics for all datasets.
@@ -314,12 +283,26 @@ paths:
 
   /datasets/upload:
     post:
-      summary: Upload a JSON file for dataset creation
+      summary: Upload a JSON file for ingest data
       description: |
         Upload a JSON file for dataset creation.
       operationId: query_operations.upload_file
       requestBody:
-        $ref: '#/components/requestBodies/DatasetsIngestRequest'
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: JSON file from ETL pipeline
+              required:
+                - file
+            encoding:
+              file:
+                contentType: application/json
       responses:
         200:
           description: File uploaded successfully
@@ -673,6 +656,8 @@ components:
           schema:
             $ref: "#/components/schemas/PersonBaseBody"
     DatasetsIngestRequest:
+      description: |
+        Dataset ingest request body
       content:
         'application/json':
           schema:

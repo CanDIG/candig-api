@@ -1,23 +1,13 @@
 """
-Helper functions for data ingestion and ID mapping.
+Helper functions for data ingestion
 """
-import re
 
 from candigv2_logging.logging import CanDIGLogger
-from connexion.exceptions import ProblemException
-from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from ..config import settings 
-from src.api.errors import (
-    raise_bad_request,
-    raise_integrity_error,
-    raise_problem_exception,
-)
-from src.database.db_operations import get_db_session
+from sqlalchemy import text
+
 from src.database.insert_operations import (
     create_condition_occurrence,
-    create_dataset,
     create_death,
     create_drug_exposure,
     create_episode,
@@ -25,56 +15,49 @@ from src.database.insert_operations import (
     create_fact_relationship,
     create_measurement,
     create_observation,
-    create_person,
-    create_person_in_dataset,
     create_procedure_occurrence,
     create_specimen,
     create_visit_occurrence,
 )
 
+
+from typing import Any, Dict
+
+from src.database.db_operations import get_db_session
+from src.database.insert_operations import (
+    create_dataset,
+    create_person,
+    create_person_in_dataset,
+)
+from src.config import settings
+from connexion.exceptions import ProblemException
+from typing import List, Tuple, Optional
+import json
+import os
+
 logger = CanDIGLogger(__file__)
 
-
 # ==============================================================================
-# Configuration for each OMOP table
+# Mapping for each OMOP table
 # ==============================================================================
-TABLE_CONFIG = {
-    "dataset": {
-        "pk": "id",
-        "fk_map": {},
-        "create_func": create_dataset,
-    },
-    "person": {
-        "pk": "person_id",
-        "fk_map": {},
-        "create_func": create_person,
-    },
-    "person_dataset": {
-        "pk": None,
-        "fk_map": {"dataset_id": "dataset_id", "person_id": "person_id"},
-        "create_func": create_person_in_dataset,
-    },
+TABLE_FUNCTION_MAPPING = {
     "observation": {
         "pk": "observation_id",
         "fk_map": {
-            "person_id": "person_id",
             "observation_event_id": "observation_event_id",
         },
         "create_func": create_observation,
     },
     "death": {
         "pk": None,  # Death table's PK is the person_id FK.
-        "fk_map": {"person_id": "person_id"},
         "create_func": create_death,
     },
     "condition_occurrence": {
         "pk": "condition_occurrence_id",
-        "fk_map": {"person_id": "person_id"},
         "create_func": create_condition_occurrence,
     },
     "episode": {
         "pk": "episode_id",
-        "fk_map": {"person_id": "person_id"},
         "create_func": create_episode,
     },
     "episode_event": {
@@ -85,24 +68,20 @@ TABLE_CONFIG = {
     "measurement": {
         "pk": "measurement_id",
         "fk_map": {
-            "person_id": "person_id",
             "measurement_event_id": "measurement_event_id",
         },
         "create_func": create_measurement,
     },
     "specimen": {
         "pk": "specimen_id",
-        "fk_map": {"person_id": "person_id"},
         "create_func": create_specimen,
     },
     "procedure_occurrence": {
         "pk": "procedure_occurrence_id",
-        "fk_map": {"person_id": "person_id"},
         "create_func": create_procedure_occurrence,
     },
     "drug_exposure": {
         "pk": "drug_exposure_id",
-        "fk_map": {"person_id": "person_id"},
         "create_func": create_drug_exposure,
     },
     "fact_relationship": {
@@ -112,34 +91,9 @@ TABLE_CONFIG = {
     },
     "visit_occurrence": {
         "pk": "visit_occurrence_id",
-        "fk_map": {"person_id": "person_id"},
         "create_func": create_visit_occurrence,
     },
 }
-
-
-# ==============================================================================
-# IdMapping during ingest
-# ==============================================================================
-class IdMapper:
-    """A class to map temporary IDs from a payload to permanent database IDs."""
-
-    def __init__(self):
-        self.id_map = {}
-
-    def create_key(self, id_obj: dict) -> str:
-        """Create a unique string key from an id_map object."""
-        return f"{id_obj['source_system']}|{id_obj['source_value']}|{id_obj['source_desc']}|{id_obj['target_desc']}"
-
-    def store_id(self, id_obj: dict, actual_id: int):
-        """Store the mapping between an id_map object and an actual database ID."""
-        key = self.create_key(id_obj)
-        self.id_map[key] = actual_id
-
-    def get_id(self, id_obj: dict) -> int | None:
-        """Retrieve the actual database ID for an id_map object."""
-        key = self.create_key(id_obj)
-        return self.id_map.get(key)
 
 
 # ==============================================================================
@@ -147,192 +101,252 @@ class IdMapper:
 # ==============================================================================
 async def create_record(
     session: AsyncSession,
-    id_mapper: IdMapper,
-    record_field: dict,
+    ref_id_table: dict,
+    record_fields: dict,
     table_name: str,
+    person_id: int,
 ) -> dict:
     """
     Function to process and create a single OMOP record.
     """
-    config = TABLE_CONFIG[table_name]
-    record_data = record_field.get("omop_record", {})
+    mapping = TABLE_FUNCTION_MAPPING[table_name]
 
-    # 1. Extract the temporary ID object for the primary key, if it exists
-    pk_field = config.get("pk")
-    id_obj = None
-    if pk_field:
-        id_obj = record_data.pop(pk_field, None)
+    # 1. Pop the PK from payload since we don't need it for ingest,
+    # but make the reference for mapping
+    pk_field = mapping.get("pk")
+    pk_ref = record_fields.pop(pk_field, None) if pk_field else None
 
-    # 2. Resolve all foreign keys using the id_mapper
-    for fk_field_name in config["fk_map"]:
-        if fk_field_name in record_data:
-            fk_id_obj = record_data[fk_field_name]
-            actual_fk_id = id_mapper.get_id(fk_id_obj)
+    # 2. Link the FK from existing mapping
+    for fk_field_name in mapping.get("fk_map", {}):
+        fk_ref = record_fields.get(fk_field_name, None)
+        if fk_ref:
+            actual_fk_id = ref_id_table.get(fk_ref)
             if actual_fk_id is None:
                 raise ProblemException(
-                    status=400,
-                    title="Bad Request",
+                    status=422,
+                    title="Missing Foreign Key in Mapping Table",
                     detail=(
-                        f"Could not resolve foreign key for '{fk_field_name}' in table '{table_name}'. "
-                        f"Ensure the referenced entity is created first. "
-                        f"Missing reference: {fk_id_obj}"
+                        f"The FK '{fk_ref}' was not found in the mapping table for field '{fk_field_name}' in table '{table_name}'."
                     ),
                 )
-            record_data[fk_field_name] = actual_fk_id
+            record_fields[fk_field_name] = actual_fk_id
 
-    # 3. Call the specific create function for this table
-    create_function = config["create_func"]
-    new_record = await create_function(session, record_data)
+    # 3. Call the specific create function for this record
+    create_function = mapping["create_func"]
+    record_fields["person_id"] = person_id
+    new_record = await create_function(session, record_fields)
 
     # 4. Store the mapping for the new primary key
-    if pk_field and id_obj:
+    if pk_ref:
         new_pk_value = new_record[pk_field]
-        id_mapper.store_id(id_obj, new_pk_value)
+        ref_id_table[pk_ref] = new_pk_value
 
-    # 5. Prepare the record for the final return object
-    new_record["omop_table"] = table_name
     return new_record
 
 
 # ==============================================================================
-# Insert donor with clinical data
+# Ingest Helper Functions
 # ==============================================================================
-async def ingest_donor_with_clinical_data(
-    session: AsyncSession, donor_data: dict
-) -> list:
+
+
+async def ingest_dataset(ds_id: str, ds_info: dict) -> Tuple[bool, Optional[str]]:
     """
-    Insert a single donor with related clinical data
+    Ingest a dataset record
     """
-    return_objs = []
-    id_mapper = IdMapper()
-    PATTERNS = {
-        "donor": r"^\$\.donors\[\d+\]$",
-        "primary_diagnosis": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\]$",
-        "specimen": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].specimens\[\d+\]$",
-        "treatment": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].treatments\[\d+\]$",
-        "systemic_therapy": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].treatments\[\d+\].systemic_therapies\[\d+\]$",
-        "surgery": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].treatments\[\d+\].surgeries\[\d+\]$",
-        "radiation": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].treatments\[\d+\].radiations\[\d+\]$",
-        "followup": r"^\$\.donors\[\d+\].primary_diagnoses\[\d+\].treatments\[\d+\].followups\[\d+\]$",
-        "biomarker": r"^\$\.donors\[\d+\].biomarkers\[\d+\]$",
-    }
+    dataset_fields = {"id": ds_id, "info": ds_info}
 
-    new_dataset_id = None
-    donor_keys = [key for key in donor_data.keys() if re.match(PATTERNS["donor"], key)]
-    sample_keys = [key for key in donor_data.keys() if not re.match(PATTERNS["donor"], key)]
-    for key in donor_keys:
-        items = donor_data[key]
-        # First pass: Find and create the dataset
-        for field in items:
-            if field.get("omop_table") == "dataset" and not field.get(
-                "skip_errors"
-            ):
-                # Check if dataset already exists in the database by id
-                dataset_record = field.get("omop_record")
-                dataset_id = dataset_record.get("source_value")
-
-                # Query database for existing dataset
-                existing_dataset_stmt = text(f"""
-                    SELECT id, info FROM {settings.CANDIG_SCHEMA}.dataset 
-                    WHERE id = :id
-                """)
-                existing_dataset_result = await session.execute(
-                    existing_dataset_stmt, {"id": dataset_id}
-                )
-                existing_dataset = existing_dataset_result.one_or_none()
-
-                if existing_dataset:
-                    # Use existing dataset
-                    new_dataset_id = existing_dataset.id
-                    id_mapper.store_id(dataset_record.get("id"), new_dataset_id)
-                    return_objs.append(
-                        {
-                            "id": existing_dataset.id,
-                            "info": existing_dataset.info,
-                            "omop_table": "dataset",
-                        }
-                    )
-                else:
-                    # Create new dataset
-                    new_dataset = await create_record(
-                        session, id_mapper, field, "dataset"
-                    )
-                    new_dataset_id = new_dataset["id"]
-                    new_dataset["omop_table"] = "dataset"
-                    return_objs.append(new_dataset)
-                break
-
-        if new_dataset_id is None:
-            await raise_bad_request("dataset")
-
-        new_person_id = None
-        for field in items:
-            if field.get("omop_table") == "person" and not field.get("skip_errors"):
-                new_person = await create_record(
-                    session, id_mapper, field, "person"
-                )
-                new_person_id = new_person["person_id"]
-                return_objs.append(new_person)
-                break
-
-        if new_person_id is None:
-            await raise_bad_request("person")
-
-        # Second pass: Process all other tables at the donor level
-        for field in items:
-            table_name = field.get("omop_table")
-            if (
-                table_name != "person"
-                and table_name != "dataset"
-                and table_name in TABLE_CONFIG
-                and not field.get("skip_errors")
-            ):
-                new_record = await create_record(
-                    session, id_mapper, field, table_name
-                )
-                return_objs.append(new_record)
-
-    for key in sample_keys:
-        items = donor_data[key]
-        # Check if the key matches any patterns (excluding donor)
-        is_known_pattern = any(
-            re.match(pattern, key)
-            for name, pattern in PATTERNS.items()
-            if name not in ["donor", "dataset"]
-        )
-        if is_known_pattern:
-            for field in items:
-                table_name = field.get("omop_table")
-                if table_name in TABLE_CONFIG and not field.get("skip_errors"):
-                    new_record = await create_record(
-                        session, id_mapper, field, table_name
-                    )
-                    return_objs.append(new_record)
-    return return_objs
-
-async def handle_single_donor_data_ingestion(body: dict) -> tuple[dict, int]:
-    """
-    Ingest single donor's data structure.
-    """
     async for session in get_db_session():
         try:
-            records = await ingest_donor_with_clinical_data(session, body)
+            await create_dataset(session, dataset_fields)
             await session.commit()
-            logger.info("Successfully created records and committed transaction for a donor.")
-            # TODO:log which donor created
-            return {"records": records}, 201
+            logger.info(f"Successfully created dataset: {ds_id}")
+            return True, None
 
-        except ProblemException:
-            await session.rollback()
-            raise
-        except IntegrityError as e:
-            await session.rollback()
-            await raise_integrity_error(e)
         except Exception as e:
             await session.rollback()
-            await raise_problem_exception(e)
-    raise ProblemException(
-        status=500,
-        title="Internal Server Error",
-        detail="Database session error"
+            err_str = str(e)
+
+            if "409" in err_str or "already exists" in err_str.lower():
+                logger.warning(f"Dataset '{ds_id}' already exists. Skipping.")
+                return False, f"Skipped Dataset '{ds_id}': Already exists."
+
+            logger.error(f"Failed to create dataset '{ds_id}': {e}")
+            return False, f"Failed Dataset '{ds_id}': {e}"
+
+    return False, "Failed to acquire database session."
+
+
+async def check_person_exists(session, person_source_value: str) -> bool:
+    """
+    Checks database for existing person by source value.
+    Returns True if exists, False otherwise.
+    """
+    if not person_source_value:
+        return False
+
+    check_q = text(
+        f"SELECT 1 FROM {settings.CDM_SCHEMA}.person WHERE person_source_value = :psv LIMIT 1"
     )
+    res = await session.execute(check_q, {"psv": person_source_value})
+    return bool(res.scalar())
+
+
+async def ingest_single_person(
+    ds_id: str, person_data: Dict[str, Any], queue_id: str
+) -> Tuple[bool, str, Optional[str]]:
+    """
+    Ingests a single person and their linked clinical records.
+    """
+    person_fields = person_data.get("person", {})
+    clinical_records = person_data.get("linked_records", [])
+    person_source_val = person_fields.get("person_source_value", "Unknown_ID")
+
+    async for session in get_db_session():
+        try:
+            # 1. Duplicate Check
+            is_duplicate = await check_person_exists(session, person_source_val)
+
+            if is_duplicate:
+                logger.warning(
+                    f"Skipping Duplicate Person '{person_source_val}' in job {queue_id}."
+                )
+                return (
+                    False,
+                    person_source_val,
+                    f"Skipped Person '{person_source_val}': Already exists.",
+                )
+
+            # 2. Create Person
+            created_person = await create_person(session, person_fields)
+            person_id = created_person["person_id"]
+
+            # 3. Create Clinical Records
+            ref_id_table = {}
+            for linked_record in clinical_records:
+                ((table_name, table_fields),) = linked_record.items()
+                await create_record(
+                    session, ref_id_table, table_fields, table_name, person_id
+                )
+
+            # 4. Link Person to Dataset
+            await create_person_in_dataset(
+                session, {"dataset_id": ds_id, "person_id": person_id}
+            )
+
+            # 5. Commit
+            await session.commit()
+            logger.info(f"Successfully ingested person: {person_id}")
+            return True, person_source_val, None
+
+        except ProblemException as pe:
+            await session.rollback()
+            return False, person_source_val, f"Error Person '{person_source_val}': {pe.title} - {pe.detail}"
+
+        except Exception as e:
+            await session.rollback()
+            err_str = str(e)
+            
+            # Log the full detailed error for debug
+            logger.error(f"Ingest Error for person '{person_source_val}': {err_str}")
+
+            # Check for Duplicate/Conflict (409)
+            if "409" in err_str or "already exists" in err_str.lower():
+                return False, person_source_val, f"Skipped Person '{person_source_val}': Already exists."
+
+            # Shorten error message
+            if "[SQL:" in err_str:
+                err_str = err_str.split("[SQL:")[0]
+            if "Error'>:" in err_str:
+                err_str = err_str.split("Error'>:")[-1]
+            
+            return False, person_source_val, f"Error Person '{person_source_val}': {err_str.strip()}"
+
+    return False, person_source_val, "Failed to acquire database session."
+
+
+async def ingest_persons(
+    ds_id: str, linked_records: List[dict], queue_id: str
+) -> Tuple[List[str], List[str], int]:
+    """
+    Iterates through a list of persons and ingests them.
+    """
+    ingested = []
+    errors = []
+    fails = 0
+
+    for person_data in linked_records:
+        success, pid, err_msg = await ingest_single_person(ds_id, person_data, queue_id)
+
+        if success:
+            ingested.append(pid)
+        else:
+            fails += 1
+            if err_msg:
+                errors.append(err_msg)
+
+    return ingested, errors, fails
+
+
+async def ingest_data(data: dict, queue_id: str) -> Tuple[List[str], List[str], int]:
+    """
+    Parses the JSON structure and ingests datasets and persons.
+    """
+    all_ingested = []
+    all_errors = []
+    total_fails = 0
+
+    dataset_list = data.get("datasets", [])
+
+    for dataset_entry in dataset_list:
+        ds_data = dataset_entry.get("dataset", {})
+        ds_id = ds_data.get("id")
+        ds_info = ds_data.get("info", {})
+        ds_persons = ds_data.get("linked_records", [])
+
+        if not ds_id:
+            all_errors.append("Found dataset without ID. Skipping.")
+            total_fails += 1
+            continue
+
+        # 1. Ingest Dataset
+        ds_success, ds_err = await ingest_dataset(ds_id, ds_info)
+
+        if not ds_success:
+            total_fails += 1
+            if ds_err:
+                all_errors.append(ds_err)
+            continue
+
+        # 2. Ingest Persons within this Dataset
+        p_ingested, p_errors, p_fails = await ingest_persons(
+            ds_id, ds_persons, queue_id
+        )
+
+        all_ingested.extend(p_ingested)
+        all_errors.extend(p_errors)
+        total_fails += p_fails
+
+    return all_ingested, all_errors, total_fails
+
+
+def calculate_status(success_count: int, fail_count: int) -> str:
+    if success_count > 0 and fail_count > 0:
+        return "Partial Success"
+    elif fail_count > 0 and success_count == 0:
+        return "Failed"
+    return "Success"
+
+
+def write_results(results_path: str, result_data: dict, source_file_path: str):
+    """Writes the result to file and removes the source file."""
+    try:
+        with open(results_path, "w") as f:
+            json.dump(result_data, f, indent=4)
+    except IOError as e:
+        logger.error(f"Could not write results: {e}")
+
+    try:
+        if os.path.exists(source_file_path):
+            os.remove(source_file_path)
+    except OSError as e:
+        logger.error(f"Could not remove source file: {e}")
