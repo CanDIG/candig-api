@@ -17,11 +17,7 @@ paths:
         '200':
           $ref: '#/components/responses/ResultsOKResponse'
         default:
-          description: An unsuccessful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
       tags:
         - Persons
   /datasets:
@@ -34,11 +30,7 @@ paths:
         '200':
           $ref: '#/components/responses/ResultsOKResponse'
         default:
-          description: An unsuccessful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
       tags:
         - Datasets
   /datasets/filtering_terms:
@@ -58,11 +50,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/BeaconFilteringTermsResponse'
         default:
-          description: An unsuccessful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
     post:
       description: Get the list of filtering terms that could be used with datasets.
       operationId: beacon_operations.post_filtering_terms
@@ -70,20 +58,11 @@ paths:
         - Datasets
       requestBody:
         $ref: '#/components/requestBodies/BeaconRequestBody'
-        required: true
       responses:
         '200':
-          description: Successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/requestBodies/BeaconRequestBody'
+          $ref: '#/components/requestBodies/BeaconRequestBody'
         default:
-          description: An unsuccessful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
   /datasets/info:
     parameters:
       - $ref: '#/components/parameters/requestedSchema'
@@ -96,11 +75,7 @@ paths:
         '200':
           $ref: '#/components/responses/infoOKResponse'
         default:
-          description: An unsuccessful operation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
   /datasets/configuration:
     get:
       description: Returns some configuration aspects and the definition of the entry types (e.g. genomic variants, biosamples, cohorts, individuals and runs) implemented in this specific Beacon server or instance.
@@ -113,14 +88,9 @@ paths:
           content:
             application/json:
               schema:
-                description: Response of a request for information about a Beacon
                 $ref: '#/components/schemas/BeaconConfigurationResponse'
         default:
-          description: An unsuccessful operation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
   /datasets/map:
     get:
       description: Returns a map (like a web sitemap) of the different endpoints implemented in this Beacon instance.
@@ -137,11 +107,7 @@ paths:
                 description: Response of a request for information about a Beacon
                 $ref: '#/components/schemas/BeaconMapResponse'
         default:
-          description: An unsuccessful operation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
   /datasets/entry_types:
     get:
       description: Return the section of the configuration that describes the entry types in this Beacon.
@@ -158,11 +124,7 @@ paths:
                 description: Response of a request for information about a Beacon
                 $ref: '#/components/schemas/BeaconEntryTypesResponse'
         default:
-          description: An unsuccessful operation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
 components:
   parameters:
     requestedSchema:
