@@ -49,6 +49,13 @@ FROM omop.person as p,
     omop.condition_occurrence as c
 WHERE p.person_id = :person_id and p.person_id = c.person_id;
 
+-- name: sql_get_dataset
+-- Get dataset by person id
+
+SELECT dataset_id
+FROM candig.person_in_dataset as p
+WHERE p.person_id = :person_id;
+
 -- name: sql_get_procedure
 -- Get procedure properties by id
 SELECT procedure_concept_id,

@@ -54,6 +54,18 @@ async def get_individuals_person(listIds):
             dict_person[person_id] = listValues
     return dict_person
 
+async def get_individuals_dataset(listIds):
+    dict_dataset = {}
+    # Could maybe speedup by batching a few listIds?
+    async with engine.connect() as conn:
+        transformed_sql = text(individual_queries.sql_get_dataset.sql.replace("%(person_id)s", ":person_id"))
+        for person_id in listIds:
+            record = await conn.execute(transformed_sql, {"person_id": int(person_id)})
+            db_id = record.fetchone()
+            if db_id is not None:
+                dict_dataset[person_id] = db_id[0]
+
+    return dict_dataset
 
 async def get_individuals_condition(listIds):
     dict_condition = {}
@@ -163,10 +175,10 @@ async def get_individuals_treatments(listIds):
     return dict_treatments 
 
 
-def format_query(listIds, dictPerson, dictCondition, dictProcedures, dictMeasures, dictExposures, dictTreatments):
+def format_query(listIds, dictPerson, dictCondition, dictProcedures, dictMeasures, dictExposures, dictTreatments, dictDatasets):
     list_format = []
     for person_id in listIds:
-        dictId = {"id":person_id}
+        dictId = {"id":person_id, "dataset_id": dictDatasets[person_id]}
         if any("gender_concept_id" in d for d in dictPerson[person_id]):
             dictId["sex"] = dictPerson[person_id][0]["gender_concept_id"]
         if any("race_concept_id" in d for d in dictPerson[person_id]):
@@ -506,7 +518,7 @@ async def checkFilters(filtersDict, offset, limit, typeQuery):
     query_count = super_query_count(base_filter)
     count_records = await basic_query(query_count)
     query_get = super_query_get(base_filter, offset, limit)
-    # LOG.info(query_get)
+    LOG.info(query_get)
     records_get = await basic_query(query_get)
     listOfList = [str(record[0]) for record in records_get]
 
@@ -516,7 +528,7 @@ async def checkFilters(filtersDict, offset, limit, typeQuery):
 async def filters(filtersDict, offset, limit):
     # LOG.info(filtersDict)
     if type(filtersDict[0]) is dict:         # If filter is from Post
-        # LOG.info("post")
+        LOG.info("post")
         listFilters, count = await checkFilters(filtersDict, offset, limit, 'POST')
     else:
         # LOG.info("get")
@@ -554,6 +566,7 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
     dictMeasures = await get_individuals_measures(listIds)
     dictExposures = await get_individuals_exposures(listIds)
     dictTreatments = await get_individuals_treatments(listIds)
+    dictDatasets = await get_individuals_dataset(listIds)
 
     dictPerson = await search_ontologies(dictPerson)
     dictCondition = await search_ontologies(dictCondition)
@@ -562,7 +575,9 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
     dictExposures = await search_ontologies(dictExposures)
     dictTreatments = await search_ontologies(dictTreatments)
 
-    docs = format_query(listIds, dictPerson, dictCondition, dictProcedures, dictMeasures, dictExposures, dictTreatments)
+    # Join the persons with the datasets table, to figure out who is from where
+
+    docs = format_query(listIds, dictPerson, dictCondition, dictProcedures, dictMeasures, dictExposures, dictTreatments, dictDatasets)
 
     return schema, count_ids, docs
 
