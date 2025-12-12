@@ -60,7 +60,7 @@ paths:
         $ref: '#/components/requestBodies/BeaconRequestBody'
       responses:
         '200':
-          $ref: '#/components/requestBodies/BeaconRequestBody'
+          $ref: '#/components/requestBodies/BeaconFilteringTermsResponse'
         default:
           $ref: '#/components/responses/BeaconErrorResponse'
   /datasets/info:
