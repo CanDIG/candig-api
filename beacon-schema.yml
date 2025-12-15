@@ -44,11 +44,7 @@ paths:
         - Datasets
       responses:
         '200':
-          description: Successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BeaconFilteringTermsResponse'
+          $ref: '#/components/schemas/BeaconFilteringTermsResponse'
         default:
           $ref: '#/components/responses/BeaconErrorResponse'
     post:
@@ -357,7 +353,7 @@ components:
           description: A textual description for the element.
         ontologyTermForThisType:
           $ref: '#/components/schemas/OntologyTerm'
-          examples:
+          example:
             - id: EFO:0000542
               label: individual
             - id: OBI:0000747
@@ -1263,7 +1259,7 @@ components:
         Handover type, as an Ontology_term object with CURIE syntax for the `id`
         value. Use "CUSTOM:123455" CURIE-style `id` when no ontology is available.
       $ref: '#/components/schemas/OntologyTerm'
-      examples:
+      example:
         - id: EDAM:2572
           label: BAM
         - id: EDAM:3016
