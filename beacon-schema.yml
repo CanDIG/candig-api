@@ -44,7 +44,11 @@ paths:
         - Datasets
       responses:
         '200':
-          $ref: '#/components/schemas/BeaconFilteringTermsResponse'
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/requestBodies/BeaconRequestBody'
         default:
           $ref: '#/components/responses/BeaconErrorResponse'
     post:
@@ -56,7 +60,11 @@ paths:
         $ref: '#/components/requestBodies/BeaconRequestBody'
       responses:
         '200':
-          $ref: '#/components/schemas/BeaconFilteringTermsResponse'
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BeaconFilteringTermsResponse'
         default:
           $ref: '#/components/responses/BeaconErrorResponse'
   /datasets/info:
