@@ -14,9 +14,9 @@ from ..beacon.response.build_response import (
     build_filtering_terms_response,
 )
 
-import logging
+from candigv2_logging.logging import CanDIGLogger, initialize
 
-LOG = logging.getLogger(__name__)
+logger = CanDIGLogger(__file__)
 
 API_VERSION = '1.0.0'
 BEACON_ID = 'org.candig.api.beacon'
@@ -36,7 +36,7 @@ async def get_filtering_terms(skip: int = 0, limit: int = 0):
     qparams = RequestParams(**req_params).from_request(req_params)
 
     entity_schema, count, records = await filtering_terms.get_filtering_terms(None, qparams)
-    LOG.info(records)
+    logger.info(records)
     # Get response
     response = build_filtering_terms_response(records, count, qparams, lambda x, y: x, entity_schema )
     return response, 200
@@ -63,11 +63,9 @@ async def get_entry_types():
 async def post(body: dict):
     retval = {}
     # Figure out what kind of search we should be doing (see beacon/request/routes)
-    #LOG.info(body)
     params = RequestParams(**body).from_request(body)
 
     # Pass out the parsed search parameters to SQL (see beacon/omop/)
-    #LOG.info(params)
     schema, count, records = await datasets.get_datasets(None, params)
 
     # Fill out the return value with all parameters that belong there (see beacon/response/build_response)
@@ -86,18 +84,15 @@ async def post(body: dict):
     else:
         retval = build_beacon_boolean_response(records, count, params, lambda x, y: x, schema)
 
-    #LOG.info(retval)
     return retval, 200
 
 # /persons/
 async def post_person(body: dict):
     retval = {}
     # Figure out what kind of search we should be doing (see beacon/request/routes)
-    #LOG.info(body)
     params = RequestParams(**body).from_request(body)
 
     # Pass out the parsed search parameters to SQL (see beacon/omop/)
-    #LOG.info(params)
     schema, count, records = await individuals.get_individuals(None, params)
 
     # Fill out the return value with all parameters that belong there (see beacon/response/build_response)

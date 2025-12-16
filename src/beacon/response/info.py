@@ -11,7 +11,6 @@ and their associated metadata.
 
 """
 
-import logging
 import json
 from aiohttp.web_request import Request
 from beacon.omop.datasets import get_datasets
@@ -21,10 +20,12 @@ from beacon.utils.auth import resolve_token
 from beacon.utils.stream import json_stream
 from bson import json_util
 
-LOG = logging.getLogger(__name__)
+from candigv2_logging.logging import CanDIGLogger, initialize
+
+logger = CanDIGLogger(__file__)
 
 async def handler(request: Request):
-    LOG.info('Running a GET info request')
+    logger.info('Running a GET info request')
 
     # Fetch datasets info
     json_body = await request.json() if request.method == "POST" and request.has_body and request.can_read_body else {}
@@ -42,8 +43,8 @@ async def handler(request: Request):
 
     # authorized_datasets, authenticated = await resolve_token(access_token, all_datasets)
     # if authenticated:
-    #     LOG.debug('all datasets:  %s', all_datasets)
-    #     LOG.info('resolved datasets:  %s', authorized_datasets)
+    #     logger.debug('all datasets:  %s', all_datasets)
+    #     logger.info('resolved datasets:  %s', authorized_datasets)
 
     # response_converted = build_beacon_info_response(beacon_datasets,
     #                                                 qparams,

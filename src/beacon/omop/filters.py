@@ -8,9 +8,9 @@ from copy import deepcopy
 from ...beacon.request.model import AlphanumericFilter, CustomFilter, OntologyFilter, Operator, Similarity
 #from beacon.semantic_similarity import semantic_similarity
 
-import logging
+from candigv2_logging.logging import CanDIGLogger, initialize
 
-LOG = logging.getLogger(__name__)
+logger = CanDIGLogger(__file__)
 
 CURIE_REGEX = r'^([a-zA-Z0-9]*):\/?[a-zA-Z0-9]*$'
 
@@ -20,29 +20,30 @@ BIOSAMPLES_MAP = ['biosampleStatus.id', 'biosampleStatus.label', 'collectionDate
 G_VARIANTS_MAP = ['_info.vcf2bff.hostname', '_info.vcf2bff.filein', '_info.vcf2bff.user', '_info.vcf2bff.ncpuhost', '_info.vcf2bff.fileout', '_info.vcf2bff.cwd', '_info.vcf2bff.projectDir','_info.vcf2bff.version', '_info.datasetId', '_info.genome','caseLevelData.zygosity.label','caseLevelData.zygosity.id','caseLevelData.biosampleId','molecularAttributes.geneIds','molecularAttributes.annotationImpact','molecularAttributes.aminoacidChanges','molecularAttributes.molecularEffects.label','molecularAttributes.molecularEffects.id','variantQuality.FILTER','variantQuality.QUAL','_position.start','_position.end','_position.endInteger','_position.startInteger','_position.refseqId','_position.assemblyId','variation.variantType','variation.alternateBases','variation.referenceBases','variation.location.interval.start.value','variation.location.interval.start.type','variation.location.interval.end.value','variation.location.interval.end.type','variation.location.interval.type','variation.location.type','variation.location.sequence_id','variation.variantInternalId','variation.identifiers.genomicHGVSId']
 RUNS_MAP = ['biosampleId','id','individualId','libraryLayout','librarySelection','librarySource.id','librarySource.label','libraryStrategy','platform','platformModel.id','platformModel.label','runDate']
 
-
+# NB: This entire file needs to be rewritten, it's creating a dictionary of MongoDB-style filters but since we're a Postgres database
+# this should all be converted to a SQL WHERE statement
 def apply_filters(query: dict, filters: List[dict], collection: str) -> dict:
-    LOG.debug("Filters len = {}".format(len(filters)))
+    logger.debug("Filters len = {}".format(len(filters)))
     if len(filters) > 0:
         query["$and"] = []
     if len(filters) == 1:
         for filter in filters:
             partial_query = {}
             if "value" in filter:
-                LOG.debug(filter)
+                logger.debug(filter)
                 filter = AlphanumericFilter(**filter)
-                LOG.debug("Alphanumeric filter: %s %s %s", filter.id, filter.operator, filter.value)
+                logger.debug("Alphanumeric filter: %s %s %s", filter.id, filter.operator, filter.value)
                 partial_query = apply_alphanumeric_filter(partial_query, filter, collection)
             elif "similarity" in filter or "includeDescendantTerms" in filter or re.match(CURIE_REGEX, filter["id"]):
                 filter = OntologyFilter(**filter)
-                LOG.debug("Ontology filter: %s", filter.id)
+                logger.debug("Ontology filter: %s", filter.id)
                 partial_query = {"$text": defaultdict(str) }
                 #partial_query =  { "$text": { "$search": "" } } 
-                LOG.debug(partial_query)
+                logger.debug(partial_query)
                 partial_query = apply_ontology_filter(partial_query, filter)
             else:
                 filter = CustomFilter(**filter)
-                LOG.debug("Custom filter: %s", filter.id)
+                logger.debug("Custom filter: %s", filter.id)
                 partial_query = apply_custom_filter(partial_query, filter)
         query["$and"].append(partial_query)
     if len(filters) > 1:
@@ -50,20 +51,20 @@ def apply_filters(query: dict, filters: List[dict], collection: str) -> dict:
         for filter in filters:
             partial_query = {}
             if "value" in filter:
-                LOG.debug(filter)
+                logger.debug(filter)
                 filter = AlphanumericFilter(**filter)
-                LOG.debug("Alphanumeric filter: %s %s %s", filter.id, filter.operator, filter.value)
+                logger.debug("Alphanumeric filter: %s %s %s", filter.id, filter.operator, filter.value)
                 partial_query = apply_alphanumeric_filter(partial_query, filter)
             elif "similarity" in filter or "includeDescendantTerms" in filter or re.match(CURIE_REGEX, filter["id"]):
                 filter = OntologyFilter(**filter)
-                LOG.debug("Ontology filter: %s", filter.id)
+                logger.debug("Ontology filter: %s", filter.id)
                 partial_query = {"$text": defaultdict(str) }
                 #partial_query =  { "$text": { "$search": "" } } 
-                LOG.debug(partial_query)
+                logger.debug(partial_query)
                 partial_query = apply_ontology_filter(partial_query, filter)
             else:
                 filter = CustomFilter(**filter)
-                LOG.debug("Custom filter: %s", filter.id)
+                logger.debug("Custom filter: %s", filter.id)
                 partial_query = apply_custom_filter(partial_query, filter)
             list_of_filters.append(partial_query['$text']['$search'])
         string = ''
@@ -92,7 +93,7 @@ def apply_ontology_filter(query: dict, filter: OntologyFilter) -> dict:
         elif filter.similarity == Similarity.LOW:
             cutoff = 0.5
         similar_terms = 'semantic_similarity(filter.id, cutoff)'
-        LOG.debug("Similar: {}".format(similar_terms))
+        logger.debug("Similar: {}".format(similar_terms))
         for term in similar_terms:
             if query["$text"]["$search"]:
                 query["$text"]["$search"] += " "
@@ -103,7 +104,7 @@ def apply_ontology_filter(query: dict, filter: OntologyFilter) -> dict:
     if filter.include_descendant_terms:
         is_filter_id_required = False
         #descendants = ontologies.get_descendants(filter.id)
-        #LOG.debug("Descendants: {}".format(descendants))
+        #logger.debug("Descendants: {}".format(descendants))
         #for descendant in descendants:
         #    if query["$text"]["$search"]:
         #        query["$text"]["$search"] += " "
@@ -114,7 +115,7 @@ def apply_ontology_filter(query: dict, filter: OntologyFilter) -> dict:
             query["$text"]["$search"] += " "
         query["$text"]["$search"] += '\"' + filter.id + '\"'
 
-    LOG.debug("QUERY: %s", query)
+    logger.debug("QUERY: %s", query)
     return query
 
 def format_value(value: Union[str, List[int]]) -> Union[List[int], str, int, float]:
@@ -144,7 +145,7 @@ def format_operator(operator: Operator) -> str:
         return "<="
 
 def apply_alphanumeric_filter(query: dict, filter: AlphanumericFilter, collection: str) -> dict:
-    LOG.debug(filter.value)
+    logger.debug(filter.value)
     formatted_value = format_value(filter.value)
     formatted_operator = format_operator(filter.operator)
     if collection == 'g_variants':
@@ -415,7 +416,7 @@ def apply_alphanumeric_filter(query: dict, filter: AlphanumericFilter, collectio
     else:
         query['measurementValue.quantity.value'] = { formatted_operator: float(formatted_value) }
         query['assayCode.id']=filter.id
-        LOG.debug(query)
+        logger.debug(query)
         dict_elemmatch={}
         dict_elemmatch['$elemMatch']=query
         dict_measures={}
@@ -423,17 +424,17 @@ def apply_alphanumeric_filter(query: dict, filter: AlphanumericFilter, collectio
         query = dict_measures
 
 
-    LOG.debug("QUERY: %s", query)
+    logger.debug("QUERY: %s", query)
     return query
 
 
 
 def apply_custom_filter(query: dict, filter: CustomFilter) -> dict:
-    LOG.debug(query)
+    logger.debug(query)
     search_dict={}
     if "$text" in query:
         query["$text"]["$search"] += " "
     search_dict["$search"] = filter.id
     query["$text"] = search_dict
-    LOG.debug("QUERY: %s", query)
+    logger.debug("QUERY: %s", query)
     return query

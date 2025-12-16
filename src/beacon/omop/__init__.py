@@ -1,13 +1,14 @@
-import logging
 from ...config import settings
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 from ...database.db_operations import async_engine
 
-LOG = logging.getLogger(__name__)
+from candigv2_logging.logging import CanDIGLogger, initialize
+
+logger = CanDIGLogger(__file__)
 
 db_url = settings.DATABASE_URI.replace("postgresql://", "postgresql+asyncpg://")
-LOG.debug(db_url)
+logger.info(db_url)
 
 #client = psycopg2.connect(db_url)
 #engine = create_engine(db_url, echo=True)

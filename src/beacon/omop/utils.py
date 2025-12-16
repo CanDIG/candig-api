@@ -6,11 +6,12 @@ from typing import Dict, Optional
 from sqlalchemy import text
 from ...beacon.omop import engine
 from ...beacon.request.model import RequestParams
-import logging
 import aiosql
 import itertools
 
-LOG = logging.getLogger(__name__)
+from candigv2_logging.logging import CanDIGLogger, initialize
+
+logger = CanDIGLogger(__file__)
 
 CDM_SCHEMA='cdm'
 VOCABULARIES_SCHEMA='vocabularies'
@@ -118,7 +119,7 @@ def _mongo_filter_to_sql(query: dict) -> str:
             return ""
         # Should be a dict of size 1, throw an error for debugging if it isn't
         if len(query) != 1:
-            LOG.error(f"Expected to only see one element, saw {len(query)} in {query}")
+            logger.error(f"Expected to only see one element, saw {len(query)} in {query}")
         key = next(iter(query))
         ret_str += f"{key} = {query[key]}"
     return ret_str
@@ -138,17 +139,17 @@ async def get_count(database: str, query_params: dict):
 
 async def get_count_str(query: str) -> int:
     queryFinal = "Select count(*) " + query
-    LOG.debug(f"FINAL QUERY: {queryFinal}")
+    logger.debug(f"FINAL QUERY: {queryFinal}")
     # TODO: Is this use of async going to slow things down?
     records = await basic_query(queryFinal)
     records = records.fetchone()
-    LOG.debug(records)
+    logger.debug(records)
     return records[0]
 
 ## TODO: Originally this relied on a function `format_query()`, that did not exist
 async def get_documents(listVariables: list, query: str, skip: int, limit: int):
     queryFinal = f"SELECT {",".join([col.name for col in listVariables])} {query} OFFSET :OFFSET ROWS FETCH NEXT :LIMIT ROWS ONLY"
-    LOG.debug(f"FINAL QUERY: {queryFinal}")
+    logger.debug(f"FINAL QUERY: {queryFinal}")
     async with engine.connect() as conn:
         # NB: To grab page X of the results, given that they want page size Y we need:
         # - skip X*Y rows
@@ -164,16 +165,16 @@ def get_cross_query(ids: dict, cross_type: str, collection_id: str):
     id_dict={}
     if cross_type == 'biosampleId' or cross_type=='id':
         list_item=ids[cross_type]
-        LOG.debug(str(list_item))
+        logger.debug(str(list_item))
         id_list.append(str(list_item))
         dict_in["$in"]=id_list
-        LOG.debug(id_list)
+        logger.debug(id_list)
         id_dict[collection_id]=dict_in
         query = id_dict
     elif cross_type == 'individualIds' or cross_type=='biosampleIds':
         list_individualIds=ids[cross_type]
         dict_in["$in"]=list_individualIds
-        LOG.debug(list_individualIds)
+        logger.debug(list_individualIds)
         id_dict[collection_id]=dict_in
         query = id_dict
     else:
@@ -185,7 +186,7 @@ def get_cross_query(ids: dict, cross_type: str, collection_id: str):
         query = id_dict
 
 
-    LOG.debug(query)
+    logger.debug(query)
     return query
 
 def get_cross_query_variants(ids: dict, cross_type: str, collection_id: str):
@@ -200,5 +201,5 @@ def get_cross_query_variants(ids: dict, cross_type: str, collection_id: str):
     query = id_dict
 
 
-    LOG.debug(query)
+    logger.debug(query)
     return query

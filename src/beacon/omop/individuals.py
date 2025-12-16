@@ -1,4 +1,3 @@
-import logging
 from typing import Dict, List, Optional
 # from beacon.omop.filters import apply_alphanumeric_filter, apply_filters
 # from beacon.omop.utils import  get_count, get_cross_query, get_documents, search_ontologies, basic_query
@@ -13,12 +12,15 @@ import itertools
 from sqlalchemy import text
 from ..conf import MAX_LIMIT
 
-LOG = logging.getLogger(__name__)
-
 
 from ...beacon.omop.utils import CDM_SCHEMA, VOCABULARIES_SCHEMA
 from ...beacon.omop.biosamples import get_biosamples_with_person_id
 from pathlib import Path
+
+from candigv2_logging.logging import CanDIGLogger, initialize
+
+logger = CanDIGLogger(__file__)
+
 queries_file = Path(__file__).parent / "sql" / "individuals.sql"
 individual_queries = aiosql.from_path(queries_file, "psycopg2")
 
@@ -472,7 +474,7 @@ async def checkFilters(filtersDict, offset, limit, typeQuery):
                             try:
                                 scope = filter['scope']
                             except:
-                                LOG.info("You need an scope if you are using 'ageOfOnset'") 
+                                logger.info("You need an scope if you are using 'ageOfOnset'") 
                             if "disease" in scope:
                                 filterId = 'ageAtDisease'
                             elif "treatments" in scope:
@@ -513,12 +515,12 @@ async def checkFilters(filtersDict, offset, limit, typeQuery):
                     # Concept_id and descendants in same set()
                     listConcept_id = listConcept_id.union(concept_ids)
                 dictTableMap.append([tableMap, listConcept_id, operator, value])
-    # LOG.info(dictTableMap)
+    # logger.info(dictTableMap)
     base_filter = create_dynamic_filter(dictTableMap)
     query_count = super_query_count(base_filter)
     count_records = await basic_query(query_count)
     query_get = super_query_get(base_filter, offset, limit)
-    LOG.info(query_get)
+    logger.info(query_get)
     records_get = await basic_query(query_get)
     listOfList = [str(record[0]) for record in records_get]
 
@@ -526,12 +528,12 @@ async def checkFilters(filtersDict, offset, limit, typeQuery):
 
 # /individuals/?filters=SNOMED:0&filters=OMOP:23
 async def filters(filtersDict, offset, limit):
-    # LOG.info(filtersDict)
+    # logger.info(filtersDict)
     if type(filtersDict[0]) is dict:         # If filter is from Post
-        LOG.info("post")
+        logger.info("post")
         listFilters, count = await checkFilters(filtersDict, offset, limit, 'POST')
     else:
-        # LOG.info("get")
+        # logger.info("get")
         listFilters, count = await checkFilters(filtersDict, offset, limit, 'GET')
 
     return listFilters, count
@@ -640,7 +642,7 @@ async def get_filtering_terms_of_individual(entry_id: Optional[str], qparams: Re
                     continue
                 dict_filter = {"id":filters[0],"label":filters[1],"scopes":["individual"],"type":"ontology"}
                 l_indFilters.append(dict_filter)
-    LOG.info(l_indFilters)
+    logger.info(l_indFilters)
     return schema, len(l_indFilters), l_indFilters
 
 def get_cohort_individuals(cohort_id, offset=0, limit=10):
@@ -718,9 +720,9 @@ def get_variants_of_individual(entry_id: Optional[str], qparams: RequestParams):
     # count = get_count(engine.beacon.individuals, query)
     # individual_ids = engine.beacon.individuals \
     #     .find_one(query, {"id": 1, "_id": 0})
-    # LOG.debug(individual_ids)
+    # logger.debug(individual_ids)
     # individual_ids=get_cross_query(individual_ids,'id','caseLevelData.biosampleId')
-    # LOG.debug(individual_ids)
+    # logger.debug(individual_ids)
     # query = apply_filters(individual_ids, qparams.query.filters, collection)
 
     # schema = DefaultSchemas.GENOMICVARIATIONS
