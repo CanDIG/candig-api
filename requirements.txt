@@ -6,4 +6,5 @@ watchdog                          # Watch for files change
 pydantic
 #fastobo~=0.11.1
 aiosql
+candigv2-authx@git+https://github.com/CanDIG/candigv2-authx.git@v2.8.6
 candigv2-logging@git+https://github.com/CanDIG/candigv2-logging.git@v1.0.1  # CanDIG logging wrapper
