@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from candigv2_logging.logging import CanDIGLogger, initialize
 from connexion import AsyncApp
 
-from .api import dataset_operations, person_operations, query_operations
+from .api import beacon_operations, dataset_operations, person_operations, query_operations
 
 initialize()
 logger = CanDIGLogger(__file__)
@@ -18,7 +18,7 @@ logger = CanDIGLogger(__file__)
 sys.modules["query_operations"] = query_operations
 sys.modules["dataset_operations"] = dataset_operations
 sys.modules["person_operations"] = person_operations
-
+sys.modules['beacon_operations'] = beacon_operations
 
 @asynccontextmanager
 async def lifespan(app):
@@ -39,6 +39,7 @@ async def lifespan(app):
 app = AsyncApp(__name__, specification_dir="../", lifespan=lifespan)
 
 app.add_api("schema.yml", validate_responses=True)
+app.add_api("beacon-schema.yml", validate_responses=True)
 
 if __name__ == "__main__":
     app.run(port=8080, reload=False)

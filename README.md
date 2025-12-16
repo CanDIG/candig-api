@@ -39,3 +39,7 @@ This action assumes you have setup tests in the repo using [pytest](https://docs
 
 It automatically runs `pytest` on the repo each time a commit is pushed into the remote repo. 
 
+## Acknowledgements
+
+* A large proportion of the Beacon work was adapted from Barcelona Supercomputing Centre (BSC)'s implementation at https://gitlab.bsc.es/impact-data/impd-beacon_omopcdm
+

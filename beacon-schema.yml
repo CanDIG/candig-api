@@ -3,10 +3,23 @@ info:
   title: CanDIG-API
   version: 0.1.0
 servers:
-  - url: /v3
+  - url: /v1/beacon
 security:
   - {}
 paths:
+  /persons:
+    post:
+      description: Get a Beacon response for datasets
+      operationId: beacon_operations.post_person
+      requestBody:
+        $ref: '#/components/requestBodies/BeaconRequestBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/ResultsOKResponse'
+        default:
+          $ref: '#/components/responses/BeaconErrorResponse'
+      tags:
+        - Persons
   /datasets:
     post:
       description: Get a Beacon response for datasets
@@ -17,11 +30,7 @@ paths:
         '200':
           $ref: '#/components/responses/ResultsOKResponse'
         default:
-          description: An unsuccessful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
       tags:
         - Datasets
   /datasets/filtering_terms:
@@ -41,11 +50,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/BeaconFilteringTermsResponse'
         default:
-          description: An unsuccessful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
     post:
       description: Get the list of filtering terms that could be used with datasets.
       operationId: beacon_operations.post_filtering_terms
@@ -53,41 +58,32 @@ paths:
         - Datasets
       requestBody:
         $ref: '#/components/requestBodies/BeaconRequestBody'
-        required: true
       responses:
         '200':
           description: Successful operation
           content:
             application/json:
               schema:
-                $ref: '#/components/requestBodies/BeaconRequestBody'
+                $ref: '#/components/schemas/BeaconFilteringTermsResponse'
         default:
-          description: An unsuccessful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
   /datasets/info:
     parameters:
       - $ref: '#/components/parameters/requestedSchema'
     get:
       description: Get information about the beacon
-      operationId: getBeaconInfoRoot
+      operationId: beacon_operations.get_beacon_info_root
       tags:
         - Informational endpoints
       responses:
         '200':
           $ref: '#/components/responses/infoOKResponse'
         default:
-          description: An unsuccessful operation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
   /datasets/configuration:
     get:
       description: Returns some configuration aspects and the definition of the entry types (e.g. genomic variants, biosamples, cohorts, individuals and runs) implemented in this specific Beacon server or instance.
-      operationId: getBeaconConfiguration
+      operationId: beacon_operations.get_beacon_configuration
       tags:
         - Informational endpoints
       responses:
@@ -96,18 +92,13 @@ paths:
           content:
             application/json:
               schema:
-                description: Response of a request for information about a Beacon
                 $ref: '#/components/schemas/BeaconConfigurationResponse'
         default:
-          description: An unsuccessful operation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
   /datasets/map:
     get:
       description: Returns a map (like a web sitemap) of the different endpoints implemented in this Beacon instance.
-      operationId: getBeaconMap
+      operationId: beacon_operations.get_beacon_map
       tags:
         - Informational endpoints
       parameters: []
@@ -120,15 +111,11 @@ paths:
                 description: Response of a request for information about a Beacon
                 $ref: '#/components/schemas/BeaconMapResponse'
         default:
-          description: An unsuccessful operation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
   /datasets/entry_types:
     get:
       description: Return the section of the configuration that describes the entry types in this Beacon.
-      operationId: getEntryTypes
+      operationId: beacon_operations.get_entry_types
       tags:
         - Informational endpoints
       parameters: []
@@ -141,11 +128,7 @@ paths:
                 description: Response of a request for information about a Beacon
                 $ref: '#/components/schemas/BeaconEntryTypesResponse'
         default:
-          description: An unsuccessful operation.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/BeaconErrorResponse'
+          $ref: '#/components/responses/BeaconErrorResponse'
 components:
   parameters:
     requestedSchema:
@@ -188,7 +171,7 @@ components:
       content:
         application/json:
           schema:
-            oneOf:
+            anyOf:
               - $ref: '#/components/schemas/BeaconBooleanResponse'
               - $ref: '#/components/schemas/BeaconCountResponse'
               - $ref: '#/components/schemas/BeaconResultsetsResponse'
@@ -298,7 +281,7 @@ components:
         entryTypes:
           $ref: '#/components/schemas/EntryTypes'
       required:
-        - schema
+        - $schema
         - maturityAttributes
         - entryTypes
       additionalProperties: true
@@ -378,7 +361,7 @@ components:
           description: A textual description for the element.
         ontologyTermForThisType:
           $ref: '#/components/schemas/OntologyTerm'
-          examples:
+          example:
             - id: EFO:0000542
               label: individual
             - id: OBI:0000747
@@ -763,6 +746,22 @@ components:
       properties:
         exists:
           $ref: '#/components/schemas/Exists'
+    BeaconCountResponseSection:
+      description: >-
+        Payload definition for the "count" response.
+      type: object
+      properties:
+        countAdjustedTo:
+          $ref: '#/components/schemas/CountAdjustedTo'
+        countPrecision:
+          $ref: '#/components/schemas/CountPrecision'
+        exists:
+          $ref: '#/components/schemas/Exists'
+        numTotalResults:
+          $ref: '#/components/schemas/NumTotalResults'
+      required:
+        - exists
+        - numTotalResults
     BeaconCountResponse:
       description: >-
         Complete definition for a minimal response that provides an aggregate Boolean
@@ -781,7 +780,7 @@ components:
         responseSummary:
           description: >-
             Response summary, including Boolean and optionally results count.
-            $ref: '#/components/schemas/beaconCountResponseSection'
+          $ref: '#/components/schemas/BeaconCountResponseSection'
         info:
           description: >-
             Additional details that could be of interest. Provided to clearly
@@ -878,6 +877,8 @@ components:
           $ref: '#/components/schemas/IncludeResultsetResponses'
         pagination:
           $ref: '#/components/schemas/PaginationRequest'
+        filters:
+          $ref: '#/components/schemas/Filters'
         requestParameters:
           $ref: '#/components/schemas/RequestParameters'
         requestedGranularity:
@@ -1113,14 +1114,14 @@ components:
         Level of detail of the response:
         * `boolean`: returns true/false' responses
         * `count`: adds the total number of positive results found
-        * `aggregated`: returns summary, aggregated or distribution like responses
         * `record`: returns details for every row. In cases where a Beacon prefers to return records with fewer than all attributes, different strategies have to be considered w/o adding them to the current design, e.g.:
             - keeping non-mandatory attributes empty
             - Beacon to provide a minimal record definition
+      # * `aggregated`: returns summary, aggregated or distribution like responses
       enum:
         - boolean
         - count
-        - aggregated
+        #- aggregated
         - record
       type: string
     Exists:
@@ -1266,7 +1267,7 @@ components:
         Handover type, as an Ontology_term object with CURIE syntax for the `id`
         value. Use "CUSTOM:123455" CURIE-style `id` when no ontology is available.
       $ref: '#/components/schemas/OntologyTerm'
-      examples:
+      example:
         - id: EDAM:2572
           label: BAM
         - id: EDAM:3016
@@ -1302,3 +1303,114 @@ components:
       minimum: 0
       example:
         - 123
+    Filters:
+      title: Filtering Term Element
+      description: >-
+        Filtering terms are the main means to select subsets of records from a Beacon
+        response. While the name implies the application to a generated response, in
+        practice implementations may apply them at the query stage.
+        Note: In the processing of Beacon v2.0 requests multiple filters are assumed
+        to be chained by the logical AND operator.
+      type: array
+      items:
+        $ref: '#/components/schemas/FilteringTermInRequest'
+      additionalProperties: true
+    FilteringTermInRequest:
+      anyOf:
+        - $ref: '#/components/schemas/OntologyFilter'
+        - $ref: '#/components/schemas/AlphanumericFilter'
+        - $ref: '#/components/schemas/CustomFilter'  
+    OntologyFilter:
+      type: object
+      description: Filter results to include records that contain a specific ontology term.
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          description: Term ID to be queried, using CURIE syntax where possible.
+          example: HP:0002664
+        includeDescendantTerms:
+          type: boolean
+          default: true
+          description: |-
+            Define if the Beacon should implement the ontology hierarchy,
+            thus query the descendant terms of `id`.
+        similarity:
+          type: string
+          enum:
+            - exact
+            - high
+            - medium
+            - low
+          default: exact
+          description: |-
+            Allow the Beacon to return results which do not match the filter
+            exactly, but do match to a certain degree of similarity. The Beacon defines
+            the semantic similarity model implemented and how to apply the thresholds
+            of 'high', 'medium' and 'low' similarity.
+        scope:
+          type: string
+          description: |-
+            The entry type in the model to which the filter should be applied. For
+            example, the use of `NCIT:C4013` (Malignant Head and Neck Neoplasm) can
+            w/o specified scope mean both "match cancer samples" or "match individuals"
+            with the disease" which - in the case of individuals - could then lead
+            to matching germline and cancer variants while a scope of `biosamples`
+            would limit the response to variants observed in the cancer tissue.
+            Note: It is good practice to avoid ambiguous terms, _i.e._ use different
+            vocabularies for different entry types.
+    AlphanumericFilter:
+      description: |-
+        Filter results based on operators and values applied to alphanumeric
+        fields.
+      type: object
+      required:
+        - id
+        - operator
+        - value
+      properties:
+        id:
+          type: string
+          description: Field identfier to be queried.
+          example: ageOfOnset
+        operator:
+          type: string
+          enum:
+            - '='
+            - <
+            - '>'
+            - '!'
+            - '>='
+            - <=
+          description: Defines how the value relates to the field `id`.
+          default: '='
+          example: '>'
+        value:
+          type: string
+          description: >-
+            Alphanumeric search term to be used within the query which can
+            contain wildcard characters (%) to denote any number of unknown characters.  Values
+            can be assocatied with units if applicable.
+          example: P70Y
+        scope:
+          type: string
+          description: |-
+            The entry type in the model to which the filter should be applied. It
+            is good practice to use unanimous `id` values (e.g. `ageAtDiagnosis`
+            instead of `age`) and avoid the use of the `scope` parameter.
+    CustomFilter:
+      type: object
+      description: Filter results to include records that contain a custom term defined
+        by this Beacon.
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          description: Custom filter terms should contain a unique identifier.
+          example: demographic.ethnicity:asian
+        scope:
+          type: string
+          description: |-
+            The entry type in the model to which the filter should be applied.
