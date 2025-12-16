@@ -48,7 +48,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/requestBodies/BeaconRequestBody'
+                $ref: '#/components/schemas/BeaconFilteringTermsResponse'
         default:
           $ref: '#/components/responses/BeaconErrorResponse'
     post:
