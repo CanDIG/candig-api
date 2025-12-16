@@ -23,7 +23,6 @@ class Dataset(Base):
     __table_args__ = {"schema": settings.CANDIG_SCHEMA}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    source_value: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     info: Mapped[Optional[Dict[str, Any]]] = mapped_column(
         JSON, nullable=True, default={}
     )

@@ -15,10 +15,10 @@ async def get_datasets(entry_id: Optional[str], qparams: RequestParams):
     collection = 'datasets'
     query = apply_filters({}, qparams.query.filters, collection)
     schema = DefaultSchemas.DATASETS
-    count = await get_count(f"omop.datasets", query)
+    count = await get_count(f"candig.dataset", query)
     docs = await get_documents(
         Dataset.__table__.columns,
-        format_mongo_query(f"omop.datasets", query),
+        format_mongo_query(f"candig.dataset", query),
         qparams.query.pagination.skip,
         qparams.query.pagination.limit
     )
@@ -30,7 +30,7 @@ def get_dataset_with_id(entry_id: Optional[str], qparams: RequestParams):
     query = apply_filters({}, qparams.query.filters, collection)
     query = query_id(query, entry_id)
     schema = DefaultSchemas.DATASETS
-    count = get_count(f"omop.datasets", query)
+    count = get_count(f"candig.dataset", query)
     docs = get_documents(
         Dataset.__table__.columns,
         query,
