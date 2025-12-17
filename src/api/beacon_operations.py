@@ -93,7 +93,7 @@ async def post_person(body: dict):
     params = RequestParams(**body).from_request(body)
 
     # Pass out the parsed search parameters to SQL (see beacon/omop/)
-    schema, count, records = await individuals.get_individuals(None, params)
+    schema, count, records, discovery_data = await individuals.get_individuals(None, params)
 
     # Fill out the return value with all parameters that belong there (see beacon/response/build_response)
     # Start by assuming max granularity, and downgrade as needed
@@ -105,10 +105,10 @@ async def post_person(body: dict):
 
     # Format proper response
     if (granularity == Granularity.RECORD):
-        retval = build_beacon_resultset_response(records, count, params, lambda x, y: x, schema)
+        retval = build_beacon_resultset_response(records, count, params, lambda x, y: x, schema, discovery_data)
     elif granularity == Granularity.COUNT:
-        retval = build_beacon_count_response(records, count, params, lambda x, y: x, schema)
+        retval = build_beacon_count_response(records, count, params, lambda x, y: x, schema, discovery_data)
     else:
-        retval = build_beacon_boolean_response(records, count, params, lambda x, y: x, schema)
+        retval = build_beacon_boolean_response(records, count, params, lambda x, y: x, schema, discovery_data)
 
     return retval, 200

@@ -24,6 +24,13 @@ logger = CanDIGLogger(__file__)
 queries_file = Path(__file__).parent / "sql" / "individuals.sql"
 individual_queries = aiosql.from_path(queries_file, "psycopg2")
 
+def get_basic_discovery_response():
+    return {
+        'primary_site_count': {},
+        'treatment_type_count': {},
+        'patients_per_program': {}
+    }
+
 async def get_individual_id(offset=0, limit=10, person_id=None):
     async with engine.connect() as conn:
         if person_id == None:
@@ -197,6 +204,9 @@ def format_query(listIds, dictPerson, dictCondition, dictProcedures, dictMeasure
             dictId["treatments"] = list(map(mappings.treatments_table_map, dictTreatments[person_id]))
         list_format.append(dictId)
     return list_format
+
+def parse_discovery(listIds, dictPerson, dictCondition, dictProcedures, dictMeasures, dictExposures, dictTreatments, dictDatasets):
+    discovery_data = get_basic_discovery_response()
 
 def map_domains(domain_id):
     # Domain_id : Table in OMOP
@@ -412,6 +422,50 @@ def super_query_count(filter):
 
     """
 
+def discovery_query_primary_site(filter):
+    return  f""" SELECT c.concept_name, count(c.concept_name)
+        FROM omop.condition_occurrence AS co
+        LEFT JOIN omop.concept AS c ON c.concept_id = co.condition_concept_id
+        LEFT JOIN omop.person AS p ON p.person_id = co.person_id
+        WHERE TRUE
+        {filter['demografic_filters']}
+        {filter['condition_filters']}
+        {filter['measurement_filters']}
+        {filter['procedures_filters']}
+        {filter['exposures_filters']}
+        {filter['treatments_filters']}
+        GROUP BY c.concept_name
+    """
+
+def discovery_query_treatment_type(filter):
+    return  f""" SELECT c.concept_name, count(c.concept_name)
+        FROM omop.drug_exposure AS d
+        LEFT JOIN omop.concept AS c ON c.concept_id = d.drug_concept_id
+        LEFT JOIN omop.person AS p ON p.person_id = d.person_id
+        WHERE TRUE
+        {filter['demografic_filters']}
+        {filter['condition_filters']}
+        {filter['measurement_filters']}
+        {filter['procedures_filters']}
+        {filter['exposures_filters']}
+        {filter['treatments_filters']}
+        GROUP BY c.concept_name
+    """
+
+def discovery_query_program(filter):
+    return  f""" SELECT d.dataset_id, count(d.dataset_id)
+        FROM candig.person_in_dataset AS d
+        LEFT JOIN omop.person AS p ON p.person_id = d.person_id
+        WHERE TRUE
+        {filter['demografic_filters']}
+        {filter['condition_filters']}
+        {filter['measurement_filters']}
+        {filter['procedures_filters']}
+        {filter['exposures_filters']}
+        {filter['treatments_filters']}
+        GROUP BY d.dataset_id
+    """
+
 def super_query_get(filter, offset, limit):
     return  f""" select person_id
         from omop.person p
@@ -436,6 +490,33 @@ def mapBeaconScopeToOMOP(scope):
      }
     scopeMapping = {mappingDict[scope]:'Age'}
     return scopeMapping
+
+async def get_discovery(base_filter):
+    """
+    Obtain the discovery query portion of the "info" response
+    
+    :param dictTableMap: dictionary of filters from create_dynamic_filter() 
+    """
+    discovery = get_basic_discovery_response()
+    primary_site = discovery_query_primary_site(base_filter)
+    count_primary_site = (await basic_query(primary_site)).fetchall()
+    discovery['primary_site_count'] = {}
+    #logger.info(count_primary_site)
+    for primary_site, count in count_primary_site:
+        discovery['primary_site_count'][primary_site] = count
+    treatment_types = discovery_query_treatment_type(base_filter)
+    count_treatment_type = (await basic_query(treatment_types)).fetchall()
+    discovery['treatment_type_count'] = {}
+    #logger.info(count_treatment_type)
+    for treatment_type, count in count_treatment_type:
+        discovery['treatment_type_count'][treatment_type] = count
+    programs = discovery_query_program(base_filter)
+    count_program = (await basic_query(programs)).fetchall()
+    discovery['patients_per_program'] = {}
+    #logger.info(count_program)
+    for program, count in count_program:
+        discovery['patients_per_program'][program] = count
+    return discovery
 
 async def checkFilters(filtersDict, offset, limit, typeQuery):
     listOfList = []
@@ -518,39 +599,44 @@ async def checkFilters(filtersDict, offset, limit, typeQuery):
     # logger.info(dictTableMap)
     base_filter = create_dynamic_filter(dictTableMap)
     query_count = super_query_count(base_filter)
-    count_records = await basic_query(query_count)
+    count_records = (await basic_query(query_count)).fetchone()[0]
+
+    # We also need the discovery query
+    discovery = await get_discovery(base_filter)
+
     query_get = super_query_get(base_filter, offset, limit)
     logger.info(query_get)
     records_get = await basic_query(query_get)
     listOfList = [str(record[0]) for record in records_get]
 
-    return listOfList, count_records.fetchone()[0]
+    return listOfList, count_records, discovery
 
 # /individuals/?filters=SNOMED:0&filters=OMOP:23
 async def filters(filtersDict, offset, limit):
     # logger.info(filtersDict)
     if type(filtersDict[0]) is dict:         # If filter is from Post
         logger.info("post")
-        listFilters, count = await checkFilters(filtersDict, offset, limit, 'POST')
+        listFilters, count, discovery = await checkFilters(filtersDict, offset, limit, 'POST')
     else:
         # logger.info("get")
-        listFilters, count = await checkFilters(filtersDict, offset, limit, 'GET')
+        listFilters, count, discovery = await checkFilters(filtersDict, offset, limit, 'GET')
 
-    return listFilters, count
+    return listFilters, count, discovery
                                                       
 async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=RequestParams()):
 
     schema = DefaultSchemas.INDIVIDUALS
     count_ids = 0
+    discovery_data = {}
     if qparams.query.pagination.limit == 0:
         qparams.query.pagination.limit = MAX_LIMIT
     if qparams.query.filters and len(qparams.query.filters) > 0 and len(qparams.query.filters[0]) > 0:
         # NB: qparams.query.filters is a list, whereas we need it to be a dict?
-        listIds, count_ids = await filters(qparams.query.filters[0],
+        listIds, count_ids, discovery_data = await filters(qparams.query.filters[0],
                         offset=qparams.query.pagination.skip,
                         limit=qparams.query.pagination.limit)
         if count_ids == 0:
-            return schema, count_ids, []
+            return schema, count_ids, [], {}
     else:
         listIds = await get_individual_id(offset=qparams.query.pagination.skip,
                                             limit=qparams.query.pagination.limit,
@@ -558,7 +644,9 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
         async with engine.connect() as conn:
             count_ids = await conn.execute(text(individual_queries.count_individuals.sql)) # Count individuals
             count_ids = count_ids.first()[0]
-        print('Number of ids',count_ids)
+            discovery_data = await get_discovery(create_dynamic_filter([]))
+        
+    logger.info(f"Number of ids: ${count_ids}")
 
     # NB: I'm concerned about the memory usage of the following
 
@@ -581,7 +669,7 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
 
     docs = format_query(listIds, dictPerson, dictCondition, dictProcedures, dictMeasures, dictExposures, dictTreatments, dictDatasets)
 
-    return schema, count_ids, docs
+    return schema, count_ids, docs, discovery_data
 
 
 

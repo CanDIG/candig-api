@@ -25,6 +25,12 @@ where cohort_definition_id = :cohort_id
 SELECT count(*)
 FROM omop.person
 
+-- name: count_primary_sites$
+-- Get individuals count
+SELECT c.concept_name, count(c.concept_name)
+FROM omop.condition_occurrence AS c
+JOIN omop.person AS p ON p.person_id=c.person_id
+
 -- name: sql_get_individual_id^
 -- Get individual by id
 SELECT DISTINCT person_id
@@ -135,7 +141,7 @@ SELECT concept_id, domain_id
 FROM omop.concept
 WHERE vocabulary_id = :vocabulary_id and concept_code = :concept_code
 
--- name: sql_get_ontology^
+-- name: sql_get_ontology
 -- Get ontology 
 SELECT concept_name as label,
     vocabulary_id || ':' || concept_code as id

@@ -58,7 +58,8 @@ def build_beacon_resultset_response(data,
                                     num_total_results,
                                     qparams: RequestParams,
                                     func_response_type,
-                                    entity_schema: DefaultSchemas):
+                                    entity_schema: DefaultSchemas,
+                                    discovery_data: dict):
     """"
     Transform data into the Beacon response format.
     """
@@ -70,6 +71,7 @@ def build_beacon_resultset_response(data,
         'response': {
             'resultSets': [build_response(data, num_total_results, qparams, func_response_type)]
         },
+        'info': discovery_data,
         'beaconHandovers': conf.beacon_handovers,
     }
     return beacon_response
@@ -82,7 +84,8 @@ def build_beacon_count_response(data,
                                     num_total_results,
                                     qparams: RequestParams,
                                     func_response_type,
-                                    entity_schema: DefaultSchemas):
+                                    entity_schema: DefaultSchemas,
+                                    discovery_data: dict):
     """"
     Transform data into the Beacon response format.
     """
@@ -92,6 +95,7 @@ def build_beacon_count_response(data,
         'responseSummary': build_response_summary(num_total_results > 0, num_total_results),
         # TODO: 'extendedInfo': build_extended_info(),
         'beaconHandovers': conf.beacon_handovers,
+        'info': discovery_data
     }
     return beacon_response
 
@@ -103,7 +107,8 @@ def build_beacon_boolean_response(data,
                                     num_total_results,
                                     qparams: RequestParams,
                                     func_response_type,
-                                    entity_schema: DefaultSchemas):
+                                    entity_schema: DefaultSchemas,
+                                    discovery_data: dict):
     """"
     Transform data into the Beacon response format.
     """
@@ -113,6 +118,7 @@ def build_beacon_boolean_response(data,
         'responseSummary': build_response_summary(num_total_results > 0, None),
         # TODO: 'extendedInfo': build_extended_info(),
         'beaconHandovers': conf.beacon_handovers,
+        'info': discovery_data
     }
     return beacon_response
 
