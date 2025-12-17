@@ -18,6 +18,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Echo home
+        run: |
+          echo $HOME
+          echo ls -al
+          echo pwd
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
