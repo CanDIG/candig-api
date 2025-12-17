@@ -1,0 +1,58 @@
+# .github/workflows/validate-schemas.yml
+name: Validate OpenAPI spec
+
+on:
+  pull_request:
+    paths:
+      - "**/*.yaml"
+      - "**/*.yml"
+  push:
+    branches:
+      - develop
+
+jobs:
+  validate-openapi-redocly:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Echo home
+        run: |
+          echo $GITHUB_WORKSPACE
+          echo `ls -al $GITHUB_WORKSPACE`
+          echo `pwd`
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install redocly
+        run: npm i -g @redocly/cli@latest
+
+      - name: Validate OpenAPI spec
+        run: |
+          redocly lint schema.yml
+          redocly lint beacon-schema.yml
+
+  validate-openapi-python:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install openapi-spec-validator
+        run: pip install openapi-spec-validator
+
+      - name: Validate with openapi-spec-validator
+        run: |
+          openapi-spec-validator schema.yml
+          openapi-spec-validator beacon-schema.yml
