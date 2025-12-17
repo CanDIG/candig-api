@@ -11,7 +11,7 @@ on:
       - develop
 
 jobs:
-  validate-openapi-swagger:
+  validate-openapi-redocly:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,13 +23,13 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install swagger-cli
-        run: npm install -g swagger-cli
+      - name: Install redocly
+        run: npm i -g @redocly/cli@latest
 
       - name: Validate OpenAPI spec
         run: |
-          swagger-cli validate ./schema.yaml
-          swagger-cli validate ./beacon-schema.yaml
+          redocly lint ./schema.yaml
+          redocly lint ./beacon-schema.yaml
 
   validate-openapi-python:
     runs-on: ubuntu-latest
