@@ -12,7 +12,7 @@ on:
       - develop
 
 jobs:
-  validate-openapi:
+  validate-openapi-swagger:
     runs-on: ubuntu-latest
 
     steps:
@@ -31,8 +31,12 @@ jobs:
         run: |
           swagger-cli validate schema.yaml
           swagger-cli validate beacon-schema.yaml
-      
-            - name: Set up Python
+
+  validate-openapi-python:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -43,4 +47,3 @@ jobs:
       - name: Validate with openapi-spec-validator
         run: openapi-spec-validator schema.yaml
         run: openapi-spec-validator beacon-schema.yaml
-
