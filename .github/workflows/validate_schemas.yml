@@ -20,9 +20,9 @@ jobs:
 
       - name: Echo home
         run: |
-          echo $HOME
-          echo ls -al
-          echo pwd
+          echo $GITHUB_WORKSPACE
+          echo `ls -al $GITHUB_WORKSPACE`
+          echo `pwd`
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -34,8 +34,8 @@ jobs:
 
       - name: Validate OpenAPI spec
         run: |
-          redocly lint ./schema.yaml
-          redocly lint ./beacon-schema.yaml
+          redocly lint $GITHUB_WORKSPACEschema.yaml
+          redocly lint $GITHUB_WORKSPACEbeacon-schema.yaml
 
   validate-openapi-python:
     runs-on: ubuntu-latest
@@ -51,5 +51,5 @@ jobs:
 
       - name: Validate with openapi-spec-validator
         run: |
-          openapi-spec-validator ./schema.yaml
-          openapi-spec-validator ./beacon-schema.yaml
+          openapi-spec-validator $GITHUB_WORKSPACEschema.yaml
+          openapi-spec-validator $GITHUB_WORKSPACEbeacon-schema.yaml
