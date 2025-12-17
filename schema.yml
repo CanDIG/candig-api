@@ -1033,7 +1033,9 @@ components:
         program_name:
           type: string
         keywords:
-          type: string
+          type: array
+          items: 
+            type: string
         status:
           type: string
           enum:
