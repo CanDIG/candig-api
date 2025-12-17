@@ -235,7 +235,7 @@ async def search_descendants(concept_id):
 
 def create_dynamic_filter(filters):
     base_filter = {
-        'demografic_filters': '',
+        'demographic_filters': '',
         'condition_filters': '',
         'measurement_filters': '',
         'procedures_filters': '',
@@ -399,7 +399,7 @@ def create_dynamic_filter(filters):
     query_treatment += ')'* n_open_treatment
 
     if list_person:
-        base_filter['demografic_filters'] += ' and ( ' + " and ".join(list_person) + ' ) '
+        base_filter['demographic_filters'] += ' and ( ' + " and ".join(list_person) + ' ) '
 
     base_filter['condition_filters'] += query_condition
     base_filter['measurement_filters'] += query_measurement
@@ -413,7 +413,7 @@ def super_query_count(filter):
     return  f""" select count(distinct person_id)
         from omop.person p
         where true
-        {filter['demografic_filters']}
+        {filter['demographic_filters']}
         {filter['condition_filters']}
         {filter['measurement_filters']}
         {filter['procedures_filters']}
@@ -428,7 +428,7 @@ def discovery_query_primary_site(filter):
         LEFT JOIN omop.concept AS c ON c.concept_id = co.condition_concept_id
         LEFT JOIN omop.person AS p ON p.person_id = co.person_id
         WHERE TRUE
-        {filter['demografic_filters']}
+        {filter['demographic_filters']}
         {filter['condition_filters']}
         {filter['measurement_filters']}
         {filter['procedures_filters']}
@@ -439,11 +439,11 @@ def discovery_query_primary_site(filter):
 
 def discovery_query_treatment_type(filter):
     return  f""" SELECT c.concept_name, count(c.concept_name)
-        FROM omop.drug_exposure AS d
-        LEFT JOIN omop.concept AS c ON c.concept_id = d.drug_concept_id
+        FROM omop.procedure_occurrence AS d
+        LEFT JOIN omop.concept AS c ON c.concept_id = d.procedure_concept_id
         LEFT JOIN omop.person AS p ON p.person_id = d.person_id
         WHERE TRUE
-        {filter['demografic_filters']}
+        {filter['demographic_filters']}
         {filter['condition_filters']}
         {filter['measurement_filters']}
         {filter['procedures_filters']}
@@ -457,7 +457,7 @@ def discovery_query_program(filter):
         FROM candig.person_in_dataset AS d
         LEFT JOIN omop.person AS p ON p.person_id = d.person_id
         WHERE TRUE
-        {filter['demografic_filters']}
+        {filter['demographic_filters']}
         {filter['condition_filters']}
         {filter['measurement_filters']}
         {filter['procedures_filters']}
@@ -470,7 +470,7 @@ def super_query_get(filter, offset, limit):
     return  f""" select person_id
         from omop.person p
         where true
-        {filter['demografic_filters']}
+        {filter['demographic_filters']}
         {filter['condition_filters']}
         {filter['measurement_filters']}
         {filter['procedures_filters']}
