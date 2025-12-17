@@ -4,8 +4,7 @@ info:
   version: 0.1.0
 servers:
   - url: /v1
-security:
-  - {}
+security: []
 paths:
   /service-info:
     get:
@@ -37,7 +36,7 @@ paths:
           $ref: "#/components/responses/400BadRequestError"
         401:
           $ref: "#/components/responses/401UnauthorizedError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
@@ -61,7 +60,7 @@ paths:
           $ref: "#/components/responses/401UnauthorizedError"
         409:
           $ref: "#/components/responses/409ConflictError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
@@ -83,7 +82,7 @@ paths:
                 $ref: "#/components/schemas/DatasetStatsBody"
         401:
           $ref: "#/components/responses/401UnauthorizedError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
@@ -115,7 +114,7 @@ paths:
           $ref: "#/components/responses/401UnauthorizedError"
         404:
           $ref: "#/components/responses/404NotFoundError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
@@ -148,7 +147,7 @@ paths:
           $ref: "#/components/responses/403ForbiddenError"
         404:
           $ref: "#/components/responses/404NotFoundError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
@@ -179,7 +178,7 @@ paths:
           $ref: "#/components/responses/403ForbiddenError"
         404:
           $ref: "#/components/responses/404NotFoundError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
@@ -211,7 +210,7 @@ paths:
           $ref: "#/components/responses/401UnauthorizedError"
         404:
           $ref: "#/components/responses/404NotFoundError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
@@ -249,7 +248,7 @@ paths:
           $ref: "#/components/responses/403ForbiddenError"
         404:
           $ref: "#/components/responses/404NotFoundError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
@@ -276,7 +275,7 @@ paths:
                 $ref: "#/components/schemas/IndividualDatasetStatsBody"
         401:
           $ref: "#/components/responses/401UnauthorizedError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
@@ -314,7 +313,7 @@ paths:
           $ref: "#/components/responses/400BadRequestError"
         401:
           $ref: "#/components/responses/401UnauthorizedError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
@@ -344,7 +343,7 @@ paths:
                 description: Status information for the upload job
         404:
           $ref: "#/components/responses/404NotFoundError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
@@ -381,7 +380,7 @@ paths:
           $ref: "#/components/responses/403ForbiddenError"
         404:
           $ref: "#/components/responses/404NotFoundError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Persons
@@ -412,7 +411,7 @@ paths:
           $ref: "#/components/responses/401UnauthorizedError"
         404:
           $ref: "#/components/responses/404NotFoundError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Persons
@@ -442,8 +441,7 @@ paths:
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: "#/components/schemas/PersonDetailedBody"
+                $ref: "#/components/schemas/PersonDetailedBody"
         400:
           $ref: "#/components/responses/400BadRequestError"
         401:
@@ -452,7 +450,7 @@ paths:
           $ref: "#/components/responses/403ForbiddenError"
         404:
           $ref: "#/components/responses/404NotFoundError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Persons
@@ -491,7 +489,7 @@ paths:
           $ref: "#/components/responses/403ForbiddenError"
         404:
           $ref: "#/components/responses/404NotFoundError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Persons
@@ -537,7 +535,7 @@ paths:
           $ref: "#/components/responses/403ForbiddenError"
         404:
           $ref: "#/components/responses/404NotFoundError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Persons
@@ -574,7 +572,7 @@ paths:
           $ref: "#/components/responses/403ForbiddenError"
         404:
           $ref: "#/components/responses/404NotFoundError"
-        5XX:
+        default:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Persons
@@ -661,8 +659,7 @@ components:
       content:
         'application/json':
           schema:
-            oneOf:
-              - $ref: "#/components/schemas/IngestOmopDatasets"
+            $ref: "#/components/schemas/IngestOmopDatasets"
 
   schemas:
     Error:
@@ -689,8 +686,10 @@ components:
     BadRequestError:
       allOf:
         - $ref: "#/components/schemas/Error"
-        - properties:
+        - type: object 
+          properties:
             query:
+              type: object
               properties:
                 error:
                   example: InvalidInput
@@ -700,8 +699,10 @@ components:
     NotFoundError:
       allOf:
         - $ref: "#/components/schemas/Error"
-        - properties:
+        - type: object
+          properties:
             query:
+              type: object
               properties:
                 error:
                   example: NotFound
@@ -711,8 +712,10 @@ components:
     ConflictError:
       allOf:
         - $ref: "#/components/schemas/Error"
-        - properties:
+        - type: object
+          properties:
             query:
+              type: object
               properties:
                 error:
                   example: Conflict
@@ -721,6 +724,9 @@ components:
 
     DatasetSingleNoInfoBody:
       type: object
+      required: 
+        - id
+        - count
       properties:
         id:
           type: string
@@ -932,7 +938,6 @@ components:
         - linked_records
       properties:
         person:
-          type: object
           $ref: '#/components/schemas/IngestPerson'
         linked_records:
           type: array
@@ -992,6 +997,8 @@ components:
       description: >
         A link which contains one OMOP-like object (observation, measurement etc.) Each item is an object
         with a single key (the OMOP record type) mapping to the appropriate OMOP object schema.
+      minProperties: 1
+      maxProperties: 1
       properties:
         observation:
           $ref: '#/components/schemas/IngestObservation'
@@ -1025,67 +1032,89 @@ components:
       type: object
       properties:
         study_id:
+          description: "Unique identifier of the study in DHDP"
           type: string
         study_name:
+          description: "The official name of the study, may be used for display purposes."
           type: string
         study_description:
+          description: "A detailed description of the study’s purpose, hypothesis, and design."
           type: string
         program_name:
+          description: "Indicate the overarching program the study belongs to (if applicable)"
           type: string
         keywords:
+          description: "List of specific terms that describe the focus and content of the study."
           type: array
           items: 
             type: string
         status:
+          description: "Indicate if the study is completed or ongoing."
           type: string
           enum:
             - Ongoing
             - Completed
         context:
+          description: "Indicate if the study was conducted in a clinical setting or as part of a research project."
           type: string
           enum:
             - Clinical
             - Research
         domain:
-          type: string
-          enum:
-            - Aging
-            - Birth Defects
-            - Cancer
-            - Circulatory and Respiratory Health
-            - General Health
-            - Infection and Immunity
-            - Musculoskeletal Health and Arthritis
-            - Neurodevelopmental Conditions
-            - Neurosciences, Mental Health and Addiction
-            - Nutrition, Metabolism and Diabetes
-            - Population Genomics
-            - Rare Diseases
-            - Other
-        dac_id:
-          type: string
-        participant_criteria:
-          type: string
-        principal_investigators:
+          description: "List of specific scientific or clinical domains addressed by the study."
           type: array
           items:
             type: string
+            enum:
+              - Aging
+              - Birth Defects
+              - Cancer
+              - Circulatory and Respiratory Health
+              - General Health
+              - Infection and Immunity
+              - Musculoskeletal Health and Arthritis
+              - Neurodevelopmental Conditions
+              - Neurosciences, Mental Health and Addiction
+              - Nutrition, Metabolism and Diabetes
+              - Population Genomics
+              - Rare Diseases
+              - Other
+        dac_id:
+          description: Unique identifier of the Data Access Committee (DAC) in DHDP to which the study is assigned.
+          type: string
+        participant_criteria:
+          description: Inclusion/exclusion criteria for participants (e.g., specific cancer type, age range).
+          type: string
+        principal_investigators:
+          description: "List of lead researchers responsible for the study in the format: FirstName LastName, Affiliation."
+          type: array
+          items:
+            type: string
+            example: "John Doe, Example Research Institute"
         lead_organizations:
+          description: "List of institutions or organizations leading the study using its full official name."
           type: array
           items:
             type: string
         collaborators:
+          description: "List of researchers, institutions or companies involved in the study. FirstName LastName (if individula) or Organization full official name, Role"
           type: array
           items:
             type: string
+          example: ["Emily John, Data Contributor", "Biotech Inc., Industry Partner"]
         funding_sources:
+          description: "List of organizations or agencies funding the study in the format: Funder name, Grant number" 
           type: array
           items:
             type: string
+          example: ["National Example Foundation, NEF-12345", "Example Health Research Council"] 
         publication_links:
+          description: "List of URL links to academic papers or reports associated with the study. providing a DOI URL formatted as https://doi.org/ followed by the DOI number."
           type: array
           items:
             type: string
+            pattern: ^https:\/\/doi\.org\/10\.[0-9]{4,}\/
+            example: "https://doi.org/10.1016/j.ccell.2025.03.014"
 
     IngestObservation:
       type: object

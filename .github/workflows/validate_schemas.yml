@@ -1,0 +1,46 @@
+# .github/workflows/validate-schemas.yml
+name: Validate OpenAPI spec
+
+on:
+  pull_request:
+    paths:
+      - "**/*.yaml"
+      - "**/*.yml"
+      - "**/*.json"
+  push:
+    branches:
+      - develop
+
+jobs:
+  validate-openapi:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install swagger-cli
+        run: npm install -g swagger-cli
+
+      - name: Validate OpenAPI spec
+        run: |
+          swagger-cli validate schema.yaml
+          swagger-cli validate beacon-schema.yaml
+      
+            - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install openapi-spec-validator
+        run: pip install openapi-spec-validator
+
+      - name: Validate with openapi-spec-validator
+        run: openapi-spec-validator schema.yaml
+        run: openapi-spec-validator beacon-schema.yaml
+
