@@ -585,7 +585,7 @@ paths:
       operationId: query_operations.whoami
       responses:
         200:
-          description: Person deleted successfully
+          description: Person ID retrieved successfully
           content:
             application/json:
               schema:
