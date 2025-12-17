@@ -4,8 +4,8 @@ name: Validate OpenAPI spec
 on:
   pull_request:
     paths:
-      - "schema.yaml"
-      - "beacon-schema.yml"
+      - "**/*.yaml"
+      - "**/*.yml"
   push:
     branches:
       - develop
