@@ -1,346 +1,576 @@
 openapi: 3.0.3
 info:
   title: GA4GH Phenopackets v2 API
-  description: OpenAPI schema covering the full GA4GH Phenopackets v2 data model
+  description: >
+    OpenAPI schema covering the full GA4GH Phenopackets v2 data model.
+    Field descriptions are derived from the official Phenopackets v2 protobuf schemas
+    and documentation, and aim to preserve their precise semantics.
   version: "2.0.0"
 servers:
   - url: /v2
 paths: {}
 components:
   schemas:
+
     Phenopacket:
+      description: >
+        A Phenopacket is a container for sharing an individual case or biosample
+        with phenotypic features, diagnoses, measurements, genomic interpretations,
+        and associated metadata.
       type: object
       required: [id, subject]
       properties:
         id:
           type: string
+          description: >
+            A unique identifier for this phenopacket instance.
         subject:
           $ref: '#/components/schemas/Individual'
+          description: >
+            The individual (patient or organism) that is the subject of this phenopacket.
         phenotypicFeatures:
           type: array
+          description: >
+            A list of phenotypic features observed or explicitly excluded in the subject.
           items:
             $ref: '#/components/schemas/PhenotypicFeature'
         measurements:
           type: array
+          description: >
+            Quantitative or qualitative measurements obtained from the subject.
           items:
             $ref: '#/components/schemas/Measurement'
         biosamples:
           type: array
+          description: >
+            Biosamples collected from the subject, such as tissue samples or cell lines.
           items:
             $ref: '#/components/schemas/Biosample'
         interpretations:
           type: array
+          description: >
+            Clinical or research interpretations derived from phenotypic and/or genomic data.
           items:
             $ref: '#/components/schemas/Interpretation'
         diseases:
           type: array
+          description: >
+            Diseases or conditions diagnosed or considered for the subject.
           items:
             $ref: '#/components/schemas/Disease'
         files:
           type: array
+          description: >
+            External files associated with this phenopacket, such as genomic data files.
           items:
             $ref: '#/components/schemas/File'
         metaData:
           $ref: '#/components/schemas/MetaData'
+          description: >
+            Metadata describing the provenance, resources, and updates for this phenopacket.
 
     Individual:
+      description: >
+        Represents an individual organism, typically a patient or study subject.
       type: object
       required: [id]
       properties:
         id:
           type: string
+          description: >
+            A unique identifier for the individual within the scope of the phenopacket.
         alternateIds:
           type: array
+          description: >
+            Alternative identifiers that may be used for the individual in other systems.
           items:
             type: string
         dateOfBirth:
           $ref: '#/components/schemas/TimeElement'
+          description: >
+            The date or age at which the individual was born.
         age:
           $ref: '#/components/schemas/Age'
+          description: >
+            The age of the individual at the time of phenopacket creation or observation.
         sex:
           $ref: '#/components/schemas/Sex'
+          description: >
+            The phenotypic sex of the individual.
         karyotypicSex:
           $ref: '#/components/schemas/KaryotypicSex'
+          description: >
+            The chromosomal (karyotypic) sex of the individual, if known.
         taxonomy:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The taxonomic classification of the individual, typically a species identifier.
 
     PhenotypicFeature:
+      description: >
+        A phenotypic feature that is observed or explicitly excluded in an individual
+        or biosample.
       type: object
       required: [type]
       properties:
         id:
           type: string
+          description: >
+            A unique identifier for this phenotypic feature instance.
         type:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The ontology term describing the phenotypic feature.
         description:
           type: string
+          description: >
+            A free-text description providing additional detail about the feature.
         excluded:
           type: boolean
+          description: >
+            Indicates whether the feature was explicitly excluded (true) or observed (false).
         severity:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            An ontology term describing the severity of the phenotypic feature.
         modifiers:
           type: array
+          description: >
+            Ontology terms that modify or further specify the phenotypic feature.
           items:
             $ref: '#/components/schemas/OntologyClass'
         onset:
           $ref: '#/components/schemas/TimeElement'
+          description: >
+            The time at which the phenotypic feature first became apparent.
         resolution:
           $ref: '#/components/schemas/TimeElement'
+          description: >
+            The time at which the phenotypic feature resolved, if applicable.
         evidence:
           type: array
+          description: >
+            Evidence supporting the assertion of this phenotypic feature.
           items:
             $ref: '#/components/schemas/Evidence'
 
     Measurement:
+      description: >
+        A quantitative or qualitative measurement obtained from an individual or biosample.
       type: object
       required: [assay, value]
       properties:
         id:
           type: string
+          description: >
+            A unique identifier for the measurement.
         assay:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The assay or test used to generate the measurement.
         value:
           $ref: '#/components/schemas/Value'
+          description: >
+            The measured value, either quantitative or categorical.
         timeObserved:
           $ref: '#/components/schemas/TimeElement'
+          description: >
+            The time at which the measurement was observed or recorded.
         procedure:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The procedure associated with obtaining the measurement.
 
     Biosample:
+      description: >
+        A biological sample derived from an individual, such as tissue, blood, or cells.
       type: object
       required: [id]
       properties:
         id:
           type: string
+          description: >
+            A unique identifier for the biosample.
         individualId:
           type: string
+          description: >
+            The identifier of the individual from whom the biosample was derived.
         description:
           type: string
+          description: >
+            A free-text description of the biosample.
         sampledTissue:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The tissue or anatomical site from which the biosample was obtained.
         phenotypicFeatures:
           type: array
+          description: >
+            Phenotypic features observed or excluded in the context of this biosample.
           items:
             $ref: '#/components/schemas/PhenotypicFeature'
         measurements:
           type: array
+          description: >
+            Measurements obtained from this biosample.
           items:
             $ref: '#/components/schemas/Measurement'
         timeOfCollection:
           $ref: '#/components/schemas/TimeElement'
+          description: >
+            The time at which the biosample was collected.
         pathologicalStage:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The pathological stage associated with the biosample, if applicable.
         pathologicalTnmFinding:
           type: array
+          description: >
+            TNM pathological findings associated with the biosample.
           items:
             $ref: '#/components/schemas/OntologyClass'
 
     Interpretation:
+      description: >
+        A clinical or research interpretation derived from phenotypic and/or genomic data.
       type: object
       required: [id, status]
       properties:
         id:
           type: string
+          description: >
+            A unique identifier for the interpretation.
         description:
           type: string
+          description: >
+            A free-text description of the interpretation.
         status:
           $ref: '#/components/schemas/InterpretationStatus'
+          description: >
+            The overall status of the interpretation.
         diagnosis:
           $ref: '#/components/schemas/Diagnosis'
+          description: >
+            The diagnosis resulting from this interpretation, if any.
         genomicInterpretations:
           type: array
+          description: >
+            Genomic interpretations contributing to this overall interpretation.
           items:
             $ref: '#/components/schemas/GenomicInterpretation'
 
     Diagnosis:
+      description: >
+        A diagnosis assigned to an individual based on clinical evaluation.
       type: object
       required: [disease]
       properties:
         disease:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The disease or condition diagnosed, represented as an ontology term.
         ageOfOnset:
           $ref: '#/components/schemas/TimeElement'
+          description: >
+            The age or time at which the disease onset occurred.
         familyHistory:
           type: boolean
+          description: >
+            Indicates whether there is a known family history of the disease.
         clinicalTnmFinding:
           type: array
+          description: >
+            TNM clinical findings relevant to the diagnosis.
           items:
             $ref: '#/components/schemas/OntologyClass'
 
     GenomicInterpretation:
+      description: >
+        An interpretation of genomic data, such as a variant or gene-level assessment.
       type: object
       required: [subjectOrBiosampleId, interpretationStatus]
       properties:
         id:
           type: string
+          description: >
+            A unique identifier for the genomic interpretation.
         subjectOrBiosampleId:
           type: string
+          description: >
+            The identifier of the subject or biosample to which this interpretation applies.
         interpretationStatus:
           $ref: '#/components/schemas/InterpretationStatus'
+          description: >
+            The status of this genomic interpretation.
         variantInterpretation:
           $ref: '#/components/schemas/VariantInterpretation'
+          description: >
+            A variant-level interpretation, if applicable.
         geneInterpretation:
           $ref: '#/components/schemas/GeneInterpretation'
+          description: >
+            A gene-level interpretation, if applicable.
 
     VariantInterpretation:
+      description: >
+        A clinical or research interpretation of a specific genomic variant.
       type: object
       required: [variantId, clinicalSignificance]
       properties:
         variantId:
           type: string
+          description: >
+            An identifier for the variant being interpreted.
         hgvs:
           type: string
+          description: >
+            An HGVS expression describing the variant.
         clinicalSignificance:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The clinical significance of the variant.
         evidence:
           type: array
+          description: >
+            Evidence supporting the variant interpretation.
           items:
             $ref: '#/components/schemas/Evidence'
 
     GeneInterpretation:
+      description: >
+        A clinical or research interpretation of a gene's involvement in disease.
       type: object
       required: [gene, clinicalSignificance]
       properties:
         gene:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The gene being interpreted, represented as an ontology term.
         clinicalSignificance:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The clinical significance assigned to the gene.
         evidence:
           type: array
+          description: >
+            Evidence supporting the gene interpretation.
           items:
             $ref: '#/components/schemas/Evidence'
 
     Disease:
+      description: >
+        A disease or condition that is diagnosed, suspected, or explicitly excluded.
       type: object
       required: [term]
       properties:
         term:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The disease or condition term.
         excluded:
           type: boolean
+          description: >
+            Indicates whether the disease was explicitly excluded.
         onset:
           $ref: '#/components/schemas/TimeElement'
+          description: >
+            The time or age of disease onset, if known.
 
     File:
+      description: >
+        A reference to an external file associated with the phenopacket.
       type: object
       required: [uri]
       properties:
         uri:
           type: string
           format: uri
+          description: >
+            A URI pointing to the file location.
         description:
           type: string
+          description: >
+            A free-text description of the file contents.
         fileAttributes:
           type: object
+          description: >
+            Additional attributes describing the file.
           additionalProperties:
             type: string
 
     MetaData:
+      description: >
+        Metadata capturing provenance, ontology resources, and update history.
       type: object
       required: [created, createdBy]
       properties:
         created:
           type: string
           format: date-time
+          description: >
+            The timestamp at which the phenopacket was created.
         createdBy:
           type: string
+          description: >
+            The agent or organization that created the phenopacket.
         resources:
           type: array
+          description: >
+            Ontology and data resources referenced in the phenopacket.
           items:
             $ref: '#/components/schemas/Resource'
         updates:
           type: array
+          description: >
+            A history of updates made to the phenopacket.
           items:
             $ref: '#/components/schemas/Update'
 
     Resource:
+      description: >
+        Describes an ontology or data resource used in the phenopacket.
       type: object
       required: [id, name, url, version]
       properties:
         id:
           type: string
+          description: >
+            A unique identifier for the resource.
         name:
           type: string
+          description: >
+            A human-readable name for the resource.
         url:
           type: string
+          description: >
+            A URL pointing to the resource homepage or documentation.
         version:
           type: string
+          description: >
+            The version of the resource used.
         namespacePrefix:
           type: string
+          description: >
+            The namespace prefix associated with the resource, if applicable.
         iriPrefix:
           type: string
+          description: >
+            The IRI prefix associated with the resource, if applicable.
 
     Update:
+      description: >
+        A record describing a modification made to the phenopacket.
       type: object
       required: [timestamp, comment]
       properties:
         timestamp:
           type: string
           format: date-time
+          description: >
+            The time at which the update occurred.
         comment:
           type: string
+          description: >
+            A description of the update.
 
     Evidence:
+      description: >
+        Evidence supporting a phenotypic or genomic assertion.
       type: object
       properties:
         evidenceCode:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            An ontology term describing the type of evidence.
         reference:
           type: string
+          description: >
+            A literature or database reference supporting the evidence.
 
     OntologyClass:
+      description: >
+        A reference to a term in a controlled ontology.
       type: object
       required: [id, label]
       properties:
         id:
           type: string
+          description: >
+            The compact identifier (CURIE or IRI) for the ontology term.
         label:
           type: string
+          description: >
+            A human-readable label for the ontology term.
 
     TimeElement:
+      description: >
+        Represents time either as an age or as an explicit time interval.
       oneOf:
         - $ref: '#/components/schemas/Age'
         - $ref: '#/components/schemas/TimeInterval'
 
     Age:
+      description: >
+        An age represented as an ISO 8601 duration.
       type: object
       properties:
         iso8601Duration:
           type: string
+          description: >
+            The age encoded as an ISO 8601 duration string (e.g. P5Y).
 
     TimeInterval:
+      description: >
+        A time interval with optional start and end timestamps.
       type: object
       properties:
         start:
           type: string
           format: date-time
+          description: >
+            The start time of the interval.
         end:
           type: string
           format: date-time
+          description: >
+            The end time of the interval.
 
     Value:
+      description: >
+        A value that may be quantitative or represented by an ontology term.
       oneOf:
         - $ref: '#/components/schemas/Quantity'
         - $ref: '#/components/schemas/OntologyClass'
 
     Quantity:
+      description: >
+        A numeric value with an associated unit.
       type: object
       required: [value, unit]
       properties:
         value:
           type: number
+          description: >
+            The numeric value of the quantity.
         unit:
           $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The unit in which the value is expressed.
 
     Sex:
+      description: >
+        Enumeration of phenotypic sex values.
       type: string
       enum: [UNKNOWN_SEX, MALE, FEMALE, OTHER_SEX]
 
     KaryotypicSex:
+      description: >
+        Enumeration of chromosomal sex values.
       type: string
       enum: [UNKNOWN_KARYOTYPE, XX, XY, XO, XXY, XXX, XXYY, XXXY, OTHER_KARYOTYPE]
 
     InterpretationStatus:
+      description: >
+        Enumeration of interpretation status values.
       type: string
       enum: [UNKNOWN_STATUS, REJECTED, CANDIDATE, CONTRIBUTORY, CAUSATIVE]
-
