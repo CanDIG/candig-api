@@ -1,0 +1,346 @@
+openapi: 3.0.3
+info:
+  title: GA4GH Phenopackets v2 API
+  description: OpenAPI schema covering the full GA4GH Phenopackets v2 data model
+  version: "2.0.0"
+servers:
+  - url: /v2
+paths: {}
+components:
+  schemas:
+    Phenopacket:
+      type: object
+      required: [id, subject]
+      properties:
+        id:
+          type: string
+        subject:
+          $ref: '#/components/schemas/Individual'
+        phenotypicFeatures:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhenotypicFeature'
+        measurements:
+          type: array
+          items:
+            $ref: '#/components/schemas/Measurement'
+        biosamples:
+          type: array
+          items:
+            $ref: '#/components/schemas/Biosample'
+        interpretations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Interpretation'
+        diseases:
+          type: array
+          items:
+            $ref: '#/components/schemas/Disease'
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/File'
+        metaData:
+          $ref: '#/components/schemas/MetaData'
+
+    Individual:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        alternateIds:
+          type: array
+          items:
+            type: string
+        dateOfBirth:
+          $ref: '#/components/schemas/TimeElement'
+        age:
+          $ref: '#/components/schemas/Age'
+        sex:
+          $ref: '#/components/schemas/Sex'
+        karyotypicSex:
+          $ref: '#/components/schemas/KaryotypicSex'
+        taxonomy:
+          $ref: '#/components/schemas/OntologyClass'
+
+    PhenotypicFeature:
+      type: object
+      required: [type]
+      properties:
+        id:
+          type: string
+        type:
+          $ref: '#/components/schemas/OntologyClass'
+        description:
+          type: string
+        excluded:
+          type: boolean
+        severity:
+          $ref: '#/components/schemas/OntologyClass'
+        modifiers:
+          type: array
+          items:
+            $ref: '#/components/schemas/OntologyClass'
+        onset:
+          $ref: '#/components/schemas/TimeElement'
+        resolution:
+          $ref: '#/components/schemas/TimeElement'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/Evidence'
+
+    Measurement:
+      type: object
+      required: [assay, value]
+      properties:
+        id:
+          type: string
+        assay:
+          $ref: '#/components/schemas/OntologyClass'
+        value:
+          $ref: '#/components/schemas/Value'
+        timeObserved:
+          $ref: '#/components/schemas/TimeElement'
+        procedure:
+          $ref: '#/components/schemas/OntologyClass'
+
+    Biosample:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+        individualId:
+          type: string
+        description:
+          type: string
+        sampledTissue:
+          $ref: '#/components/schemas/OntologyClass'
+        phenotypicFeatures:
+          type: array
+          items:
+            $ref: '#/components/schemas/PhenotypicFeature'
+        measurements:
+          type: array
+          items:
+            $ref: '#/components/schemas/Measurement'
+        timeOfCollection:
+          $ref: '#/components/schemas/TimeElement'
+        pathologicalStage:
+          $ref: '#/components/schemas/OntologyClass'
+        pathologicalTnmFinding:
+          type: array
+          items:
+            $ref: '#/components/schemas/OntologyClass'
+
+    Interpretation:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+        status:
+          $ref: '#/components/schemas/InterpretationStatus'
+        diagnosis:
+          $ref: '#/components/schemas/Diagnosis'
+        genomicInterpretations:
+          type: array
+          items:
+            $ref: '#/components/schemas/GenomicInterpretation'
+
+    Diagnosis:
+      type: object
+      required: [disease]
+      properties:
+        disease:
+          $ref: '#/components/schemas/OntologyClass'
+        ageOfOnset:
+          $ref: '#/components/schemas/TimeElement'
+        familyHistory:
+          type: boolean
+        clinicalTnmFinding:
+          type: array
+          items:
+            $ref: '#/components/schemas/OntologyClass'
+
+    GenomicInterpretation:
+      type: object
+      required: [subjectOrBiosampleId, interpretationStatus]
+      properties:
+        id:
+          type: string
+        subjectOrBiosampleId:
+          type: string
+        interpretationStatus:
+          $ref: '#/components/schemas/InterpretationStatus'
+        variantInterpretation:
+          $ref: '#/components/schemas/VariantInterpretation'
+        geneInterpretation:
+          $ref: '#/components/schemas/GeneInterpretation'
+
+    VariantInterpretation:
+      type: object
+      required: [variantId, clinicalSignificance]
+      properties:
+        variantId:
+          type: string
+        hgvs:
+          type: string
+        clinicalSignificance:
+          $ref: '#/components/schemas/OntologyClass'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/Evidence'
+
+    GeneInterpretation:
+      type: object
+      required: [gene, clinicalSignificance]
+      properties:
+        gene:
+          $ref: '#/components/schemas/OntologyClass'
+        clinicalSignificance:
+          $ref: '#/components/schemas/OntologyClass'
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/Evidence'
+
+    Disease:
+      type: object
+      required: [term]
+      properties:
+        term:
+          $ref: '#/components/schemas/OntologyClass'
+        excluded:
+          type: boolean
+        onset:
+          $ref: '#/components/schemas/TimeElement'
+
+    File:
+      type: object
+      required: [uri]
+      properties:
+        uri:
+          type: string
+          format: uri
+        description:
+          type: string
+        fileAttributes:
+          type: object
+          additionalProperties:
+            type: string
+
+    MetaData:
+      type: object
+      required: [created, createdBy]
+      properties:
+        created:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Resource'
+        updates:
+          type: array
+          items:
+            $ref: '#/components/schemas/Update'
+
+    Resource:
+      type: object
+      required: [id, name, url, version]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        url:
+          type: string
+        version:
+          type: string
+        namespacePrefix:
+          type: string
+        iriPrefix:
+          type: string
+
+    Update:
+      type: object
+      required: [timestamp, comment]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        comment:
+          type: string
+
+    Evidence:
+      type: object
+      properties:
+        evidenceCode:
+          $ref: '#/components/schemas/OntologyClass'
+        reference:
+          type: string
+
+    OntologyClass:
+      type: object
+      required: [id, label]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+
+    TimeElement:
+      oneOf:
+        - $ref: '#/components/schemas/Age'
+        - $ref: '#/components/schemas/TimeInterval'
+
+    Age:
+      type: object
+      properties:
+        iso8601Duration:
+          type: string
+
+    TimeInterval:
+      type: object
+      properties:
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+
+    Value:
+      oneOf:
+        - $ref: '#/components/schemas/Quantity'
+        - $ref: '#/components/schemas/OntologyClass'
+
+    Quantity:
+      type: object
+      required: [value, unit]
+      properties:
+        value:
+          type: number
+        unit:
+          $ref: '#/components/schemas/OntologyClass'
+
+    Sex:
+      type: string
+      enum: [UNKNOWN_SEX, MALE, FEMALE, OTHER_SEX]
+
+    KaryotypicSex:
+      type: string
+      enum: [UNKNOWN_KARYOTYPE, XX, XY, XO, XXY, XXX, XXYY, XXXY, OTHER_KARYOTYPE]
+
+    InterpretationStatus:
+      type: string
+      enum: [UNKNOWN_STATUS, REJECTED, CANDIDATE, CONTRIBUTORY, CAUSATIVE]
+
