@@ -3,12 +3,14 @@ API query operations like service info, file upload and status tracking...
 """
 
 import json
+import connexion
 import os
 import secrets
 import shutil
 import tempfile
 from datetime import datetime, timezone
 
+from authx.auth import get_user_id
 from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
 
@@ -110,3 +112,11 @@ async def get_upload_status(queue_id: str):
                 "message": f"Unable to read status for job {queue_id}",
             }
         }, 500
+
+async def whoami():
+    """
+    Determine the user key of the currently logged in user
+    NB: This should probably not be in candig-api, and should be moved out when we can
+    """
+    OPA_URL = os.getenv("OPA_URL", f"http://localhost:8181")
+    return { 'key': get_user_id(connexion.request, opa_url = OPA_URL) }, 200

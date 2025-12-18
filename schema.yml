@@ -576,7 +576,20 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Persons
-
+  /whoami:
+    get:
+      summary: Determine the current user's user key (usually their email)
+      description: Determine the current user's user key (usually their email)
+      operationId: query_operations.whoami
+      responses:
+        200:
+          description: Person ID retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WhoAmIBody"
+        5XX:
+          $ref: "#/components/responses/5xxServerError"
 components:
   responses:
     400BadRequestError:
@@ -1653,3 +1666,9 @@ components:
         - content_type
         - size
         - message
+    WhoAmIBody:
+      type: object
+      properties:
+        key:
+          type: string
+          description: User's key, usually their email

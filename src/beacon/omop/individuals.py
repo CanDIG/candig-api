@@ -544,7 +544,7 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
     count_ids = 0
     if qparams.query.pagination.limit == 0:
         qparams.query.pagination.limit = MAX_LIMIT
-    if qparams.query.filters:
+    if qparams.query.filters and len(qparams.query.filters) > 0 and len(qparams.query.filters[0]) > 0:
         # NB: qparams.query.filters is a list, whereas we need it to be a dict?
         listIds, count_ids = await filters(qparams.query.filters[0],
                         offset=qparams.query.pagination.skip,
