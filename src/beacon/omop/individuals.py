@@ -452,6 +452,21 @@ def discovery_query_treatment_type(filter):
         GROUP BY c.concept_name
     """
 
+def discovery_query_drug_type(filter):
+    return  f""" SELECT c.concept_name, count(c.concept_name)
+        FROM omop.drug_exposure AS d
+        LEFT JOIN omop.concept AS c ON c.concept_id = d.drug_concept_id
+        LEFT JOIN omop.person AS p ON p.person_id = d.person_id
+        WHERE TRUE
+        {filter['demographic_filters']}
+        {filter['condition_filters']}
+        {filter['measurement_filters']}
+        {filter['procedures_filters']}
+        {filter['exposures_filters']}
+        {filter['treatments_filters']}
+        GROUP BY c.concept_name
+    """
+
 def discovery_query_program(filter):
     return  f""" SELECT d.dataset_id, count(d.dataset_id)
         FROM candig.person_in_dataset AS d
@@ -491,6 +506,13 @@ def mapBeaconScopeToOMOP(scope):
     scopeMapping = {mappingDict[scope]:'Age'}
     return scopeMapping
 
+async def format_filtered_response(discovery_query):
+    retval = {}
+    discovery_results = (await basic_query(discovery_query)).fetchall()
+    for value, count in discovery_results:
+        retval[value] = count
+    return retval
+
 async def get_discovery(base_filter):
     """
     Obtain the discovery query portion of the "info" response
@@ -498,24 +520,10 @@ async def get_discovery(base_filter):
     :param dictTableMap: dictionary of filters from create_dynamic_filter() 
     """
     discovery = get_basic_discovery_response()
-    primary_site = discovery_query_primary_site(base_filter)
-    count_primary_site = (await basic_query(primary_site)).fetchall()
-    discovery['primary_site_count'] = {}
-    #logger.info(count_primary_site)
-    for primary_site, count in count_primary_site:
-        discovery['primary_site_count'][primary_site] = count
-    treatment_types = discovery_query_treatment_type(base_filter)
-    count_treatment_type = (await basic_query(treatment_types)).fetchall()
-    discovery['treatment_type_count'] = {}
-    #logger.info(count_treatment_type)
-    for treatment_type, count in count_treatment_type:
-        discovery['treatment_type_count'][treatment_type] = count
-    programs = discovery_query_program(base_filter)
-    count_program = (await basic_query(programs)).fetchall()
-    discovery['patients_per_program'] = {}
-    #logger.info(count_program)
-    for program, count in count_program:
-        discovery['patients_per_program'][program] = count
+    discovery['primary_site_count'] = await format_filtered_response(discovery_query_primary_site(base_filter))
+    discovery['treatment_type_count'] = await format_filtered_response(discovery_query_treatment_type(base_filter))
+    discovery['patients_per_program'] = await format_filtered_response(discovery_query_program(base_filter))
+    discovery['drug_type_count'] = await format_filtered_response(discovery_query_drug_type(base_filter))
     return discovery
 
 async def checkFilters(filtersDict, offset, limit, typeQuery):
