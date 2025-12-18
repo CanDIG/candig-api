@@ -36,7 +36,7 @@ def get_service_info():
 async def add_s3_credential():
     data = await connexion.request.json()
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not authx.auth.is_action_allowed_for_program(token, method="POST", path="/ingest/s3-credential", program=None):
+    if not authx.auth.is_action_allowed_for_program(token, method="POST", path="/v1/authz/s3-credential", program=None):
         return {"error": "Not authorized to store aws credentials"}, 403
 
     # test endpoint before storing:
@@ -52,7 +52,7 @@ async def add_s3_credential():
 @app.route('/s3-credential/endpoint/<path:endpoint_id>/bucket/<path:bucket_id>')
 def get_s3_credential(endpoint_id, bucket_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/ingest/s3-credential", program=None):
+    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/s3-credential", program=None):
         return {"error": "Not authorized to view aws credentials"}, 403
     endpoint_cleaned = re.sub(r"\W", "_", endpoint_id)
     return authx.auth.get_aws_credential(endpoint=endpoint_cleaned, bucket=bucket_id)
@@ -61,7 +61,7 @@ def get_s3_credential(endpoint_id, bucket_id):
 @app.route('/s3-credential/endpoint/<path:endpoint_id>/bucket/<path:bucket_id>')
 def delete_s3_credential(endpoint_id, bucket_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not authx.auth.is_action_allowed_for_program(token, method="DELETE", path="/ingest/s3-credential", program=None):
+    if not authx.auth.is_action_allowed_for_program(token, method="DELETE", path="/v1/authz/s3-credential", program=None):
         return {"error": "Not authorized to remove aws credentials"}, 403
     endpoint_cleaned = re.sub(r"\W", "_", endpoint_id)
     return authx.auth.remove_aws_credential(endpoint=endpoint_cleaned, bucket=bucket_id)
@@ -75,7 +75,7 @@ def delete_s3_credential(endpoint_id, bucket_id):
 def list_role(role_type):
     try:
         token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-        if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/ingest/site-role", program=None):
+        if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/site-role", program=None):
             return {"error": f"User not authorized to list site roles"}, 403
 
         result, status_code = auth.get_role_type(role_type)
@@ -89,7 +89,7 @@ def is_user_in_role(role_type, user_id):
     try:
         token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-        if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/ingest/site-role", program=None):
+        if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/site-role", program=None):
             return {"error": f"User not authorized to list site roles"}, 403
 
         result, status_code = auth.get_role_type(role_type)
@@ -104,7 +104,7 @@ def is_user_in_role(role_type, user_id):
 def add_user_to_role(role_type, user_id):
     try:
         token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-        if not authx.auth.is_action_allowed_for_program(token, method="POST", path="/ingest/site-role", program=None):
+        if not authx.auth.is_action_allowed_for_program(token, method="POST", path="/v1/authz/site-role", program=None):
             return {"error": f"User not authorized to add to site roles"}, 403
 
         result, status_code = auth.get_role_type(role_type)
@@ -121,7 +121,7 @@ def add_user_to_role(role_type, user_id):
 def remove_user_from_role(role_type, user_id):
     try:
         token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-        if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/ingest/site-role", program=None):
+        if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/site-role", program=None):
             return {"error": f"User not authorized to remove users from site roles"}, 403
 
         result, status_code = auth.get_role_type(role_type)
@@ -145,7 +145,7 @@ def remove_user_from_role(role_type, user_id):
 def list_programs():
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/ingest/program", program=None):
+    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/program", program=None):
         return {"error": f"User not authorized to list programs"}, 403
 
     response, status_code = auth.list_programs()
@@ -169,7 +169,7 @@ async def add_program():
 def get_program(program_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/ingest/program", program=program_id):
+    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/program", program=program_id):
         return {"error": f"User not authorized to get program {program_id}"}, 403
 
     response, status_code = auth.get_program(program_id)
@@ -184,7 +184,7 @@ def get_program(program_id):
 def get_program_dacs(program_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/ingest/program", program=program_id):
+    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/program", program=program_id):
         return {"error": f"User not authorized to get program {program_id}"}, 403
 
     response, status_code = auth.get_program(program_id)
@@ -201,7 +201,7 @@ def get_program_dacs(program_id):
 def remove_program(program_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="DELETE", path="/ingest/program", program=program_id):
+    if not authx.auth.is_action_allowed_for_program(token, method="DELETE", path="/v1/authz/program", program=program_id):
         return {"error": "User not authorized to remove programs"}, 403
 
     response = {"errors": {}}
@@ -246,7 +246,7 @@ def list_pending_users():
 @app.route('/user/pending/<path:user_id>')
 def is_user_pending(user_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path=f"/ingest/user/pending/{user_id}", program=None):
+    if not authx.auth.is_action_allowed_for_program(token, method="GET", path=f"/v1/authz/user/pending/{user_id}", program=None):
         return {"error": "User not authorized to list programs for user"}, 403
 
     if user_id == "me":
@@ -392,7 +392,7 @@ def list_authz_for_user(user_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
     status_code = 0
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path=f"/ingest/user/{user_id}", program=None):
+    if not authx.auth.is_action_allowed_for_program(token, method="GET", path=f"/v1/authz/user/{user_id}", program=None):
         return {"error": "User not authorized to list programs for user"}, 403
 
     self_checkup = user_id == "me"
@@ -439,7 +439,7 @@ def list_authz_for_user(user_id):
 def revoke_authz_for_user(user_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="DELETE", path=f"/ingest/user/{user_id}", program=None):
+    if not authx.auth.is_action_allowed_for_program(token, method="DELETE", path=f"/v1/authz/user/{user_id}", program=None):
         return {"error": "User not authorized to revoke authorization for users"}, 403
 
     response, status_code = auth.remove_user(user_id)
@@ -477,7 +477,7 @@ async def add_dac_authz_for_user(user_id):
 
     for program_dict in program_body:
         program_id = program_dict["program_id"]
-        if not authx.auth.is_action_allowed_for_program(token, method="POST", path="/ingest/user", program=program_id):
+        if not authx.auth.is_action_allowed_for_program(token, method="POST", path="/v1/authz/user", program=program_id):
             errors.append({program_id: "User not authorized to authorize programs for user"})
 
         # we need to check to see if the program even exists in the system
@@ -518,7 +518,7 @@ async def add_dac_authz_for_user(user_id):
 def get_dac_authz_for_user(user_id, program_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/ingest/user", program=None):
+    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/user", program=None):
         return {"error": "User not authorized to get programs for user"}, 403
 
     user_dict, status_code = auth.get_user(user_id)
@@ -536,7 +536,7 @@ def get_dac_authz_for_user(user_id, program_id):
 def remove_dac_authz_for_user(user_id, program_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="DELETE", path="/ingest/user", program=program_id):
+    if not authx.auth.is_action_allowed_for_program(token, method="DELETE", path="/v1/authz/user", program=program_id):
         return {"error": "User not authorized to remove programs for user"}, 403
 
     user_dict, status_code = auth.get_user(user_id)
@@ -576,4 +576,4 @@ def check_default_site_admin(response):
     if auth.is_default_site_admin_set():
         if "warnings" not in response:
             response["warnings"] = []
-        response["warnings"].append(f"Default site administrator {os.getenv('DEFAULT_SITE_ADMIN_USER')} is still configured. Use the /ingest/site-role/site_admin endpoint to set a different site admin.")
+        response["warnings"].append(f"Default site administrator {os.getenv('DEFAULT_SITE_ADMIN_USER')} is still configured. Use the /v1/authz/site-role/site_admin endpoint to set a different site admin.")
