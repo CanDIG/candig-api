@@ -680,8 +680,8 @@ components:
           required:
             - error
             - message
-      required:
-        - query
+      # required:
+      #   - query
 
     BadRequestError:
       allOf:
