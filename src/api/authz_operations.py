@@ -430,7 +430,7 @@ def list_authz_for_user(user_id):
         user_result["program_authorizations"]["team_member"] = opa_permissions["debug"]["user_key_has_team_member_programs"]
         user_result["program_authorizations"]["program_curator"] = opa_permissions["debug"]["user_key_has_curator_programs"]
 
-    user_result["program_authorizations"]["dac_authorizations"] = user_result.pop("dac_authorizations")
+    user_result["program_authorizations"]["dac_authorizations"] = list(user_result.pop("dac_authorizations").values())
     user_result["userinfo"]["is_candig_authorized"] = opa_permissions["user_is_candig_authorized"]
     return user_result, status_code
 
