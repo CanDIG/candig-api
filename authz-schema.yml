@@ -1,0 +1,602 @@
+openapi: 3.0.0
+info:
+  version: v1.0.0
+  title: 'CanDIGv3 Authorization Service'
+  description: 'API for managing authorization in CanDIG'
+servers:
+  - url: /v1/authz
+paths:
+  /service-info:
+    get:
+      summary: Retrieve information about this service
+      description: Returns information about the ingest service
+      operationId: authz_operations.get_service_info
+      responses:
+        200:
+          description: Retrieve info about the ingest service
+          content:
+            application/json:
+              schema:
+                type: object
+  /s3-credential:
+    post:
+      summary: Add credentials for an S3 bucket
+      description: Add credentials for an S3 bucket
+      operationId: src.api.authz_operations.add_s3_credential
+      requestBody:
+        $ref: '#/components/requestBodies/S3CredentialRequest'
+      responses:
+          200:
+            description: Success
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/S3Credential'
+  /s3-credential/endpoint/{endpoint_id}/bucket/{bucket_id}:
+    parameters:
+      - in: path
+        name: endpoint_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: bucket_id
+        schema:
+          type: string
+        required: true
+    get:
+      summary: get credentials for an S3 bucket
+      description: get credentials for an S3 bucket
+      operationId: src.api.authz_operations.get_s3_credential
+      responses:
+          200:
+            description: Success
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/S3Credential"
+    delete:
+      summary: delete credentials for an S3 bucket
+      description: delete credentials for an S3 bucket
+      operationId: src.api.authz_operations.delete_s3_credential
+      responses:
+          200:
+            description: Success
+            content:
+              application/json:
+                schema:
+                  type: object
+
+  /site-role/{role_type}:
+    parameters:
+      - in: path
+        name: role_type
+        description: Defined site roles for this CanDIG node. By default, admin and curator are defined.
+        schema:
+          type: string
+        required: true
+    get:
+      summary: List users in role_type
+      description: List users in role_type
+      operationId: src.api.authz_operations.list_role
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /site-role/{role_type}/user_id/{user_id}:
+    parameters:
+      - in: path
+        name: role_type
+        description: Defined site roles for this CanDIG node. By default, admin and curator are defined.
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: user_id
+        schema:
+          type: string
+        required: true
+    get:
+      summary: Is user in this role?
+      description: Is user in this role?
+      operationId: src.api.authz_operations.is_user_in_role
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: boolean
+    post:
+      summary: Assign user to role
+      description: Assign user to role
+      operationId: src.api.authz_operations.add_user_to_role
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+    delete:
+      summary: Remove user from role
+      description: Remove user from role
+      operationId: src.api.authz_operations.remove_user_from_role
+      responses:
+        200:
+          description: Success
+        404:
+          description: User not found in role
+        405:
+          description: Can't remove user from role
+  /program:
+    post:
+      summary: Add authorization information for a new program (or overwrite authorization information for an existing program).
+      description: Add authorization information for a new program (or overwrite authorization information for an existing program). Information in the request body replaces any existing information for the program.
+      operationId: src.api.authz_operations.add_program
+      requestBody:
+        $ref: '#/components/requestBodies/ProgramIngestRequest'
+      responses:
+          200:
+            description: Success
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Program"
+    get:
+      summary: List registered programs
+      description: List programs authorized on server
+      operationId: src.api.authz_operations.list_programs
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /program/{program_id}:
+    parameters:
+      - in: path
+        name: program_id
+        schema:
+          type: string
+        required: true
+    get:
+      summary: Get authorization information for a program
+      description: Get authorization information for a program
+      operationId: src.api.authz_operations.get_program
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Program"
+    delete:
+      description: Delete a program
+      operationId: src.api.authz_operations.remove_program
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+  /program/{program_id}/dac_authorization:
+    parameters:
+      - in: path
+        name: program_id
+        schema:
+          type: string
+        required: true
+    get:
+      summary: Get a program's DAC authorizations
+      description: Get a program's DAC authorizations
+      operationId: src.api.authz_operations.get_program_dacs
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+  /user/pending/request:
+    post:
+      summary: Add pending user
+      description: Add the user specified in the Bearer jwt to the pending users list
+      operationId: src.api.authz_operations.add_pending_user
+      responses:
+        200:
+          description: Success
+  /user/pending:
+    get:
+      summary: List pending users
+      description: List pending users for authorization
+      operationId: src.api.authz_operations.list_pending_users
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserInfo"
+    post:
+      summary: Approve pending users
+      description: Approve bulk pending users for CanDIG access
+      operationId: src.api.authz_operations.approve_pending_users
+      requestBody:
+        $ref: '#/components/requestBodies/ApprovePendingUserRequest'
+      responses:
+        200:
+          description: Success
+    delete:
+      summary: Delete pending users
+      description: Clear pending users for CanDIG access
+      operationId: src.api.authz_operations.clear_pending_users
+      responses:
+        200:
+          description: Success
+  /user/pending/{user_id}:
+    parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+        required: true
+        description: The user ID to check. If "me", return information about the requesting user
+    get:
+      summary: Is a user pending?
+      description: Is a user pending?
+      operationId: src.api.authz_operations.is_user_pending
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: boolean
+    post:
+      summary: Approve pending user
+      description: Approve a pending user for CanDIG access
+      operationId: src.api.authz_operations.approve_pending_user
+      responses:
+        200:
+          description: Success
+    delete:
+      summary: Reject pending user
+      description: Reject a pending user for CanDIG access
+      operationId: src.api.authz_operations.reject_pending_user
+      responses:
+        200:
+          description: Success
+  /user/preapproved:
+    get:
+      summary: List preapproved users
+      description: List preapproved users for authorization
+      operationId: src.api.authz_operations.list_preapproved_users
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UserInfo"
+    post:
+      summary: Add preapproved users
+      description: Add bulk preapproved users for CanDIG access
+      operationId: src.api.authz_operations.add_preapproved_users
+      requestBody:
+        $ref: '#/components/requestBodies/AddPreapprovedUserRequest'
+      responses:
+        200:
+          description: Success
+    delete:
+      summary: Delete preapproved users
+      description: Clear preapproved users for CanDIG access
+      operationId: src.api.authz_operations.clear_preapproved_users
+      responses:
+        200:
+          description: Success
+  /user/preapproved/{user_id}:
+    parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+        required: true
+    get:
+      summary: Check preapproved list for user
+      description: Check preapproved list for user
+      operationId: src.api.authz_operations.get_preapproved_user
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+        404:
+          description: User not found
+    post:
+      summary: Add preapproved user
+      description: Add a preapproved user for CanDIG access
+      operationId: src.api.authz_operations.add_preapproved_user
+      responses:
+        200:
+          description: Success
+    delete:
+      summary: Remove preapproved user
+      description: Remove a preapproved user for CanDIG access
+      operationId: src.api.authz_operations.remove_preapproved_user
+      responses:
+        200:
+          description: Success
+  /user/{user_id}:
+    parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+        required: true
+        description: The user ID to check. If "me", return information about the requesting user
+    get:
+      summary: List authorization information about a user
+      description: List authorization information about a user
+      operationId: src.api.authz_operations.list_authz_for_user
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserAuthorization"
+        403:
+          description: User not found
+    delete:
+      summary: Revoke CanDIG authorization for a user
+      description: Revoke CanDIG authorization for a user
+      operationId: src.api.authz_operations.revoke_authz_for_user
+      responses:
+        200:
+          description: Success
+  /user/{user_id}/dac_authorization:
+    parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+        required: true
+    post:
+      summary: Authorize a program for a user
+      description: Authorize a program for a user (or update a program auth for a user)
+      operationId: src.api.authz_operations.add_dac_authz_for_user
+      requestBody:
+        $ref: '#/components/requestBodies/DACAuthorizationRequest'
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAuthorization'
+  /user/{user_id}/dac_authorization/{program_id}:
+    parameters:
+      - in: path
+        name: user_id
+        schema:
+          type: string
+        required: true
+      - in: path
+        name: program_id
+        schema:
+          type: string
+        required: true
+    get:
+      summary: Get a DAC authorization for a user
+      description: Remove a DAC authorization for a user
+      operationId: src.api.authz_operations.get_dac_authz_for_user
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DACAuthorization"
+    delete:
+      summary: Remove a DAC authorization for a user
+      description: Remove a DAC authorization for a user
+      operationId: src.api.authz_operations.remove_dac_authz_for_user
+      responses:
+        200:
+          description: Success
+  /get-token:
+    get:
+      summary: Get a new token
+      description: Exchange the refresh token implicit in the request for a new one
+      operationId: src.api.authz_operations.get_token
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+components:
+  requestBodies:
+    S3CredentialRequest:
+      content:
+        'application/json':
+          schema:
+            $ref: "#/components/schemas/S3Credential"
+    ProgramIngestRequest:
+      content:
+        'application/json':
+          schema:
+            $ref: "#/components/schemas/Program"
+    ApprovePendingUserRequest:
+      content:
+        'application/json':
+          schema:
+            type: array
+            items:
+              type: string
+    AddPreapprovedUserRequest:
+      content:
+        'application/json':
+          schema:
+            type: array
+            items:
+              type: string
+    RoleTypeRequest:
+      content:
+        'application/json':
+          schema:
+            type: array
+            items:
+              type: string
+    DACAuthorizationRequest:
+      content:
+        'application/json':
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/DACAuthorization"
+              - type: array
+                items:
+                  $ref: "#/components/schemas/DACAuthorization"
+  schemas:
+    S3Credential:
+      type: object
+      properties:
+        endpoint:
+          type: string
+          description: URL to the endpoint
+          pattern: (https*):\/\/(.+)
+          example: http://candig.docker.internal:9000
+        bucket:
+          type: string
+          description: name of the bucket
+        access_key:
+          type: string
+          description: access key for the bucket
+        secret_key:
+          type: string
+          description: secret key for the bucket
+      required:
+        - endpoint
+        - bucket
+        - access_key
+        - secret_key
+    Program:
+      type: object
+      description: Describes a program
+      properties:
+        program_id:
+          type: string
+          description: name of the program
+        program_curators:
+          type: array
+          description: list of users who are program curators for this program
+          items:
+            type: string
+        team_members:
+          type: array
+          description: list of users who are original researchers for this program
+          items:
+            type: string
+        creation_date:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+          description: date program was created, for embargo purposes. This may or may not be the date of ingest.
+      required:
+        - program_id
+        - program_curators
+        - team_members
+    DACAuthorization:
+      type: object
+      properties:
+        program_id:
+          type: string
+        start_date:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        end_date:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+      required:
+        - program_id
+        - start_date
+        - end_date
+    UserInfo:
+      type: object
+      description: describes an authenticated user
+      properties:
+        sample_jwt:
+          type: string
+          description: a sample jwt for this user from their IDP
+        user_name:
+          type: string
+          description: unique id of user, from CANDIG_USER_KEY field
+      required:
+        - user_name
+    UserAuthorization:
+      type: object
+      description: describes an authorized user and the programs the user is authorized to view
+      properties:
+        userinfo:
+          $ref: "#/components/schemas/UserInfo"
+        site_roles:
+          type: array
+          items:
+            type: string
+        program_authorizations:
+          type: object
+          properties:
+            team_member:
+              type: array
+              description: list of programs that the user is a team member of
+              items:
+                type: string
+            program_curator:
+              type: array
+              description: list of programs that the user is a curator of
+              items:
+                type: string
+            dac_authorizations:
+              type: array
+              description: list of programs that this user is authorized to view
+              items:
+                $ref: "#/components/schemas/DACAuthorization"
+    Action:
+      type: object
+      description: an action for which authorization is requested
+      properties:
+        endpoint:
+          description: path to an endpoint that performs the requested action. Should be in the form of a GoLang regex, e.g. `/users/?.*`
+          type: string
+        method:
+          description: the operation to be performed.
+          type: string
+          enum:
+            - GET
+            - POST
+            - UPDATE
+            - DELETE
+      required:
+        - endpoint
+        - method
