@@ -1,11 +1,10 @@
-connexion[swagger-ui,uvicorn]     # Web framework for OpenAPI schema 
-SQLAlchemy[asyncio]               # Object Relational Mapping 
-asyncpg                           # PostgreSQL driver 
-watchdog                          # Watch for files change 
+connexion[swagger-ui,uvicorn]     # Web framework for OpenAPI schema
+SQLAlchemy[asyncio]               # Object Relational Mapping
+asyncpg                           # PostgreSQL driver
+watchdog                          # Watch for files change
 #pyhumps   # For humps.camelize, used in Beacon
 pydantic
 #fastobo~=0.11.1
 aiosql
-candigv2-authx@git+https://github.com/CanDIG/candigv2-authx.git@v2.8.6
 candigv2-logging@git+https://github.com/CanDIG/candigv2-logging.git@v1.0.1  # CanDIG logging wrapper
 candigv2-authx@git+https://github.com/CanDIG/candigv2-authx.git@v2.8.7
