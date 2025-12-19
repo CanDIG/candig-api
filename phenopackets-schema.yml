@@ -28,7 +28,7 @@ components:
           $ref: '#/components/schemas/Individual'
           description: >
             The individual (patient or organism) that is the subject of this phenopacket.
-        phenotypicFeatures:
+        phenotypic_features:
           type: array
           description: >
             A list of phenotypic features observed or explicitly excluded in the subject.
@@ -79,25 +79,29 @@ components:
           type: string
           description: >
             A unique identifier for the individual within the scope of the phenopacket.
-        alternateIds:
+        alternate_ids:
           type: array
           description: >
             Alternative identifiers that may be used for the individual in other systems.
           items:
             type: string
-        dateOfBirth:
+        date_of_birth:
           $ref: '#/components/schemas/TimeElement'
           description: >
             The date or age at which the individual was born.
-        age:
-          $ref: '#/components/schemas/Age'
+        time_at_last_encounter:
+          $ref: '#/components/schemas/TimeElement'
           description: >
-            The age of the individual at the time of phenopacket creation or observation.
+            The age or age range of the individual when last encountered. RECOMMENDED.
+        vital_status:
+          $ref: '#/components/schemas/VitalStatus'
+          description: >
+            The vital status of the individual e.g. whether they are alive or the time and cause of death. RECOMMENDED.
         sex:
           $ref: '#/components/schemas/Sex'
           description: >
             The phenotypic sex of the individual.
-        karyotypicSex:
+        karyotypic_sex:
           $ref: '#/components/schemas/KaryotypicSex'
           description: >
             The chromosomal (karyotypic) sex of the individual, if known.
@@ -177,7 +181,7 @@ components:
           description: >
             The time at which the measurement was observed or recorded.
         procedure:
-          $ref: '#/components/schemas/OntologyClass'
+          $ref: '#/components/schemas/Procedure'
           description: >
             The procedure associated with obtaining the measurement.
 
@@ -199,11 +203,15 @@ components:
           type: string
           description: >
             A free-text description of the biosample.
-        sampledTissue:
+        sampled_tissue:
           $ref: '#/components/schemas/OntologyClass'
           description: >
             The tissue or anatomical site from which the biosample was obtained.
-        phenotypicFeatures:
+        sample_type:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            type of material, e.g., RNA, DNA, Cultured cells.
+        phenotypic_features:
           type: array
           description: >
             Phenotypic features observed or excluded in the context of this biosample.
@@ -215,20 +223,65 @@ components:
             Measurements obtained from this biosample.
           items:
             $ref: '#/components/schemas/Measurement'
-        timeOfCollection:
+        taxonomy:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            Species of the sampled individual
+        time_of_collection:
           $ref: '#/components/schemas/TimeElement'
           description: >
             The time at which the biosample was collected.
-        pathologicalStage:
+        histological_diagnosis:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            Disease diagnosis that was inferred from the histological examination. RECOMMENDED.
+        tumor_progression:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            Indicates primary, metastatic, recurrent. RECOMMENDED.
+        tumor_grade:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            Term representing the tumor grade
+        pathological_stage:
           $ref: '#/components/schemas/OntologyClass'
           description: >
             The pathological stage associated with the biosample, if applicable.
-        pathologicalTnmFinding:
+        pathological_tnm_finding:
           type: array
           description: >
             TNM pathological findings associated with the biosample.
           items:
             $ref: '#/components/schemas/OntologyClass'
+        diagnostic_markers:
+          type: array
+          description: >
+            Clinically relevant biomarkers. RECOMMENDED.
+          items:
+            $ref: '#/components/schemas/OntologyClass'
+        procedure:
+          $ref: '#/components/schemas/Procedure'
+          description: >
+            The procedure used to extract the biosample. RECOMMENDED.
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/File'
+          description: >
+            list of files related to the biosample, e.g. VCF or other high-throughput sequencing files
+        material_sample:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            Status of specimen (tumor tissue, normal control, etc.). RECOMMENDED.
+        sample_processing:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            how the specimen was processed
+        sample_storage:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            how the specimen was stored
+
 
     Interpretation:
       description: >
@@ -574,3 +627,34 @@ components:
         Enumeration of interpretation status values.
       type: string
       enum: [UNKNOWN_STATUS, REJECTED, CANDIDATE, CONTRIBUTORY, CAUSATIVE]
+
+    VitalStatus:
+      description: >
+        This element can be used to report whether the individual is living or dead at the timepoint when the phenopacket was created (or if the status is unknown).
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: '#/components/schemas/Status'
+          description: >
+            one of UNKNOWN_STATUS, ALIVE, DECEASED. REQUIRED.
+        time_of_death:
+          $ref: '#/components/schemas/TimeElement'
+          description: >
+            Should be left blank if patient not known to be deceased
+        cause_of_death:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            Should be left blank if patient not known to be deceased
+        survival_time_in_days:
+          type: integer
+          description: >
+            Number of days the patient was alive after their primary diagnosis.
+    
+
+    Status:
+      description: >
+        Enumeration of interpretation status values.
+      type: string
+      enum: [UNKNOWN_STATUS, ALIVE, DECEASED]
