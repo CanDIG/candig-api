@@ -73,7 +73,8 @@ components:
       description: >
         Represents an individual organism, typically a patient or study subject.
       type: object
-      required: [id]
+      required: 
+        - id
       properties:
         id:
           type: string
@@ -105,6 +106,10 @@ components:
           $ref: '#/components/schemas/KaryotypicSex'
           description: >
             The chromosomal (karyotypic) sex of the individual, if known.
+        gender:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            Self-identified gender
         taxonomy:
           $ref: '#/components/schemas/OntologyClass'
           description: >
@@ -117,10 +122,6 @@ components:
       type: object
       required: [type]
       properties:
-        id:
-          type: string
-          description: >
-            A unique identifier for this phenotypic feature instance.
         type:
           $ref: '#/components/schemas/OntologyClass'
           description: >
@@ -162,21 +163,20 @@ components:
       description: >
         A quantitative or qualitative measurement obtained from an individual or biosample.
       type: object
-      required: [assay, value]
+      required: [assay, measurement_value]
       properties:
-        id:
+        description:
           type: string
-          description: >
-            A unique identifier for the measurement.
+          description: free text 
         assay:
           $ref: '#/components/schemas/OntologyClass'
           description: >
             The assay or test used to generate the measurement.
-        value:
+        measurement_value:
           $ref: '#/components/schemas/Value'
           description: >
             The measured value, either quantitative or categorical.
-        timeObserved:
+        time_observed:
           $ref: '#/components/schemas/TimeElement'
           description: >
             The time at which the measurement was observed or recorded.
@@ -195,10 +195,14 @@ components:
           type: string
           description: >
             A unique identifier for the biosample.
-        individualId:
+        individual_id:
           type: string
           description: >
             The identifier of the individual from whom the biosample was derived.
+        derived_from_id:
+          type: string
+          description: >
+            id of the biosample from which the current biosample was derived (if applicable)
         description:
           type: string
           description: >
@@ -293,24 +297,18 @@ components:
           type: string
           description: >
             A unique identifier for the interpretation.
-        description:
-          type: string
-          description: >
-            A free-text description of the interpretation.
-        status:
-          $ref: '#/components/schemas/InterpretationStatus'
+        progress_status:
+          $ref: '#/components/schemas/ProgressStatus'
           description: >
             The overall status of the interpretation.
         diagnosis:
           $ref: '#/components/schemas/Diagnosis'
           description: >
             The diagnosis resulting from this interpretation, if any.
-        genomicInterpretations:
-          type: array
+        summary:
+          type: string
           description: >
-            Genomic interpretations contributing to this overall interpretation.
-          items:
-            $ref: '#/components/schemas/GenomicInterpretation'
+            Additional data about this interpretation
 
     Diagnosis:
       description: >
@@ -322,72 +320,67 @@ components:
           $ref: '#/components/schemas/OntologyClass'
           description: >
             The disease or condition diagnosed, represented as an ontology term.
-        ageOfOnset:
-          $ref: '#/components/schemas/TimeElement'
-          description: >
-            The age or time at which the disease onset occurred.
-        familyHistory:
-          type: boolean
-          description: >
-            Indicates whether there is a known family history of the disease.
-        clinicalTnmFinding:
+        genomic_interpretations:
           type: array
           description: >
-            TNM clinical findings relevant to the diagnosis.
+            The genomic elements assessed as being responsible for the disease or empty
           items:
-            $ref: '#/components/schemas/OntologyClass'
+            $ref: '#/components/schemas/GenomicInterpretation'
 
     GenomicInterpretation:
       description: >
         An interpretation of genomic data, such as a variant or gene-level assessment.
       type: object
-      required: [subjectOrBiosampleId, interpretationStatus]
+      required: [subject_or_biosample_id, interpretation_status, call]
       properties:
-        id:
-          type: string
-          description: >
-            A unique identifier for the genomic interpretation.
-        subjectOrBiosampleId:
+        subject_or_biosample_id:
           type: string
           description: >
             The identifier of the subject or biosample to which this interpretation applies.
-        interpretationStatus:
+        interpretation_status:
           $ref: '#/components/schemas/InterpretationStatus'
           description: >
             The status of this genomic interpretation.
-        variantInterpretation:
-          $ref: '#/components/schemas/VariantInterpretation'
+        call:
           description: >
-            A variant-level interpretation, if applicable.
-        geneInterpretation:
-          $ref: '#/components/schemas/GeneInterpretation'
-          description: >
-            A gene-level interpretation, if applicable.
+            	represents the interpretation. REQUIRED.
+          oneOf:
+            - $ref: '#/components/schemas/GeneDescriptor'
+            - $ref: '#/components/schemas/VariantInterpretation'
 
     VariantInterpretation:
       description: >
         A clinical or research interpretation of a specific genomic variant.
       type: object
-      required: [variantId, clinicalSignificance]
+      required: 
+        - acmg_pathogenicity_classification
+        - therapeutic_actionability
+        - variation_descriptor
       properties:
-        variantId:
+        acmg_pathogenicity_classification:
           type: string
           description: >
-            An identifier for the variant being interpreted.
-        hgvs:
+            one of the five ACMG pathogenicity categories, or NOT_PROVIDED. The default is NOT_PROVIDED
+          enum:
+            - NOT_PROVIDED
+            - BENIGN
+            - LIKELY_BENIGN
+            - UNCERTAIN_SIGNIFICANCE
+            - LIKELY_PATHOGENIC
+            - PATHOGENIC
+        therapeutic_actionability:
           type: string
           description: >
-            An HGVS expression describing the variant.
-        clinicalSignificance:
-          $ref: '#/components/schemas/OntologyClass'
+            The therapeutic actionability of the variant, default is UNKNOWN_ACTIONABILITY
+          enum:
+            - UNKNOWN_ACTIONABILITY
+            - NOT_ACTIONABLE
+            - ACTIONABLE
+        variation_descriptor:
+          $ref: '#/components/schemas/VariationDescriptor'
           description: >
-            The clinical significance of the variant.
-        evidence:
-          type: array
-          description: >
-            Evidence supporting the variant interpretation.
-          items:
-            $ref: '#/components/schemas/Evidence'
+            a genetic/genomic variant
+
 
     GeneInterpretation:
       description: >
@@ -622,6 +615,12 @@ components:
       type: string
       enum: [UNKNOWN_KARYOTYPE, XX, XY, XO, XXY, XXX, XXYY, XXXY, OTHER_KARYOTYPE]
 
+    ProgressStatus:
+      description: >
+        The status of the attempted diagnosis
+      type: string
+      enum: [UNKNOWN_PROGRESS, IN_PROGRESS, COMPLETED, SOLVED, UNSOLVED]
+
     InterpretationStatus:
       description: >
         Enumeration of interpretation status values.
@@ -652,9 +651,344 @@ components:
           description: >
             Number of days the patient was alive after their primary diagnosis.
     
-
     Status:
       description: >
         Enumeration of interpretation status values.
       type: string
       enum: [UNKNOWN_STATUS, ALIVE, DECEASED]
+    
+    VariationDescriptor:
+      type: object
+      description: >
+        A descriptor for a molecular variation, including VRS variation objects,
+        expressions, gene context, and metadata as defined in Phenopackets v2.
+      required:
+        - id
+        - molecule_context
+      properties:
+        id:
+          type: string
+          description: >
+            A unique identifier for this VariationDescriptor instance.
+
+        variation:
+          $ref: "#/components/schemas/Variation"
+          description: >
+            A GA4GH VRS Variation object describing the molecular variation.
+
+        label:
+          type: string
+          description: >
+            A primary human-readable label for the variation.
+
+        alternate_labels:
+          type: array
+          description: >
+            Additional human-readable labels or synonyms for the variation.
+          items:
+            type: string
+
+        description:
+          type: string
+          description: >
+            A free-text description of the variation.
+
+        gene_context:
+          $ref: "#/components/schemas/GeneDescriptor"
+          description: >
+            The gene context in which this variation is interpreted.
+
+        expressions:
+          type: array
+          description: >
+            Expressions of the variation using standardized syntaxes
+            such as HGVS or SPDI.
+          items:
+            $ref: "#/components/schemas/Expression"
+
+        vcf_record:
+          $ref: "#/components/schemas/VcfRecord"
+          description: >
+            A VCF-based representation of the variation.
+
+        vrs_ref_allele_seq:
+          type: string
+          description: >
+            The reference allele sequence used for VRS Allele normalization.
+            This must exactly match the reference sequence at the VRS location.
+
+        allelic_state:
+          $ref: "#/components/schemas/OntologyClass"
+          description: >
+            The allelic state of the variation (e.g. heterozygous, homozygous).
+
+        structural_type:
+          $ref: "#/components/schemas/OntologyClass"
+          description: >
+            The structural classification of the variant.
+
+        molecule_context:
+          type: string
+          description: >
+            The molecular context in which the variation is described.
+          enum:
+            - genomic
+            - transcript
+            - protein
+
+        external_references:
+          type: array
+          description: >
+            External database references supporting or describing this variation.
+          items:
+            $ref: "#/components/schemas/ExternalReference"
+
+        extensions:
+          type: array
+          description: >
+            A list of extensions for additional information not captured
+            by the core schema.
+          items:
+            $ref: "#/components/schemas/Extension"
+    
+      Extension:
+        type: object
+        description: >
+          An extension element providing additional structured information
+          using ontology terms or custom fields.
+        required:
+          - name
+          - value
+        properties:
+          name:
+            type: string
+            description: >
+              A CURIE or URI identifying the meaning of the extension.
+            example: "NCIT:C171003"
+          value:
+            description: >
+              The value of the extension.
+            type: string
+
+
+      GeneDescriptor:
+        description: >
+          represents an identifier for a gene, using the Gene Descriptor from the VRSATILE Framework
+        type: object
+        required:
+          - value_id
+          - symbol
+        properties:
+          value_id:
+            type: string
+            description: >
+              Official identifier of the gene. REQUIRED.
+          symbol:
+            type: string
+            description: >
+              Official gene symbol. REQUIRED.
+          description:
+            type: string
+            description: >
+              A free-text description of the gene
+          alternate_ids:
+            type: array
+            description: >
+              Alternative identifier(s) of the gene
+            items:
+              type: string
+          xrefs:
+            type: array
+            description: >
+              Related concept IDs (e.g. gene ortholog IDs) may be placed in xrefs
+            items:
+              type: string
+          alternate_symbols:
+            type: array
+            description: >
+              Alternative symbol(s) of the gene
+            items:
+              type: string
+
+    Variation:
+      type: object
+      description: >
+        Polymorphic GA4GH VRS variation object.
+      oneOf:
+        - $ref: "#/components/schemas/Allele"
+        - $ref: "#/components/schemas/Haplotype"
+        - $ref: "#/components/schemas/CopyNumber"
+        - $ref: "#/components/schemas/TextVariation"
+
+    Allele:
+      type: object
+      description: >
+        A contiguous change at a specific sequence location.
+      required:
+        - location
+        - state
+      properties:
+        id:
+          type: string
+          description: >
+            Globally unique VRS identifier.
+        location:
+          $ref: "#/components/schemas/SequenceLocation"
+          description: >
+            Location of the allele on a reference sequence.
+        state:
+          $ref: "#/components/schemas/SequenceState"
+          description: >
+            Resulting sequence state.
+
+    Haplotype:
+      type: object
+      description: >
+        A set of alleles known to co-occur on the same molecule.
+      required:
+        - members
+      properties:
+        id:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/Allele"
+
+    CopyNumber:
+      type: object
+      description: >
+        Copy number variation over a genomic region.
+      required:
+        - location
+        - copies
+      properties:
+        id:
+          type: string
+        location:
+          $ref: "#/components/schemas/SequenceLocation"
+        copies:
+          type: integer
+          description: >
+            Absolute number of copies.
+
+    TextVariation:
+      type: object
+      description: >
+        Unstructured textual representation of a variation.
+      required:
+        - value
+      properties:
+        id:
+          type: string
+        value:
+          type: string
+
+    SequenceLocation:
+      type: object
+      description: >
+        A location on a biological sequence.
+      required:
+        - sequence_id
+        - interval
+      properties:
+        sequence_id:
+          type: string
+          description: >
+            CURIE or URI identifying the reference sequence.
+        interval:
+          $ref: "#/components/schemas/SequenceInterval"
+
+    SequenceInterval:
+      type: object
+      description: >
+        Continuous interval on a sequence.
+      required:
+        - start
+        - end
+      properties:
+        start:
+          type: integer
+          description: >
+            0-based inclusive start position.
+        end:
+          type: integer
+          description: >
+            0-based exclusive end position.
+
+    SequenceState:
+      type: object
+      description: >
+        The resulting sequence after a variation.
+      required:
+        - sequence
+      properties:
+        sequence:
+          type: string
+          description: >
+            Alternate sequence.
+
+    Expression:
+      type: object
+      description: >
+        A syntactic expression of a variation.
+      required:
+        - syntax
+        - value
+      properties:
+        syntax:
+          type: string
+          description: >
+            Expression syntax (e.g. hgvs.c, hgvs.g, spdi).
+        value:
+          type: string
+          description: >
+            Expression string.
+
+    VcfRecord:
+      type: object
+      description: >
+        Variant representation using VCF fields.
+      required:
+        - genome_assembly
+        - chrom
+        - pos
+        - ref
+        - alt
+      properties:
+        genome_assembly:
+          type: string
+          description: >
+            Reference genome assembly (e.g. GRCh38).
+        chrom:
+          type: string
+          description: >
+            Chromosome identifier.
+        pos:
+          type: integer
+          description: >
+            1-based genomic position.
+        ref:
+          type: string
+          description: >
+            Reference allele.
+        alt:
+          type: string
+          description: >
+            Alternate allele.
+
+      ExternalReference:
+      type: object
+      description: >
+        Reference to an external resource.
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          description: >
+            Identifier of the external reference.
+        description:
+          type: string
+          description: >
+            Description of the reference.
