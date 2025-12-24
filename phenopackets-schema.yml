@@ -58,6 +58,12 @@ components:
             Diseases or conditions diagnosed or considered for the subject.
           items:
             $ref: '#/components/schemas/Disease'
+        medical_actions:
+          type: array
+          description: >
+            Medical actions performed
+          items:
+            $ref: '#/components/schemas/MedicalAction'
         files:
           type: array
           description: >
@@ -286,7 +292,6 @@ components:
           description: >
             how the specimen was stored
 
-
     Interpretation:
       description: >
         A clinical or research interpretation derived from phenotypic and/or genomic data.
@@ -423,6 +428,165 @@ components:
           $ref: '#/components/schemas/OntologyClass'
           description: >
             the primary site of disease
+
+    MedicalAction:
+      description: >
+        This element describes medications, procedures, other actions taken for clinical management. The element is a list of options.
+      type: object
+      required: 
+        - action
+      properties:
+        action:
+          description: >
+            One of a list of medical actions. REQUIRED.
+          oneOf:
+            - $ref: '#/components/schemas/Procedure'
+            - $ref: '#/components/schemas/Treatment'
+            - $ref: '#/components/schemas/RadiationTherapy'
+            - $ref: '#/components/schemas/TherapeuticRegimen'
+        treatment_target:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The condition or disease that this treatment was intended to address
+        treatment_intent:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            Whether the intention of the treatment was curative, palliative…
+        response_to_treatment:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            How the patient responded to the treatment
+        adverse_events:
+          type: array
+          items: 
+            $ref: '#/components/schemas/OntologyClass'
+          description: >
+            Any adverse effects experienced by the patient attributed to the treatment
+        treatment_termination_reason:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The reason that the treatment was stopped.
+    
+    Treatment:
+      type: object
+      description: >
+        This represents treatment with an agent such as a drug (pharmaceutical agent), broadly defined as prescription and over-the-counter medicines, vaccines, and large-molecule biologic therapies.
+      required: [agent]
+      properties:
+        agent:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The drug or therapeutic agent. REQUIRED.
+        route_of_administration:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            How was the drug administered. RECOMMENDED.
+        dose_intervals:
+          $ref: '#/components/schemas/DoseInterval'
+          description: >
+            dosages. RECOMMENDED.
+        drug_type:
+          $ref: '#/components/schemas/DrugType'
+          description: >
+            Context of the drug administration
+        cumulative_dose:
+          $ref: '#/components/schemas/Quantity'
+          description: >
+            The cumulative dose administered during the period of the treatment.
+    
+    DoseInterval:
+      type: object
+      description: >
+        a block of time in which the dosage of a medication was constant
+      required:
+        - quantity
+        - schedule_frequency
+        - interval
+      properties:
+        quantity:
+          $ref: '#/components/schemas/Quantity'
+          description: >
+            Amount administered in one dose. REQUIRED.
+        schedule_frequency:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            how often doses are administered per day (or other indicated duration). REQUIRED.
+        interval:
+          $ref: '#/components/schemas/TimeInterval'
+          description: >
+            The specific interval over which the dosage was administered in the indicated quantity. REQUIRED.
+
+    DrugType:
+      description: >
+        Information about the setting - inpatient, outpatient, or related to a (generally one-time) procedure.
+      type: string
+      enum:
+        - UNKNOWN_DRUG_TYPE
+        - PRESCRIPTION
+        - EHR_MEDICATION_LIST
+        - ADMINISTRATION_RELATED_TO_PROCEDURE
+    
+    RadiationTherapy:
+      description: >
+        Radiation therapy (or radiotherapy) uses ionizing radiation, generally as part of cancer treatment to control or kill malignant cells.
+      required: 
+        - modality
+        - body_site
+        - dosage
+        - fractions
+      properties:
+        modality:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The modality of radiation therapy (e.g., electron, photon,…). REQUIRED.
+        body_site:
+          $ref: '#/components/schemas/OntologyClass'
+          description: >
+            The anatomical site where radiation therapy was administered. REQUIRED.
+        dosage:
+          type: integer
+          description: >
+            the total dose given in units of Gray (Gy). REQUIRED.
+        fractions:
+          type: integer
+          description: >
+            The total number of fractions delivered as part of treatment. REQUIRED.
+    
+    TherapeuticRegimen:
+      type: object
+      description: >
+        This element represents a therapeutic regimen which will involve a specified set of treatments for a particular condition.
+      required: 
+        - identifier
+        - regimen_status
+      properties:
+        identifier:
+          description: >
+            An identifier for the regimen. REQUIRED.
+          oneOf:
+            - $ref: '#/components/schemas/OntologyClass'
+            - $ref: '#/components/schemas/ExternalReference'
+        start_time:
+          $ref: '#/components/schemas/TimeElement'
+          description: >
+            When the regimen was started. RECOMMENDED.
+        end_time:
+          $ref: '#/components/schemas/TimeElement'
+          description: >
+            When the regimen ended. An empty end_time with a populated start_time would indicate the regimen was ongoing. RECOMMENDED.
+        regimen_status:
+          $ref: '#/components/schemas/RegimenStatus'
+          description: >
+            Current status of the regimen for the enclosing MedicalAction on the Individual. REQUIRED.
+
+    RegimenStatus:
+      type: string
+      description: >
+      enum:
+        - UNKNOWN_STATUS
+        - STARTED
+        - COMPLETED
+        - DISCONTINUED
 
     File:
       description: >
