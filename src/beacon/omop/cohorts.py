@@ -14,7 +14,7 @@ import pandas as pd
 LOG = logging.getLogger(__name__)
 
 queries_file = Path(__file__).parent / "sql" / "cohorts.sql"
-queries = aiosql.from_path(queries_file, "psycopg2")
+queries = aiosql.from_path(queries_file, "psycopg2", mandatory_parameters=False)
 
 cohort_type = 'beacon-defined'
 

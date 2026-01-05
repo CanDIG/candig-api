@@ -18,7 +18,7 @@ VOCABULARIES_SCHEMA='vocabularies'
 
 from pathlib import Path
 queries_file = Path(__file__).parent / "sql" / "individuals.sql"
-individual_queries = aiosql.from_path(queries_file, "psycopg2")
+individual_queries = aiosql.from_path(queries_file, "psycopg2", mandatory_parameters=False)
 
 # Function to know if generator is empty
 def peek(iterable):
