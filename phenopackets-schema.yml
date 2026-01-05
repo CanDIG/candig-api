@@ -296,7 +296,7 @@ components:
       description: >
         A clinical or research interpretation derived from phenotypic and/or genomic data.
       type: object
-      required: [id, status]
+      required: [id, progress_status]
       properties:
         id:
           type: string
@@ -733,10 +733,22 @@ components:
 
     TimeElement:
       description: >
-        Represents time either as an age or as an explicit time interval.
-      oneOf:
-        - $ref: '#/components/schemas/Age'
-        - $ref: '#/components/schemas/TimeInterval'
+        all of the various ways of denoting time or age in phenopackets schema
+      type: object
+      properties:
+        gestational_age:
+          $ref: '#/components/schemas/GestationalAge'
+        age:
+          $ref: '#/components/schemas/Age'
+        age_range:
+          $ref: '#/components/schemas/AgeRange'
+        ontology_class:
+          $ref: '#/components/schemas/OntologyClass'
+        timestamp:
+          type: string
+          format: date-time
+        interval:
+          $ref: '#/components/schemas/TimeInterval'
 
     Age:
       description: >
@@ -748,6 +760,28 @@ components:
           type: string
           description: >
             The age encoded as an ISO 8601 duration string (e.g. P5Y).
+            
+    GestationalAge:
+      description: >
+        Gestational age (or menstrual age) is the time elapsed between the first day of the last normal menstrual period and the day of delivery. 
+    type: object
+    required: [weeks[
+    properties:
+      weeks:
+        type: integer
+      days:
+        type: integer
+
+    AgeRange:
+      description: >
+        The AgeRange element is intended to be used when the age of a subject is represented by a bin, e.g., 5-10 years. Bins such as this are used in some situations in order to protect the privacy of study participants, whose age is then represented by bins such as 45-49 years, 50-54 years, 55-59 years, and so on.
+      type: object
+      required: [start, end]
+      properties:
+        start:
+          $ref: '#/components/schemas/Age'
+        end:
+          $ref: '#/components/schemas/Age'
 
     TimeInterval:
       description: >
