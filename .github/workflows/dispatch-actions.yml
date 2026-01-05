@@ -6,7 +6,7 @@ jobs:
   CanDIG-dispatch:
     runs-on: ubuntu-latest
     env:
-      PARENT_REPOSITORY: 'CanDIG/CanDIGv2'
+      PARENT_REPOSITORY: 'CanDIG/CanDIGv3'
       CHECKOUT_BRANCH: 'develop'
       PR_AGAINST_BRANCH: 'develop'
       OWNER: 'CanDIG'
@@ -25,7 +25,7 @@ jobs:
                       repo: context.repo.repo,
                     })
                   ).data[0];
-            - name: Create PR in CanDIGv2
+            - name: Create PR in CanDIGv3
               id: make_pr
               uses: CanDIG/github-action-pr-expanded@v4
               with:
