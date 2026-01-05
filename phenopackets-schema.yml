@@ -767,7 +767,7 @@ components:
       description: >
         Gestational age (or menstrual age) is the time elapsed between the first day of the last normal menstrual period and the day of delivery. 
     type: object
-    required: [weeks[
+    required: [weeks]
     properties:
       weeks:
         type: integer
