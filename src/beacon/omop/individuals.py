@@ -22,7 +22,7 @@ from candigv2_logging.logging import CanDIGLogger, initialize
 logger = CanDIGLogger(__file__)
 
 queries_file = Path(__file__).parent / "sql" / "individuals.sql"
-individual_queries = aiosql.from_path(queries_file, "psycopg2")
+individual_queries = aiosql.from_path(queries_file, "psycopg2", mandatory_parameters=False)
 
 def get_basic_discovery_response():
     return {

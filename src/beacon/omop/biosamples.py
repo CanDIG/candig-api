@@ -15,7 +15,7 @@ import itertools
 import random
 from pathlib import Path
 queries_file = Path(__file__).parent / "sql" / "biosamples.sql"
-biosamples_queries = aiosql.from_path(queries_file, "psycopg2")
+biosamples_queries = aiosql.from_path(queries_file, "psycopg2", mandatory_parameters=False)
 
 LOG = logging.getLogger(__name__)
 
