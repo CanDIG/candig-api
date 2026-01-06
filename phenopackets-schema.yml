@@ -582,6 +582,7 @@ components:
     RegimenStatus:
       type: string
       description: >
+        Enumeration for status of a treatment regimen.
       enum:
         - UNKNOWN_STATUS
         - STARTED
@@ -766,13 +767,17 @@ components:
     GestationalAge:
       description: >
         Gestational age (or menstrual age) is the time elapsed between the first day of the last normal menstrual period and the day of delivery. 
-    type: object
-    required: [weeks]
-    properties:
-      weeks:
-        type: integer
-      days:
-        type: integer
+      type: object
+      required: [weeks]
+      properties:
+        weeks:
+          description: Completed weeks of gestation according to the above definition. REQUIRED.
+          type: integer
+        days:
+          desription: Number of completed days of gestation in addition to the provided weeks. RECOMMENDED, If available.
+          type: integer
+          maximum: 6
+          minimum: 0
 
     AgeRange:
       description: >
