@@ -45,15 +45,17 @@ async def search_ontologies(dictValues):
                 # If id in variable, extract the label and OntologyId
                 if "concept_id" in variable:
                     if value == 0:
-                        dictVariableValue[variable] = {'id':"None:No matching concept", 'label':"No matching concept"}
+                        dictVariableValue[variable] = None # {'id':"None:No matching concept", 'label':"No matching concept"}
                         continue
                     records = await search_ontology(value)
                     if records:
                         label = records[0]
                         id = records[1]
                     else:
-                        label = "No matching concept"
-                        id = "None:No matching concept"
+                        # label = "No matching concept"
+                        # id = "None:No matching concept"
+                        dictVariableValue[variable] = None
+                        continue
 
                     dictVariableValue[variable] = {'id':id, 'label':label}
     return dictValues
