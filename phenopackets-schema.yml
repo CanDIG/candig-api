@@ -774,7 +774,7 @@ components:
           description: Completed weeks of gestation according to the above definition. REQUIRED.
           type: integer
         days:
-          desription: Number of completed days of gestation in addition to the provided weeks. RECOMMENDED, If available.
+          description: Number of completed days of gestation in addition to the provided weeks. RECOMMENDED, If available.
           type: integer
           maximum: 6
           minimum: 0
