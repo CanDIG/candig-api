@@ -427,7 +427,7 @@ def discovery_query_primary_site(filter):
         FROM omop.condition_occurrence AS co
         LEFT JOIN omop.concept AS c ON c.concept_id = co.condition_concept_id
         LEFT JOIN omop.person AS p ON p.person_id = co.person_id
-        WHERE TRUE
+        WHERE c.concept_id != 0
         {filter['demographic_filters']}
         {filter['condition_filters']}
         {filter['measurement_filters']}
@@ -442,7 +442,7 @@ def discovery_query_treatment_type(filter):
         FROM omop.procedure_occurrence AS d
         LEFT JOIN omop.concept AS c ON c.concept_id = d.procedure_concept_id
         LEFT JOIN omop.person AS p ON p.person_id = d.person_id
-        WHERE TRUE
+        WHERE c.concept_id != 0
         {filter['demographic_filters']}
         {filter['condition_filters']}
         {filter['measurement_filters']}
@@ -457,7 +457,7 @@ def discovery_query_drug_type(filter):
         FROM omop.drug_exposure AS d
         LEFT JOIN omop.concept AS c ON c.concept_id = d.drug_concept_id
         LEFT JOIN omop.person AS p ON p.person_id = d.person_id
-        WHERE TRUE
+        WHERE c.concept_id != 0
         {filter['demographic_filters']}
         {filter['condition_filters']}
         {filter['measurement_filters']}
@@ -506,7 +506,7 @@ def mapBeaconScopeToOMOP(scope):
     scopeMapping = {mappingDict[scope]:'Age'}
     return scopeMapping
 
-async def format_filtered_response(discovery_query):
+async def format_filtered_discovery(discovery_query):
     retval = {}
     discovery_results = (await basic_query(discovery_query)).fetchall()
     for value, count in discovery_results:
@@ -520,10 +520,10 @@ async def get_discovery(base_filter):
     :param dictTableMap: dictionary of filters from create_dynamic_filter() 
     """
     discovery = get_basic_discovery_response()
-    discovery['primary_site_count'] = await format_filtered_response(discovery_query_primary_site(base_filter))
-    discovery['treatment_type_count'] = await format_filtered_response(discovery_query_treatment_type(base_filter))
-    discovery['patients_per_program'] = await format_filtered_response(discovery_query_program(base_filter))
-    discovery['drug_type_count'] = await format_filtered_response(discovery_query_drug_type(base_filter))
+    discovery['primary_site_count'] = await format_filtered_discovery(discovery_query_primary_site(base_filter))
+    discovery['treatment_type_count'] = await format_filtered_discovery(discovery_query_treatment_type(base_filter))
+    discovery['patients_per_program'] = await format_filtered_discovery(discovery_query_program(base_filter))
+    discovery['drug_type_count'] = await format_filtered_discovery(discovery_query_drug_type(base_filter))
     return discovery
 
 async def checkFilters(filtersDict, offset, limit, typeQuery):
@@ -563,7 +563,7 @@ async def checkFilters(filtersDict, offset, limit, typeQuery):
                             try:
                                 scope = filter['scope']
                             except:
-                                logger.info("You need an scope if you are using 'ageOfOnset'") 
+                                logger.info("You need a scope if you are using 'ageOfOnset'")
                             if "disease" in scope:
                                 filterId = 'ageAtDisease'
                             elif "treatments" in scope:
