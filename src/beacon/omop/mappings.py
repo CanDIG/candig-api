@@ -4,17 +4,23 @@
 ############################### Individual model  ####################################
 
 def diseases_table_map(dictValues):
-    return {
+    retVal = {
             'diseaseCode': dictValues["condition_concept_id"],
             'ageOfOnset': {'iso8601duration': dictValues["condition_ageOfOnset"]},
         }
+    if retVal['diseaseCode'] is None:
+        del retVal['diseaseCode']
+    return retVal
 
 def procedures_table_map(dictValues):
-    return {
+    retVal = {
             'procedureCode': dictValues["procedure_concept_id"],
             'ageAtProcedure': {'iso8601duration': dictValues["procedure_ageOfOnset"]},
             'dateOfProcedure': dictValues["procedure_date"],
         }
+    if retVal['procedureCode'] is None:
+        del retVal['procedureCode']
+    return retVal
 
 def isfloat(num):
     try:
