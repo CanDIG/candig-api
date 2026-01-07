@@ -12,7 +12,7 @@ import itertools
 from sqlalchemy import text
 from ..conf import MAX_LIMIT
 
-
+import authx.auth
 from ...beacon.omop.utils import CDM_SCHEMA, VOCABULARIES_SCHEMA
 from ...beacon.omop.biosamples import get_biosamples_with_person_id
 from pathlib import Path
@@ -75,6 +75,23 @@ async def get_individuals_dataset(listIds):
                 dict_dataset[person_id] = db_id[0]
 
     return dict_dataset
+
+def get_datasets_allowed_filter(request, filters_dict):
+    datasets = authx.auth.get_opa_datasets(request)
+    # Create a filter on allowed datasets for this user
+    if len(datasets) == 0:
+        return "and false" # No allowed datasets
+
+    ret_filter = "and exists (SELECT 1 FROM candig.person_in_dataset d where p.person_id = d.person_id and ("
+    first = True
+    for i, dataset in enumerate(datasets):
+        if not first:
+            ret_filter += ' or '
+        first = False
+        ret_filter += f' dataset_id = :dataset{i}'
+        filters_dict[f'dataset{i}'] = dataset
+    ret_filter += ')'
+    return ret_filter, filters_dict
 
 async def get_individuals_condition(listIds):
     dict_condition = {}
@@ -208,9 +225,6 @@ def format_query(listIds, dictPerson, dictCondition, dictProcedures, dictMeasure
         list_format.append(dictId)
     return list_format
 
-def parse_discovery(listIds, dictPerson, dictCondition, dictProcedures, dictMeasures, dictExposures, dictTreatments, dictDatasets):
-    discovery_data = get_basic_discovery_response()
-
 def map_domains(domain_id):
     # Domain_id : Table in OMOP
     # Maybe there is more than one mapping in the condition domain
@@ -236,7 +250,21 @@ async def search_descendants(concept_id):
         l_descendants.add(descendant[0])
     return l_descendants
 
-def create_dynamic_filter(filters):
+def safe_operator(operator):
+    # We only support a small subset of operators (see beacon-schema.yml:components/schemas/AlphanumericFilter/properties/operator)
+    # - '='
+    # - <
+    # - '>'
+    # - '!'
+    # - '>='
+    # - <=
+    if operator in ['=', '<', '>', '>=', '<=']:
+        return operator
+    if operator == '!':
+        return '!='
+    return '='
+
+def create_dynamic_filter(filters, request):
     base_filter = {
         'demographic_filters': '',
         'condition_filters': '',
@@ -245,6 +273,7 @@ def create_dynamic_filter(filters):
         'exposures_filters': '',
         'treatments_filters': '',
     }
+    filters_dict = {}
 
     list_person = []
     n_open_condition = 0
@@ -257,7 +286,7 @@ def create_dynamic_filter(filters):
     query_exposure = ""
     n_open_treatment = 0
     query_treatment = ""
-    for filter in filters:
+    for i, filter in enumerate(filters):
         # Default type of filter is ontology
         filterType = 'Ontology'
         if filter[2]:       # If filter has an operator (operator!=None) it is an Alphanumeric filter
@@ -275,12 +304,12 @@ def create_dynamic_filter(filters):
             list_concept_id = []
             for concept_id in filter[1]:
                 if variable_name == 'Age':
-                    operator = filter[2]
-                    value = filter[3]
+                    operator = safe_operator(filter[2])
+                    filters_dict[f'value{i}'] = filter[3]
                     list_concept_id.append(f"""
                         CASE
-                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(condition_start_date, birth_datetime)) {operator} {value} 
-                            ELSE (extract(Year from condition_start_date) - year_of_birth)  {operator} {value}
+                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(condition_start_date, birth_datetime)) {operator} :value{i}
+                            ELSE (extract(Year from condition_start_date) - year_of_birth)  {operator} :value{i}
                         END
                         """)
                 else:
@@ -300,21 +329,24 @@ def create_dynamic_filter(filters):
             list_concept_id = []
             for concept_id in filter[1]:
                 if variable_name == 'Age':
-                    operator = filter[2]
-                    value = filter[3]
+                    operator = safe_operator(filter[2])
+                    filters_dict[f'value{i}'] = filter[3]
                     list_concept_id.append(f"""
                         CASE
-                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(measurement_date, birth_datetime)) {operator} {value} 
-                            ELSE (extract(Year from measurement_date) - year_of_birth)  {operator} {value}
+                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(measurement_date, birth_datetime)) {operator} :value{i}
+                            ELSE (extract(Year from measurement_date) - year_of_birth)  {operator} :value{i}
                         END
                         """)
                 elif filterType == 'Alphanumeric':
-                    value = filter[3]
-                    list_concept_id.append(variable_name + ' = ' + str(concept_id) +
-                                           ' and value_as_number ' + filter[2] + " " + value)
+                    operator = safe_operator(filter[2])
+                    filters_dict[f'value{i}'] = filter[3]
+                    # TODO: fix this
+                    list_concept_id.append(variable_name + ' = ' + str(concept_id) + f' and value_as_number {operator} :value{i}')
                 else:
+                    # TODO: fix this
                     list_concept_id.append(variable_name + ' = ' + str(concept_id))
             query_person_id =  ' or '.join(list_concept_id)
+            # TODO: fix this
             query_measurement += f"""
                 and exists (
                     select 1
@@ -328,16 +360,18 @@ def create_dynamic_filter(filters):
             list_concept_id = []
             for concept_id in filter[1]:
                 if variable_name == 'Age':
-                    operator = filter[2]
-                    value = filter[3]
+                    operator = safe_operator(filter[2])
+                    filters_dict[f'value{i}'] = filter[3]
                     list_concept_id.append(f"""
                         CASE
-                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(procedure_date, birth_datetime)) {operator} {value} 
-                            ELSE (extract(Year from procedure_date) - year_of_birth)  {operator} {value}
+                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(procedure_date, birth_datetime)) {operator} :value{i}
+                            ELSE (extract(Year from procedure_date) - year_of_birth)  {operator} :value{i}
                         END
                         """)
                 else:
+                    # TODO: fix this
                     list_concept_id.append(variable_name + ' = ' + str(concept_id))
+            # TODO: fix this
             query_person_id =  ' or '.join(list_concept_id)
             query_procedure += f"""
                 and exists (
@@ -352,16 +386,18 @@ def create_dynamic_filter(filters):
             list_concept_id = []
             for concept_id in filter[1]:
                 if variable_name == 'Age':
-                    operator = filter[2]
-                    value = filter[3]
+                    operator = safe_operator(filter[2])
+                    filters_dict[f'value{i}'] = filter[3]
                     list_concept_id.append(f"""
                         CASE
-                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(observation_date, birth_datetime)) {operator} {value} 
-                            ELSE (extract(Year from observation_date) - year_of_birth)  {operator} {value}
+                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(observation_date, birth_datetime)) {operator} :value{i}
+                            ELSE (extract(Year from observation_date) - year_of_birth)  {operator} :value{i}
                         END
                         """)
                 else:
+                    # TODO: fix this
                     list_concept_id.append(variable_name + ' = ' + str(concept_id))
+            # TODO: fix this
             query_person_id =  ' or '.join(list_concept_id)
             query_exposure += f"""
                 and exists (
@@ -376,16 +412,18 @@ def create_dynamic_filter(filters):
             list_concept_id = []
             for concept_id in filter[1]:
                 if variable_name == 'Age':
-                    operator = filter[2]
-                    value = filter[3]
+                    operator = safe_operator(filter[2])
+                    filters_dict[f'value{i}'] = filter[3]
                     list_concept_id.append(f"""
                         CASE
-                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(drug_exposure_start_date, birth_datetime)) {operator} {value} 
-                            ELSE (extract(Year from drug_exposure_start_date) - year_of_birth)  {operator} {value}
+                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(drug_exposure_start_date, birth_datetime)) {operator} :value{i}
+                            ELSE (extract(Year from drug_exposure_start_date) - year_of_birth)  {operator} :value{i}
                         END
                         """)
                 else:
+                    # TODO: fix this
                     list_concept_id.append(variable_name + ' = ' + str(concept_id))
+            # TODO: fix this
             query_person_id =  ' or '.join(list_concept_id)
             query_treatment += f"""
                 and exists (
@@ -409,6 +447,7 @@ def create_dynamic_filter(filters):
     base_filter['procedures_filters'] += query_procedure
     base_filter['exposures_filters'] += query_exposure
     base_filter['treatments_filters'] += query_treatment
+    base_filter['datasets_filters'] = get_datasets_allowed_filter(request, filters_dict)
 
     return base_filter
 
@@ -494,6 +533,7 @@ def super_query_get(filter, offset, limit):
         {filter['procedures_filters']}
         {filter['exposures_filters']}
         {filter['treatments_filters']}
+        {filter['datasets_filters']}
 
         limit {limit}
         offset {offset}
@@ -529,7 +569,7 @@ async def get_discovery(base_filter):
     discovery['drug_type_count'] = await format_filtered_discovery(discovery_query_drug_type(base_filter))
     return discovery
 
-async def checkFilters(filtersDict, offset, limit, typeQuery):
+async def checkFilters(filtersDict, offset, limit, typeQuery, request):
     listOfList = []
     dictTableMap = []
     async with engine.connect() as conn:
