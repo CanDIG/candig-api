@@ -20,7 +20,6 @@ from src.database.insert_operations import (
     create_visit_occurrence,
 )
 
-
 from typing import Any, Dict
 
 from src.database.db_operations import get_db_session
@@ -34,6 +33,7 @@ from connexion.exceptions import ProblemException
 from typing import List, Tuple, Optional
 import json
 import os
+from auth import add_program
 
 logger = CanDIGLogger(__file__)
 
@@ -158,6 +158,15 @@ async def ingest_dataset(ds_id: str, ds_info: dict) -> Tuple[bool, Optional[str]
     async for session in get_db_session():
         try:
             await create_dataset(session, dataset_fields)
+            # Also add the dataset to OPA
+            logger.info("Adding to OPA")
+            new_program_auth = {
+                "program_id": str(dataset_fields.get("id")),
+                "program_curators": [],
+                "team_members": []
+            }
+            add_program(new_program_auth)
+            logger.info("Done OPA")
             await session.commit()
             logger.info(f"Successfully created dataset: {ds_id}")
             return True, None

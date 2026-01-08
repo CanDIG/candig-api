@@ -6,6 +6,7 @@ from ...beacon.omop import engine, mappings
 # from beacon.request.model import AlphanumericFilter, Operator, RequestParams
 from ...beacon.request.model import RequestParams
 from ...beacon.omop.schemas import DefaultSchemas
+from connexion import request
 import re
 import aiosql
 import itertools
@@ -78,6 +79,7 @@ async def get_individuals_dataset(listIds):
 
 def get_datasets_allowed_filter(request, filters_dict):
     datasets = authx.auth.get_opa_datasets(request)
+    logger.info(f"datasets: {datasets}")
     # Create a filter on allowed datasets for this user
     if len(datasets) == 0:
         return "and false" # No allowed datasets
@@ -340,13 +342,14 @@ def create_dynamic_filter(filters, request):
                 elif filterType == 'Alphanumeric':
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
+                    filters_dict[f'concept{i}'] = str(concept_id)
                     # TODO: fix this
-                    list_concept_id.append(variable_name + ' = ' + str(concept_id) + f' and value_as_number {operator} :value{i}')
+                    list_concept_id.append(variable_name + f' = :concept{i} and value_as_number {operator} :value{i}')
                 else:
                     # TODO: fix this
-                    list_concept_id.append(variable_name + ' = ' + str(concept_id))
+                    filters_dict[f'concept{i}'] = str(concept_id)
+                    list_concept_id.append(variable_name + f' = :concept{i}')
             query_person_id =  ' or '.join(list_concept_id)
-            # TODO: fix this
             query_measurement += f"""
                 and exists (
                     select 1
@@ -648,7 +651,7 @@ async def checkFilters(filtersDict, offset, limit, typeQuery, request):
                     listConcept_id = listConcept_id.union(concept_ids)
                 dictTableMap.append([tableMap, listConcept_id, operator, value])
     # logger.info(dictTableMap)
-    base_filter = create_dynamic_filter(dictTableMap)
+    base_filter = create_dynamic_filter(dictTableMap, request)
     query_count = super_query_count(base_filter)
     count_records = (await basic_query(query_count)).fetchone()[0]
 
@@ -667,10 +670,10 @@ async def filters(filtersDict, offset, limit):
     # logger.info(filtersDict)
     if type(filtersDict[0]) is dict:         # If filter is from Post
         logger.info("post")
-        listFilters, count, discovery = await checkFilters(filtersDict, offset, limit, 'POST')
+        listFilters, count, discovery = await checkFilters(filtersDict, offset, limit, 'POST', request)
     else:
         # logger.info("get")
-        listFilters, count, discovery = await checkFilters(filtersDict, offset, limit, 'GET')
+        listFilters, count, discovery = await checkFilters(filtersDict, offset, limit, 'GET', request)
 
     return listFilters, count, discovery
                                                       
@@ -695,7 +698,7 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
         async with engine.connect() as conn:
             count_ids = await conn.execute(text(individual_queries.count_individuals.sql)) # Count individuals
             count_ids = count_ids.first()[0]
-            discovery_data = await get_discovery(create_dynamic_filter([]))
+            discovery_data = await get_discovery(create_dynamic_filter([], request))
         
     logger.info(f"Number of ids: ${count_ids}")
 
