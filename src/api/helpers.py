@@ -33,7 +33,7 @@ from connexion.exceptions import ProblemException
 from typing import List, Tuple, Optional
 import json
 import os
-from auth import add_program
+import authx.auth
 
 logger = CanDIGLogger(__file__)
 
@@ -149,6 +149,29 @@ async def create_record(
 # ==============================================================================
 
 
+# For some reason importing auth.add_program messes with the imports, so I've cut out the necessary piece for program imports here
+def add_program_to_opa(program_auth):
+    """
+    Add a program to OPA
+    
+    :param program_auth: object with program_id: str, program_curators: list, team_members: list
+    """
+    program_id = program_auth["program_id"]
+    response, status_code = authx.auth.set_service_store_secret("opa", key=f"programs/{program_id}", value=json.dumps({program_id: program_auth}))
+    if status_code < 300:
+        # update the values for the program list
+        response2, status_code = authx.auth.get_service_store_secret("opa", key="programs")
+
+        if status_code == 200:
+            # check to see if it's already here:
+            if program_id not in response2['programs']:
+                response2['programs'].append(program_id)
+        else:
+            response2 = {'programs': [program_id]}
+        response2, status_code = authx.auth.set_service_store_secret("opa", key="programs", value=json.dumps(response2))
+        return response, status_code
+
+
 async def ingest_dataset(ds_id: str, ds_info: dict) -> Tuple[bool, Optional[str]]:
     """
     Ingest a dataset record
@@ -157,7 +180,6 @@ async def ingest_dataset(ds_id: str, ds_info: dict) -> Tuple[bool, Optional[str]
 
     async for session in get_db_session():
         try:
-            await create_dataset(session, dataset_fields)
             # Also add the dataset to OPA
             logger.info("Adding to OPA")
             new_program_auth = {
@@ -165,8 +187,9 @@ async def ingest_dataset(ds_id: str, ds_info: dict) -> Tuple[bool, Optional[str]
                 "program_curators": [],
                 "team_members": []
             }
-            add_program(new_program_auth)
+            add_program_to_opa(new_program_auth)
             logger.info("Done OPA")
+            await create_dataset(session, dataset_fields)
             await session.commit()
             logger.info(f"Successfully created dataset: {ds_id}")
             return True, None
