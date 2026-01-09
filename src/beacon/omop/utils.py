@@ -61,9 +61,9 @@ async def search_ontologies(dictValues):
     return dictValues
         
         
-async def basic_query(query: str):
+async def basic_query(query: str, filters: dict = {}):
     async with engine.connect() as conn:
-        records = await conn.execute(text(query))
+        records = await conn.execute(text(query), filters)
         return records
 
 
