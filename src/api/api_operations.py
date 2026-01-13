@@ -1,5 +1,5 @@
 """
-API query operations like service info, file upload and status tracking...
+API operations like service info, file upload and status tracking...
 """
 
 import json
@@ -81,7 +81,7 @@ async def upload_file(file):
                 },
                 f,
             )
-        
+
         # move the file to trigger the daemon
         final_path = os.path.join(settings.TO_INGEST_DIR, queue_id)
         shutil.move(temp_path, final_path)
