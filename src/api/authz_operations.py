@@ -36,7 +36,7 @@ def get_service_info():
 async def add_s3_credential():
     data = await connexion.request.json()
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not authx.auth.is_action_allowed_for_program(token, method="POST", path="/v1/authz/s3-credential", program=None):
+    if not auth.is_action_allowed_for_dataset(token, method="POST", path="/v1/authz/s3-credential", dataset=None):
         return {"error": "Not authorized to store aws credentials"}, 403
 
     # test endpoint before storing:
@@ -52,7 +52,7 @@ async def add_s3_credential():
 @app.route('/s3-credential/endpoint/<path:endpoint_id>/bucket/<path:bucket_id>')
 def get_s3_credential(endpoint_id, bucket_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/s3-credential", program=None):
+    if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/s3-credential", dataset=None):
         return {"error": "Not authorized to view aws credentials"}, 403
     endpoint_cleaned = re.sub(r"\W", "_", endpoint_id)
     return authx.auth.get_aws_credential(endpoint=endpoint_cleaned, bucket=bucket_id)
@@ -61,7 +61,7 @@ def get_s3_credential(endpoint_id, bucket_id):
 @app.route('/s3-credential/endpoint/<path:endpoint_id>/bucket/<path:bucket_id>')
 def delete_s3_credential(endpoint_id, bucket_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not authx.auth.is_action_allowed_for_program(token, method="DELETE", path="/v1/authz/s3-credential", program=None):
+    if not auth.is_action_allowed_for_dataset(token, method="DELETE", path="/v1/authz/s3-credential", dataset=None):
         return {"error": "Not authorized to remove aws credentials"}, 403
     endpoint_cleaned = re.sub(r"\W", "_", endpoint_id)
     return authx.auth.remove_aws_credential(endpoint=endpoint_cleaned, bucket=bucket_id)
@@ -75,7 +75,7 @@ def delete_s3_credential(endpoint_id, bucket_id):
 def list_role(role_type):
     try:
         token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-        if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/site-role", program=None):
+        if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/site-role", dataset=None):
             return {"error": f"User not authorized to list site roles"}, 403
 
         result, status_code = auth.get_role_type(role_type)
@@ -89,7 +89,7 @@ def is_user_in_role(role_type, user_id):
     try:
         token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-        if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/site-role", program=None):
+        if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/site-role", dataset=None):
             return {"error": f"User not authorized to list site roles"}, 403
 
         result, status_code = auth.get_role_type(role_type)
@@ -104,7 +104,7 @@ def is_user_in_role(role_type, user_id):
 def add_user_to_role(role_type, user_id):
     try:
         token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-        if not authx.auth.is_action_allowed_for_program(token, method="POST", path="/v1/authz/site-role", program=None):
+        if not auth.is_action_allowed_for_dataset(token, method="POST", path="/v1/authz/site-role", dataset=None):
             return {"error": f"User not authorized to add to site roles"}, 403
 
         result, status_code = auth.get_role_type(role_type)
@@ -121,7 +121,7 @@ def add_user_to_role(role_type, user_id):
 def remove_user_from_role(role_type, user_id):
     try:
         token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-        if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/site-role", program=None):
+        if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/site-role", dataset=None):
             return {"error": f"User not authorized to remove users from site roles"}, 403
 
         result, status_code = auth.get_role_type(role_type)
@@ -139,40 +139,40 @@ def remove_user_from_role(role_type, user_id):
 
 
 ####
-# Program authorizations
+# Dataset authorizations
 ####
 
-def list_programs():
+def list_datasets():
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/program", program=None):
-        return {"error": f"User not authorized to list programs"}, 403
+    if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/dataset", dataset=None):
+        return {"error": f"User not authorized to list datasets"}, 403
 
-    response, status_code = auth.list_programs()
+    response, status_code = auth.list_datasets()
     return response, status_code
 
 
-async def add_program():
-    program = await connexion.request.json()
+async def add_dataset():
+    dataset = await connexion.request.json()
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not authx.auth.is_action_allowed_for_program(token, method="POST", path="/v1/authz/program", program=program['program_id']):
-        return {"error": f"User not authorized to add program {program['program_id']}"}, 403
+    if not auth.is_action_allowed_for_dataset(token, method="POST", path="/v1/authz/dataset", dataset=dataset['dataset_id']):
+        return {"error": f"User not authorized to add dataset {dataset['dataset_id']}"}, 403
 
-    response, status_code = auth.add_program(program)
+    response, status_code = auth.add_dataset(dataset)
     if status_code == 200:
-        response = response[program["program_id"]]
+        response = response[dataset["dataset_id"]]
     check_default_site_admin(response)
     return response, status_code
 
 
-@app.route('/program/<path:program_id>')
-def get_program(program_id):
+@app.route('/dataset/<path:dataset_id>')
+def get_dataset(dataset_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/program", program=program_id):
-        return {"error": f"User not authorized to get program {program_id}"}, 403
+    if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/dataset", dataset=dataset_id):
+        return {"error": f"User not authorized to get dataset {dataset_id}"}, 403
 
-    response, status_code = auth.get_program(program_id)
+    response, status_code = auth.get_dataset(dataset_id)
     if status_code == 200:
         if "dac_authorizations" in response:
             response.pop("dac_authorizations")
@@ -180,14 +180,14 @@ def get_program(program_id):
     return response, status_code
 
 
-@app.route('/program/<path:program_id>/dac_authorization')
-def get_program_dacs(program_id):
+@app.route('/dataset/<path:dataset_id>/dac_authorization')
+def get_dataset_dacs(dataset_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/program", program=program_id):
-        return {"error": f"User not authorized to get program {program_id}"}, 403
+    if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/dataset", dataset=dataset_id):
+        return {"error": f"User not authorized to get dataset {dataset_id}"}, 403
 
-    response, status_code = auth.get_program(program_id)
+    response, status_code = auth.get_dataset(dataset_id)
     dac_authz = {}
 
     if status_code == 200:
@@ -197,28 +197,28 @@ def get_program_dacs(program_id):
     return dac_authz, status_code
 
 
-@app.route('/program/<path:program_id>')
-def remove_program(program_id):
+@app.route('/dataset/<path:dataset_id>')
+def remove_dataset(dataset_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="DELETE", path="/v1/authz/program", program=program_id):
-        return {"error": "User not authorized to remove programs"}, 403
+    if not auth.is_action_allowed_for_dataset(token, method="DELETE", path="/v1/authz/dataset", dataset=dataset_id):
+        return {"error": "User not authorized to remove datasets"}, 403
 
     response = {"errors": {}}
     check_default_site_admin(response)
 
-    opa_response, opa_status = auth.remove_program(program_id)
+    opa_response, opa_status = auth.remove_dataset(dataset_id)
     logger.info(opa_response)
     if opa_status == 404:
         # htsget status is not included here because it doesn't have a 404 response
-        return {"message": f"Program {program_id} not found"}, 404
+        return {"message": f"Dataset {dataset_id} not found"}, 404
 
     if opa_status != 200:
         response["errors"]["opa"] = {"message": opa_response, "status_code": opa_status}
 
     if len(response["errors"]) == 0:
         response.pop("errors")
-        response["message"] = f"Program {program_id} successfully deleted"
+        response["message"] = f"Dataset {dataset_id} successfully deleted"
         return response, 200
 
     return response, 500
@@ -246,8 +246,8 @@ def list_pending_users():
 @app.route('/user/pending/<path:user_id>')
 def is_user_pending(user_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path=f"/v1/authz/user/pending/{user_id}", program=None):
-        return {"error": "User not authorized to list programs for user"}, 403
+    if not auth.is_action_allowed_for_dataset(token, method="GET", path=f"/v1/authz/user/pending/{user_id}", dataset=None):
+        return {"error": "User not authorized to list datasets for user"}, 403
 
     if user_id == "me":
         user_id = authx.auth.get_user_id(connexion.request)
@@ -392,8 +392,8 @@ def list_authz_for_user(user_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
     status_code = 0
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path=f"/v1/authz/user/{user_id}", program=None):
-        return {"error": "User not authorized to list programs for user"}, 403
+    if not auth.is_action_allowed_for_dataset(token, method="GET", path=f"/v1/authz/user/{user_id}", dataset=None):
+        return {"error": "User not authorized to list datasets for user"}, 403
 
     self_checkup = user_id == "me"
     if user_id == "me":
@@ -411,7 +411,7 @@ def list_authz_for_user(user_id):
             if user_id in users[role_type]:
                 user_result["site_roles"].append(role_type)
 
-    user_result["program_authorizations"] = {}
+    user_result["dataset_authorizations"] = {}
 
     user_token = None
     user_key = None
@@ -427,10 +427,10 @@ def list_authz_for_user(user_id):
         user_key=user_key
     )
     if opa_status_code == 200:
-        user_result["program_authorizations"]["team_member"] = opa_permissions["debug"]["user_key_has_team_member_programs"]
-        user_result["program_authorizations"]["program_curator"] = opa_permissions["debug"]["user_key_has_curator_programs"]
+        user_result["dataset_authorizations"]["team_member"] = opa_permissions["debug"]["user_key_has_team_member_datasets"]
+        user_result["dataset_authorizations"]["dataset_curator"] = opa_permissions["debug"]["user_key_has_curator_datasets"]
 
-    user_result["program_authorizations"]["dac_authorizations"] = list(user_result.pop("dac_authorizations").values())
+    user_result["dataset_authorizations"]["dac_authorizations"] = list(user_result.pop("dac_authorizations").values())
     user_result["userinfo"]["is_candig_authorized"] = opa_permissions["user_is_candig_authorized"]
     return user_result, status_code
 
@@ -439,7 +439,7 @@ def list_authz_for_user(user_id):
 def revoke_authz_for_user(user_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="DELETE", path=f"/v1/authz/user/{user_id}", program=None):
+    if not auth.is_action_allowed_for_dataset(token, method="DELETE", path=f"/v1/authz/user/{user_id}", dataset=None):
         return {"error": "User not authorized to revoke authorization for users"}, 403
 
     response, status_code = auth.remove_user(user_id)
@@ -448,11 +448,11 @@ def revoke_authz_for_user(user_id):
 
 @app.route('/user/<path:user_id>/dac_authorization')
 async def add_dac_authz_for_user(user_id):
-    program_body = await connexion.request.json()
+    dataset_body = await connexion.request.json()
 
-    if "dict" in str(type(program_body)):
+    if "dict" in str(type(dataset_body)):
         # if the body was a dict, make it an array
-        program_body = [program_body]
+        dataset_body = [dataset_body]
 
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
     user_dict, status_code = auth.get_user(user_id)
@@ -464,47 +464,47 @@ async def add_dac_authz_for_user(user_id):
             "dac_authorizations": {}
         }
 
-    all_programs, status_code = auth.list_programs()
+    all_datasets, status_code = auth.list_datasets()
     if status_code != 200:
-        return all_programs, status_code
+        return all_datasets, status_code
 
     errors = []
 
-    # check to see if any of the programs are listed more than once
-    programs = list(map(lambda x: x['program_id'], program_body))
-    if len(programs) > len(set((programs))):
-        return {"error": "Duplicate programs in request"}, 400
+    # check to see if any of the datasets are listed more than once
+    datasets = list(map(lambda x: x['dataset_id'], dataset_body))
+    if len(datasets) > len(set((datasets))):
+        return {"error": "Duplicate datasets in request"}, 400
 
-    for program_dict in program_body:
-        program_id = program_dict["program_id"]
-        if not authx.auth.is_action_allowed_for_program(token, method="POST", path="/v1/authz/user", program=program_id):
-            errors.append({program_id: "User not authorized to authorize programs for user"})
+    for dataset_dict in dataset_body:
+        dataset_id = dataset_dict["dataset_id"]
+        if not auth.is_action_allowed_for_dataset(token, method="POST", path="/v1/authz/user", dataset=dataset_id):
+            errors.append({dataset_id: "User not authorized to authorize datasets for user"})
 
-        # we need to check to see if the program even exists in the system
-        if program_id not in all_programs:
-            errors.append({program_id: f"Program {program_id} does not exist in {all_programs}"})
+        # we need to check to see if the dataset even exists in the system
+        if dataset_id not in all_datasets:
+            errors.append({dataset_id: f"Dataset {dataset_id} does not exist in {all_datasets}"})
 
         try:
-            if datetime.fromisoformat(program_dict['end_date']) < datetime.fromisoformat(program_dict['start_date']):
-                errors.append({program_id: f"Start date {program_dict['start_date']} cannot be later than end date {program_dict['end_date']}"})
-            elif datetime.fromisoformat(program_dict['end_date']) == datetime.fromisoformat(program_dict['start_date']):
-                errors.append({program_id: f"Start date {program_dict['start_date']} is the same as end date {program_dict['end_date']}"})
-            elif datetime.fromisoformat(program_dict['end_date']) < datetime.now():
-                errors.append({program_id: f"Start date {program_dict['start_date']} and end date {program_dict['end_date']} are in the past"})
+            if datetime.fromisoformat(dataset_dict['end_date']) < datetime.fromisoformat(dataset_dict['start_date']):
+                errors.append({dataset_id: f"Start date {dataset_dict['start_date']} cannot be later than end date {dataset_dict['end_date']}"})
+            elif datetime.fromisoformat(dataset_dict['end_date']) == datetime.fromisoformat(dataset_dict['start_date']):
+                errors.append({dataset_id: f"Start date {dataset_dict['start_date']} is the same as end date {dataset_dict['end_date']}"})
+            elif datetime.fromisoformat(dataset_dict['end_date']) < datetime.now():
+                errors.append({dataset_id: f"Start date {dataset_dict['start_date']} and end date {dataset_dict['end_date']} are in the past"})
         except Exception as e:
-            errors.append({program_id: f"Date format error: {type(e)} {str(e)}"})
-        user_dict["dac_authorizations"][program_id] = program_dict
+            errors.append({dataset_id: f"Date format error: {type(e)} {str(e)}"})
+        user_dict["dac_authorizations"][dataset_id] = dataset_dict
 
-        # add this dac to the program's authz
-        program, status_code = auth.get_program(program_id)
+        # add this dac to the dataset's authz
+        dataset, status_code = auth.get_dataset(dataset_id)
         if status_code == 200:
-            if "dac_authorizations" not in program:
-                program["dac_authorizations"] = {}
-            program["dac_authorizations"][user_id] = program_dict
-            response, status_code = auth.add_program(program)
+            if "dac_authorizations" not in dataset:
+                dataset["dac_authorizations"] = {}
+            dataset["dac_authorizations"][user_id] = dataset_dict
+            response, status_code = auth.add_dataset(dataset)
             logger.debug(response, status_code)
             if status_code != 200:
-                errors.append({program_id: response})
+                errors.append({dataset_id: response})
 
     if len(errors) == 0:
         user_dict, status_code = auth.write_user(user_dict)
@@ -514,12 +514,12 @@ async def add_dac_authz_for_user(user_id):
     return errors, 400
 
 
-@app.route('/user/<path:user_id>/dac_authorization/<path:program_id>')
-def get_dac_authz_for_user(user_id, program_id):
+@app.route('/user/<path:user_id>/dac_authorization/<path:dataset_id>')
+def get_dac_authz_for_user(user_id, dataset_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="GET", path="/v1/authz/user", program=None):
-        return {"error": "User not authorized to get programs for user"}, 403
+    if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/user", dataset=None):
+        return {"error": "User not authorized to get datasets for user"}, 403
 
     user_dict, status_code = auth.get_user(user_id)
     if status_code != 200:
@@ -527,29 +527,29 @@ def get_dac_authz_for_user(user_id, program_id):
     if "sample_jwt" in user_dict["userinfo"]:
         user_dict["userinfo"].pop("sample_jwt")
     for p in user_dict["dac_authorizations"]:
-        if p == program_id:
+        if p == dataset_id:
             return p, 200
-    return {"error": f"No program {program_id} found for user"}, status_code
+    return {"error": f"No dataset {dataset_id} found for user"}, status_code
 
 
-@app.route('/user/<path:user_id>/authorize/<path:program_id>')
-def remove_dac_authz_for_user(user_id, program_id):
+@app.route('/user/<path:user_id>/authorize/<path:dataset_id>')
+def remove_dac_authz_for_user(user_id, dataset_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
-    if not authx.auth.is_action_allowed_for_program(token, method="DELETE", path="/v1/authz/user", program=program_id):
-        return {"error": "User not authorized to remove programs for user"}, 403
+    if not auth.is_action_allowed_for_dataset(token, method="DELETE", path="/v1/authz/user", dataset=dataset_id):
+        return {"error": "User not authorized to remove datasets for user"}, 403
 
     user_dict, status_code = auth.get_user(user_id)
     if status_code != 200:
         return user_dict, status_code
     for p in user_dict["dac_authorizations"]:
-        if p == program_id:
-            user_dict["dac_authorizations"].pop(program_id)
+        if p == dataset_id:
+            user_dict["dac_authorizations"].pop(dataset_id)
             user_dict, status_code = auth.write_user(user_dict)
             if "sample_jwt" in user_dict["userinfo"]:
                 user_dict["userinfo"].pop("sample_jwt")
             return user_dict, status_code
-    return {"error": f"No program {program_id} found for user"}, status_code
+    return {"error": f"No dataset {dataset_id} found for user"}, status_code
 
 
 @app.route('/get-token')

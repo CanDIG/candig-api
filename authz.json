@@ -13,8 +13,8 @@
             "/htsget/v1/reads/?.*",
             "/htsget/v1/samples/?.*",
             "/ga4gh/drs/v1/objects/?.*",
-            "/ga4gh/drs/v1/programs/?.*",
-            "/ga4gh/drs/v1/programs/?.*/status",
+            "/ga4gh/drs/v1/datasets/?.*",
+            "/ga4gh/drs/v1/datasets/?.*/status",
             "/beacon/v2/g_variants/?.*"
         ],
         "post": [
@@ -27,15 +27,15 @@
     "curate": {
         "get": [
             "/v1/authz/get-token",
-            "/v1/authz/program",
-            "/v1/authz/program/?.*",
-            "/v1/authz/program/?.*/dac_authorization",
+            "/v1/authz/dataset",
+            "/v1/authz/dataset/?.*",
+            "/v1/authz/dataset/?.*/dac_authorization",
             "/v1/authz/s3-credential/?.*",
             "/v1/authz/site-role/?.*",
             "/v1/authz/user/?.*",
             "/ga4gh/drs/v1/objects/?.*",
-            "/ga4gh/drs/v1/programs/?.*",
-            "/ga4gh/drs/v1/programs/?.*/status",
+            "/ga4gh/drs/v1/datasets/?.*",
+            "/ga4gh/drs/v1/datasets/?.*/status",
             "/htsget/v1/variants/?.*",
             "/htsget/v1/variants/search",
             "/htsget/v1/reads/?.*",
@@ -45,7 +45,7 @@
             "/beacon/v2/g_variants/?.*"
         ],
         "post": [
-            "/v1/authz/program",
+            "/v1/authz/dataset",
             "/v1/authz/s3-credential",
             "/v1/authz/site-role/?.*",
             "/v1/authz/user/?.*",
@@ -63,7 +63,7 @@
             "/v1/datasets/?.*"
         ],
         "delete": [
-            "/v1/authz/program/?.*",
+            "/v1/authz/dataset/?.*",
             "/v1/authz/s3-credential/?.*",
             "/v1/authz/site-role/?.*",
             "/v1/authz/user/?.*",
