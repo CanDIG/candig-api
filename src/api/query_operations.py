@@ -10,7 +10,7 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 
-from authx.auth import get_user_id
+from authx.auth import get_user_id, is_action_allowed_for_program
 from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
 
@@ -38,6 +38,23 @@ async def upload_file(file):
     temp_path = None
     try:
         content = await file.read()
+
+        # Before attempting to ingest a dataset, we need to check user permissions
+        try:
+            request = connexion.request
+            token = request.headers['Authorization'].split("Bearer ")[1]
+            jsoncontent = json.loads(content)
+            for dataset in jsoncontent['datasets']:
+                ds_id = dataset['dataset']['id']
+                logger.info(f"Test1 {ds_id}")
+                if not is_action_allowed_for_program(token, method="POST", path="/ingest/program", program=ds_id):
+                    logger.info(f"Test2 {ds_id}")
+                    return {
+                        "error": "Forbidden",
+                        "message": f"User {get_user_id(request)} does not have permission to ingest '{ds_id}'",
+                    }, 403
+        except Exception as e:
+            ProblemException(status=500, title="Uploaded File in Unexpected Format", detail=str(e))
 
         # Generate a unique ID for this job
         queue_id = secrets.token_hex(8)
