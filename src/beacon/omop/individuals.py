@@ -193,9 +193,12 @@ def format_query(listIds, dictPerson, dictCondition, dictProcedures, dictMeasure
         if any("race_concept_id" in d for d in dictPerson[person_id]):
             dictId["ethnicity"] = dictPerson[person_id][0]["race_concept_id"]
         if any("condition_concept_id" in d for d in dictCondition[person_id]):
-            dictId["diseases"] = list(map(mappings.diseases_table_map, dictCondition[person_id]))
+            diseases = list(map(mappings.diseases_table_map, dictCondition[person_id]))
+            dictId["diseases"] = [disease for disease in diseases if disease['diseaseCode'] is not None]
         if any("procedure_concept_id" in d for d in dictProcedures[person_id]):
-            dictId["interventionsOrProcedures"] = list(map(mappings.procedures_table_map, dictProcedures[person_id]))
+            procedures = list(map(mappings.procedures_table_map, dictProcedures[person_id]))
+            # clean up any concept_id == 0 responses
+            dictId["interventionsOrProcedures"] = [procedure for procedure in procedures if procedure['procedureCode'] is not None]
         if any("measurement_concept_id" in d for d in dictMeasures[person_id]):
             dictId["measures"] = list(map(mappings.measures_table_map, dictMeasures[person_id]))
         if any("observation_concept_id" in d for d in dictExposures[person_id]):
