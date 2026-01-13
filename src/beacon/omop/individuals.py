@@ -33,6 +33,7 @@ def get_basic_discovery_response():
     }
 
 async def get_individual_id(offset=0, limit=10, person_id=None):
+    datasets = authx.auth.get_opa_datasets(request)
     async with engine.connect() as conn:
         if person_id == None:
             # aiosql likes to swap params like :limit and :offset to %(limit)s and %(offset)s, which is unsafe
@@ -40,14 +41,12 @@ async def get_individual_id(offset=0, limit=10, person_id=None):
             transformed_sql = individual_queries.sql_get_individuals.sql \
                 .replace("%(limit)s", ":limit") \
                 .replace("%(offset)s", ":offset")
-            records = await conn.execute(text(transformed_sql), {"limit": limit, "offset": offset})
-            # records = individual_queries.sql_get_individuals(engine, offset=offset, limit=limit)
-            listId = [str(record[0]) for record in records]
+            records = await conn.execute(text(transformed_sql), {"limit": limit, "offset": offset}).all()
+            listId = [str(record[0]) for record in records if record[1] in datasets]
         else:
             transformed_sql = individual_queries.sql_get_individual_id.sql.replace("%(person_id)s", ":person_id")
-            records = await conn.execute(text(transformed_sql), {"person_id": person_id})
-            # records = individual_queries.sql_get_individual_id(engine, person_id=person_id)
-            listId = [str(records[0])]
+            records = await conn.execute(text(transformed_sql), {"person_id": person_id}).fetchone()
+            listId = [str(records[0])] if records[1] in datasets else []
     return listId
 
 async def get_individuals_person(listIds, filters_dict):
@@ -83,7 +82,6 @@ async def get_individuals_dataset(listIds, filters_dict):
 
 def get_datasets_allowed_filter(request, filters_dict):
     datasets = authx.auth.get_opa_datasets(request)
-    logger.info(f"datasets: {datasets}")
     # Create a filter on allowed datasets for this user
     if len(datasets) == 0:
         return "and false" # No allowed datasets

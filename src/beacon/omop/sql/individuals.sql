@@ -1,8 +1,8 @@
 
 -- name: sql_get_individuals
 -- Get individuals
-SELECT person_id
-FROM omop.person
+SELECT person_id, dataset_id
+FROM candig.person_in_dataset
 LIMIT :limit
 OFFSET :offset
 
@@ -33,8 +33,8 @@ JOIN omop.person AS p ON p.person_id=c.person_id
 
 -- name: sql_get_individual_id^
 -- Get individual by id
-SELECT DISTINCT person_id
-FROM omop.person
+SELECT DISTINCT person_id, dataset_id
+FROM candig.person_in_dataset
 WHERE person_id = :person_id
 
 -- name: sql_get_person
