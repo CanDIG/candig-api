@@ -41,11 +41,11 @@ async def get_individual_id(offset=0, limit=10, person_id=None):
             transformed_sql = individual_queries.sql_get_individuals.sql \
                 .replace("%(limit)s", ":limit") \
                 .replace("%(offset)s", ":offset")
-            records = await conn.execute(text(transformed_sql), {"limit": limit, "offset": offset}).all()
+            records = (await conn.execute(text(transformed_sql), {"limit": limit, "offset": offset})).all()
             listId = [str(record[0]) for record in records if record[1] in datasets]
         else:
             transformed_sql = individual_queries.sql_get_individual_id.sql.replace("%(person_id)s", ":person_id")
-            records = await conn.execute(text(transformed_sql), {"person_id": person_id}).fetchone()
+            records = (await conn.execute(text(transformed_sql), {"person_id": person_id})).fetchone()
             listId = [str(records[0])] if records[1] in datasets else []
     return listId
 
@@ -711,7 +711,8 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
         async with engine.connect() as conn:
             count_ids = await conn.execute(text(individual_queries.count_individuals.sql)) # Count individuals
             count_ids = count_ids.first()[0]
-            discovery_data = await get_discovery(create_dynamic_filter([], request))
+            base_filter, filters_dict = create_dynamic_filter([], request)
+            discovery_data = await get_discovery(base_filter, filters_dict)
         
     logger.info(f"Number of ids: ${count_ids}")
 
