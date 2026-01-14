@@ -20,7 +20,6 @@ from src.database.insert_operations import (
     create_visit_occurrence,
 )
 
-
 from typing import Any, Dict
 
 from src.database.db_operations import get_db_session

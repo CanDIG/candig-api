@@ -6,13 +6,14 @@ from ...beacon.omop import engine, mappings
 # from beacon.request.model import AlphanumericFilter, Operator, RequestParams
 from ...beacon.request.model import RequestParams
 from ...beacon.omop.schemas import DefaultSchemas
+from connexion import request
 import re
 import aiosql
 import itertools
 from sqlalchemy import text
 from ..conf import MAX_LIMIT
 
-
+import authx.auth
 from ...beacon.omop.utils import CDM_SCHEMA, VOCABULARIES_SCHEMA
 from ...beacon.omop.biosamples import get_biosamples_with_person_id
 from pathlib import Path
@@ -32,6 +33,7 @@ def get_basic_discovery_response():
     }
 
 async def get_individual_id(offset=0, limit=10, person_id=None):
+    datasets = authx.auth.get_opa_datasets(request)
     async with engine.connect() as conn:
         if person_id == None:
             # aiosql likes to swap params like :limit and :offset to %(limit)s and %(offset)s, which is unsafe
@@ -39,22 +41,22 @@ async def get_individual_id(offset=0, limit=10, person_id=None):
             transformed_sql = individual_queries.sql_get_individuals.sql \
                 .replace("%(limit)s", ":limit") \
                 .replace("%(offset)s", ":offset")
-            records = await conn.execute(text(transformed_sql), {"limit": limit, "offset": offset})
-            # records = individual_queries.sql_get_individuals(engine, offset=offset, limit=limit)
-            listId = [str(record[0]) for record in records]
+            records = (await conn.execute(text(transformed_sql), {"limit": limit, "offset": offset})).all()
+            listId = [str(record[0]) for record in records if record[1] in datasets]
         else:
             transformed_sql = individual_queries.sql_get_individual_id.sql.replace("%(person_id)s", ":person_id")
-            records = await conn.execute(text(transformed_sql), {"person_id": person_id})
-            # records = individual_queries.sql_get_individual_id(engine, person_id=person_id)
-            listId = [str(records[0])]
+            records = (await conn.execute(text(transformed_sql), {"person_id": person_id})).fetchone()
+            listId = [str(records[0])] if records[1] in datasets else []
     return listId
 
-async def get_individuals_person(listIds):
+async def get_individuals_person(listIds, filters_dict):
     dict_person = {}
+    these_filters = filters_dict.copy()
     async with engine.connect() as conn:
         transformed_sql = text(individual_queries.sql_get_person.sql.replace("%(person_id)s", ":person_id"))
         for person_id in listIds:
-            records = await conn.execute(transformed_sql, {"person_id": int(person_id)})
+            these_filters["person_id"] = int(person_id)
+            records = await conn.execute(transformed_sql, these_filters)
             # records = individual_queries.sql_get_person(engine, person_id=person_id)
             listValues = []
             for record in records:
@@ -63,25 +65,47 @@ async def get_individuals_person(listIds):
             dict_person[person_id] = listValues
     return dict_person
 
-async def get_individuals_dataset(listIds):
+async def get_individuals_dataset(listIds, filters_dict):
     dict_dataset = {}
+    these_filters = filters_dict.copy()
     # Could maybe speedup by batching a few listIds?
     async with engine.connect() as conn:
         transformed_sql = text(individual_queries.sql_get_dataset.sql.replace("%(person_id)s", ":person_id"))
         for person_id in listIds:
-            record = await conn.execute(transformed_sql, {"person_id": int(person_id)})
+            these_filters["person_id"] = int(person_id)
+            record = await conn.execute(transformed_sql, these_filters)
             db_id = record.fetchone()
             if db_id is not None:
                 dict_dataset[person_id] = db_id[0]
 
     return dict_dataset
 
-async def get_individuals_condition(listIds):
+def get_datasets_allowed_filter(filters_dict):
+    datasets = authx.auth.get_opa_datasets(request)
+    # Create a filter on allowed datasets for this user
+    if len(datasets) == 0:
+        return "and false" # No allowed datasets
+
+    ret_filter = 'and exists (SELECT 1 FROM candig.person_in_dataset d where p.person_id = d.person_id and ('
+    first = True
+    for i, dataset in enumerate(datasets):
+        if not first:
+            ret_filter += ' or '
+        first = False
+        ret_filter += f' dataset_id = :dataset{i}'
+        filters_dict[f'dataset{i}'] = dataset
+    # Close both the exists clause and also the chain of dataset_id conditionals
+    ret_filter += '))'
+    return ret_filter, filters_dict
+
+async def get_individuals_condition(listIds, filters_dict):
     dict_condition = {}
+    these_filters = filters_dict.copy()
     async with engine.connect() as conn:
         transformed_sql = text(individual_queries.sql_get_condition.sql.replace("%(person_id)s", ":person_id"))
         for person_id in listIds:
-            records = await conn.execute(transformed_sql, {"person_id": int(person_id)})
+            these_filters["person_id"] = int(person_id)
+            records = await conn.execute(transformed_sql, these_filters)
             # records = individual_queries.sql_get_condition(engine, person_id=person_id)
             listValues = []
             for record in records:
@@ -95,12 +119,14 @@ async def get_individuals_condition(listIds):
 
     return dict_condition
 
-async def get_individuals_procedure(listIds):
+async def get_individuals_procedure(listIds, filters_dict):
     dict_procedure = {}
+    these_filters = filters_dict.copy()
     async with engine.connect() as conn:
         transformed_sql = text(individual_queries.sql_get_procedure.sql.replace("%(person_id)s", ":person_id"))
         for person_id in listIds:
-            records = await conn.execute(transformed_sql, {"person_id": int(person_id)})
+            these_filters["person_id"] = int(person_id)
+            records = await conn.execute(transformed_sql, these_filters)
             # records = individual_queries.sql_get_procedure(engine, person_id=person_id)
             listValues = []
             for record in records:
@@ -115,12 +141,14 @@ async def get_individuals_procedure(listIds):
     return dict_procedure        
 
 
-async def get_individuals_measures(listIds):
+async def get_individuals_measures(listIds, filters_dict):
     dict_measures = {}
+    these_filters = filters_dict.copy()
     async with engine.connect() as conn:
         transformed_sql = text(individual_queries.sql_get_measure.sql.replace("%(person_id)s", ":person_id"))
         for person_id in listIds:
-            records = await conn.execute(transformed_sql, {"person_id": int(person_id)})
+            these_filters["person_id"] = int(person_id)
+            records = await conn.execute(transformed_sql, these_filters)
             # records = individual_queries.sql_get_measure(engine, person_id=person_id)
             listValues = []
             for record in records:
@@ -137,14 +165,16 @@ async def get_individuals_measures(listIds):
     return dict_measures
 
 
-async def get_individuals_exposures(listIds):
+async def get_individuals_exposures(listIds, filters_dict):
     dict_exposures = {}
+    these_filters = filters_dict.copy()
     async with engine.connect() as conn:
         transformed_sql = text(individual_queries.sql_get_exposure.sql.replace("%(person_id)s", ":person_id"))
         transformed_sql_duration = text(individual_queries.sql_get_exposure_period.sql.replace("%(person_id)s", ":person_id"))
         for person_id in listIds:
-            records = (await conn.execute(transformed_sql, {"person_id": int(person_id)})).fetchall()
-            records_duration = (await conn.execute(transformed_sql_duration, {"person_id": int(person_id)})).fetchall()
+            these_filters["person_id"] = int(person_id)
+            records = (await conn.execute(transformed_sql, these_filters)).fetchall()
+            records_duration = (await conn.execute(transformed_sql_duration, these_filters)).fetchall()
             # records = individual_queries.sql_get_exposure(engine, person_id=person_id)
             # records_duration = individual_queries.sql_get_exposure_period(engine, person_id=person_id)
             listValues = []
@@ -165,12 +195,14 @@ async def get_individuals_exposures(listIds):
             dict_exposures[person_id] = listValues
     return dict_exposures
 
-async def get_individuals_treatments(listIds):
+async def get_individuals_treatments(listIds, filters_dict):
     dict_treatments = {}
+    these_filters = filters_dict.copy()
     async with engine.connect() as conn:
         transformed_sql = text(individual_queries.sql_get_treatment.sql.replace("%(person_id)s", ":person_id"))
         for person_id in listIds:
-            records = await conn.execute(transformed_sql, {"person_id": int(person_id)})
+            these_filters["person_id"] = int(person_id)
+            records = await conn.execute(transformed_sql, these_filters)
             # records = individual_queries.sql_get_treatment(engine, person_id=person_id)
             listValues = []
             for record in records:
@@ -208,9 +240,6 @@ def format_query(listIds, dictPerson, dictCondition, dictProcedures, dictMeasure
         list_format.append(dictId)
     return list_format
 
-def parse_discovery(listIds, dictPerson, dictCondition, dictProcedures, dictMeasures, dictExposures, dictTreatments, dictDatasets):
-    discovery_data = get_basic_discovery_response()
-
 def map_domains(domain_id):
     # Domain_id : Table in OMOP
     # Maybe there is more than one mapping in the condition domain
@@ -236,6 +265,20 @@ async def search_descendants(concept_id):
         l_descendants.add(descendant[0])
     return l_descendants
 
+def safe_operator(operator):
+    # We only support a small subset of operators (see beacon-schema.yml:components/schemas/AlphanumericFilter/properties/operator)
+    # - '='
+    # - <
+    # - '>'
+    # - '!'
+    # - '>='
+    # - <=
+    if operator in ['=', '<', '>', '>=', '<=']:
+        return operator
+    if operator == '!':
+        return '!='
+    return '='
+
 def create_dynamic_filter(filters):
     base_filter = {
         'demographic_filters': '',
@@ -245,6 +288,7 @@ def create_dynamic_filter(filters):
         'exposures_filters': '',
         'treatments_filters': '',
     }
+    filters_dict = {}
 
     list_person = []
     n_open_condition = 0
@@ -257,7 +301,7 @@ def create_dynamic_filter(filters):
     query_exposure = ""
     n_open_treatment = 0
     query_treatment = ""
-    for filter in filters:
+    for i, filter in enumerate(filters):
         # Default type of filter is ontology
         filterType = 'Ontology'
         if filter[2]:       # If filter has an operator (operator!=None) it is an Alphanumeric filter
@@ -275,12 +319,12 @@ def create_dynamic_filter(filters):
             list_concept_id = []
             for concept_id in filter[1]:
                 if variable_name == 'Age':
-                    operator = filter[2]
-                    value = filter[3]
+                    operator = safe_operator(filter[2])
+                    filters_dict[f'value{i}'] = filter[3]
                     list_concept_id.append(f"""
                         CASE
-                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(condition_start_date, birth_datetime)) {operator} {value} 
-                            ELSE (extract(Year from condition_start_date) - year_of_birth)  {operator} {value}
+                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(condition_start_date, birth_datetime)) {operator} :value{i}
+                            ELSE (extract(Year from condition_start_date) - year_of_birth)  {operator} :value{i}
                         END
                         """)
                 else:
@@ -300,20 +344,24 @@ def create_dynamic_filter(filters):
             list_concept_id = []
             for concept_id in filter[1]:
                 if variable_name == 'Age':
-                    operator = filter[2]
-                    value = filter[3]
+                    operator = safe_operator(filter[2])
+                    filters_dict[f'value{i}'] = filter[3]
                     list_concept_id.append(f"""
                         CASE
-                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(measurement_date, birth_datetime)) {operator} {value} 
-                            ELSE (extract(Year from measurement_date) - year_of_birth)  {operator} {value}
+                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(measurement_date, birth_datetime)) {operator} :value{i}
+                            ELSE (extract(Year from measurement_date) - year_of_birth)  {operator} :value{i}
                         END
                         """)
                 elif filterType == 'Alphanumeric':
-                    value = filter[3]
-                    list_concept_id.append(variable_name + ' = ' + str(concept_id) +
-                                           ' and value_as_number ' + filter[2] + " " + value)
+                    operator = safe_operator(filter[2])
+                    filters_dict[f'value{i}'] = filter[3]
+                    filters_dict[f'concept{i}'] = str(concept_id)
+                    # TODO: fix this
+                    list_concept_id.append(variable_name + f' = :concept{i} and value_as_number {operator} :value{i}')
                 else:
-                    list_concept_id.append(variable_name + ' = ' + str(concept_id))
+                    # TODO: fix this
+                    filters_dict[f'concept{i}'] = str(concept_id)
+                    list_concept_id.append(variable_name + f' = :concept{i}')
             query_person_id =  ' or '.join(list_concept_id)
             query_measurement += f"""
                 and exists (
@@ -328,16 +376,18 @@ def create_dynamic_filter(filters):
             list_concept_id = []
             for concept_id in filter[1]:
                 if variable_name == 'Age':
-                    operator = filter[2]
-                    value = filter[3]
+                    operator = safe_operator(filter[2])
+                    filters_dict[f'value{i}'] = filter[3]
                     list_concept_id.append(f"""
                         CASE
-                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(procedure_date, birth_datetime)) {operator} {value} 
-                            ELSE (extract(Year from procedure_date) - year_of_birth)  {operator} {value}
+                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(procedure_date, birth_datetime)) {operator} :value{i}
+                            ELSE (extract(Year from procedure_date) - year_of_birth)  {operator} :value{i}
                         END
                         """)
                 else:
+                    # TODO: fix this
                     list_concept_id.append(variable_name + ' = ' + str(concept_id))
+            # TODO: fix this
             query_person_id =  ' or '.join(list_concept_id)
             query_procedure += f"""
                 and exists (
@@ -352,16 +402,18 @@ def create_dynamic_filter(filters):
             list_concept_id = []
             for concept_id in filter[1]:
                 if variable_name == 'Age':
-                    operator = filter[2]
-                    value = filter[3]
+                    operator = safe_operator(filter[2])
+                    filters_dict[f'value{i}'] = filter[3]
                     list_concept_id.append(f"""
                         CASE
-                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(observation_date, birth_datetime)) {operator} {value} 
-                            ELSE (extract(Year from observation_date) - year_of_birth)  {operator} {value}
+                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(observation_date, birth_datetime)) {operator} :value{i}
+                            ELSE (extract(Year from observation_date) - year_of_birth)  {operator} :value{i}
                         END
                         """)
                 else:
+                    # TODO: fix this
                     list_concept_id.append(variable_name + ' = ' + str(concept_id))
+            # TODO: fix this
             query_person_id =  ' or '.join(list_concept_id)
             query_exposure += f"""
                 and exists (
@@ -376,16 +428,18 @@ def create_dynamic_filter(filters):
             list_concept_id = []
             for concept_id in filter[1]:
                 if variable_name == 'Age':
-                    operator = filter[2]
-                    value = filter[3]
+                    operator = safe_operator(filter[2])
+                    filters_dict[f'value{i}'] = filter[3]
                     list_concept_id.append(f"""
                         CASE
-                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(drug_exposure_start_date, birth_datetime)) {operator} {value} 
-                            ELSE (extract(Year from drug_exposure_start_date) - year_of_birth)  {operator} {value}
+                            WHEN birth_datetime IS NOT NULL THEN extract(Year from age(drug_exposure_start_date, birth_datetime)) {operator} :value{i}
+                            ELSE (extract(Year from drug_exposure_start_date) - year_of_birth)  {operator} :value{i}
                         END
                         """)
                 else:
+                    # TODO: fix this
                     list_concept_id.append(variable_name + ' = ' + str(concept_id))
+            # TODO: fix this
             query_person_id =  ' or '.join(list_concept_id)
             query_treatment += f"""
                 and exists (
@@ -409,8 +463,9 @@ def create_dynamic_filter(filters):
     base_filter['procedures_filters'] += query_procedure
     base_filter['exposures_filters'] += query_exposure
     base_filter['treatments_filters'] += query_treatment
+    base_filter['datasets_filters'], filters_dict = get_datasets_allowed_filter(filters_dict)
 
-    return base_filter
+    return base_filter, filters_dict
 
 def super_query_count(filter):
     return  f""" select count(distinct person_id)
@@ -494,6 +549,7 @@ def super_query_get(filter, offset, limit):
         {filter['procedures_filters']}
         {filter['exposures_filters']}
         {filter['treatments_filters']}
+        {filter['datasets_filters']}
 
         limit {limit}
         offset {offset}
@@ -509,24 +565,24 @@ def mapBeaconScopeToOMOP(scope):
     scopeMapping = {mappingDict[scope]:'Age'}
     return scopeMapping
 
-async def format_filtered_discovery(discovery_query):
+async def format_filtered_discovery(discovery_query, filters_dict):
     retval = {}
-    discovery_results = (await basic_query(discovery_query)).fetchall()
+    discovery_results = (await basic_query(discovery_query, filters_dict)).fetchall()
     for value, count in discovery_results:
         retval[value] = count
     return retval
 
-async def get_discovery(base_filter):
+async def get_discovery(base_filter, filters_dict):
     """
     Obtain the discovery query portion of the "info" response
     
     :param dictTableMap: dictionary of filters from create_dynamic_filter() 
     """
     discovery = get_basic_discovery_response()
-    discovery['primary_site_count'] = await format_filtered_discovery(discovery_query_primary_site(base_filter))
-    discovery['treatment_type_count'] = await format_filtered_discovery(discovery_query_treatment_type(base_filter))
-    discovery['patients_per_program'] = await format_filtered_discovery(discovery_query_program(base_filter))
-    discovery['drug_type_count'] = await format_filtered_discovery(discovery_query_drug_type(base_filter))
+    discovery['primary_site_count'] = await format_filtered_discovery(discovery_query_primary_site(base_filter), filters_dict)
+    discovery['treatment_type_count'] = await format_filtered_discovery(discovery_query_treatment_type(base_filter), filters_dict)
+    discovery['patients_per_program'] = await format_filtered_discovery(discovery_query_program(base_filter), filters_dict)
+    discovery['drug_type_count'] = await format_filtered_discovery(discovery_query_drug_type(base_filter), filters_dict)
     return discovery
 
 async def checkFilters(filtersDict, offset, limit, typeQuery):
@@ -608,31 +664,31 @@ async def checkFilters(filtersDict, offset, limit, typeQuery):
                     listConcept_id = listConcept_id.union(concept_ids)
                 dictTableMap.append([tableMap, listConcept_id, operator, value])
     # logger.info(dictTableMap)
-    base_filter = create_dynamic_filter(dictTableMap)
+    base_filter, filters_dict = create_dynamic_filter(dictTableMap)
     query_count = super_query_count(base_filter)
-    count_records = (await basic_query(query_count)).fetchone()[0]
+    count_records = (await basic_query(query_count, filters_dict)).fetchone()[0]
 
     # We also need the discovery query
-    discovery = await get_discovery(base_filter)
+    discovery = await get_discovery(base_filter, filters_dict)
 
     query_get = super_query_get(base_filter, offset, limit)
-    logger.info(query_get)
-    records_get = await basic_query(query_get)
+    # logger.info(query_get)
+    records_get = await basic_query(query_get, filters_dict)
     listOfList = [str(record[0]) for record in records_get]
 
-    return listOfList, count_records, discovery
+    return listOfList, count_records, discovery, filters_dict
 
 # /individuals/?filters=SNOMED:0&filters=OMOP:23
 async def filters(filtersDict, offset, limit):
     # logger.info(filtersDict)
     if type(filtersDict[0]) is dict:         # If filter is from Post
-        logger.info("post")
-        listFilters, count, discovery = await checkFilters(filtersDict, offset, limit, 'POST')
+        # logger.info("post")
+        listFilters, count, discovery, filters_dict = await checkFilters(filtersDict, offset, limit, 'POST')
     else:
         # logger.info("get")
-        listFilters, count, discovery = await checkFilters(filtersDict, offset, limit, 'GET')
+        listFilters, count, discovery, filters_dict = await checkFilters(filtersDict, offset, limit, 'GET')
 
-    return listFilters, count, discovery
+    return listFilters, count, discovery, filters_dict
                                                       
 async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=RequestParams()):
 
@@ -643,7 +699,7 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
         qparams.query.pagination.limit = MAX_LIMIT
     if qparams.query.filters and len(qparams.query.filters) > 0 and len(qparams.query.filters[0]) > 0:
         # NB: qparams.query.filters is a list, whereas we need it to be a dict?
-        listIds, count_ids, discovery_data = await filters(qparams.query.filters[0],
+        listIds, count_ids, discovery_data, filters_dict = await filters(qparams.query.filters[0],
                         offset=qparams.query.pagination.skip,
                         limit=qparams.query.pagination.limit)
         if count_ids == 0:
@@ -655,19 +711,20 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
         async with engine.connect() as conn:
             count_ids = await conn.execute(text(individual_queries.count_individuals.sql)) # Count individuals
             count_ids = count_ids.first()[0]
-            discovery_data = await get_discovery(create_dynamic_filter([]))
+            base_filter, filters_dict = create_dynamic_filter([])
+            discovery_data = await get_discovery(base_filter, filters_dict)
         
-    logger.info(f"Number of ids: ${count_ids}")
+    # logger.info(f"Number of ids: ${count_ids}")
 
     # NB: I'm concerned about the memory usage of the following
 
-    dictPerson = await get_individuals_person(listIds)        # List with Id, sex, ethnicity
-    dictCondition = await get_individuals_condition(listIds)  # List with al the diseases per Id
-    dictProcedures = await get_individuals_procedure(listIds)
-    dictMeasures = await get_individuals_measures(listIds)
-    dictExposures = await get_individuals_exposures(listIds)
-    dictTreatments = await get_individuals_treatments(listIds)
-    dictDatasets = await get_individuals_dataset(listIds)
+    dictPerson = await get_individuals_person(listIds, filters_dict)        # List with Id, sex, ethnicity
+    dictCondition = await get_individuals_condition(listIds, filters_dict)  # List with al the diseases per Id
+    dictProcedures = await get_individuals_procedure(listIds, filters_dict)
+    dictMeasures = await get_individuals_measures(listIds, filters_dict)
+    dictExposures = await get_individuals_exposures(listIds, filters_dict)
+    dictTreatments = await get_individuals_treatments(listIds, filters_dict)
+    dictDatasets = await get_individuals_dataset(listIds, filters_dict)
 
     dictPerson = await search_ontologies(dictPerson)
     dictCondition = await search_ontologies(dictCondition)
@@ -741,7 +798,7 @@ async def get_filtering_terms_of_individual(entry_id: Optional[str], qparams: Re
                     continue
                 dict_filter = {"id":filters[0],"label":filters[1],"scopes":["individual"],"type":"ontology"}
                 l_indFilters.append(dict_filter)
-    logger.info(l_indFilters)
+    # logger.info(l_indFilters)
     return schema, len(l_indFilters), l_indFilters
 
 def get_cohort_individuals(cohort_id, offset=0, limit=10):
