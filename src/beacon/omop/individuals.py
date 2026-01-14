@@ -80,7 +80,7 @@ async def get_individuals_dataset(listIds, filters_dict):
 
     return dict_dataset
 
-def get_datasets_allowed_filter(request, filters_dict):
+def get_datasets_allowed_filter(filters_dict):
     datasets = authx.auth.get_opa_datasets(request)
     # Create a filter on allowed datasets for this user
     if len(datasets) == 0:
@@ -279,7 +279,7 @@ def safe_operator(operator):
         return '!='
     return '='
 
-def create_dynamic_filter(filters, request):
+def create_dynamic_filter(filters):
     base_filter = {
         'demographic_filters': '',
         'condition_filters': '',
@@ -463,7 +463,7 @@ def create_dynamic_filter(filters, request):
     base_filter['procedures_filters'] += query_procedure
     base_filter['exposures_filters'] += query_exposure
     base_filter['treatments_filters'] += query_treatment
-    base_filter['datasets_filters'], filters_dict = get_datasets_allowed_filter(request, filters_dict)
+    base_filter['datasets_filters'], filters_dict = get_datasets_allowed_filter(filters_dict)
 
     return base_filter, filters_dict
 
@@ -585,7 +585,7 @@ async def get_discovery(base_filter, filters_dict):
     discovery['drug_type_count'] = await format_filtered_discovery(discovery_query_drug_type(base_filter), filters_dict)
     return discovery
 
-async def checkFilters(filtersDict, offset, limit, typeQuery, request):
+async def checkFilters(filtersDict, offset, limit, typeQuery):
     listOfList = []
     dictTableMap = []
     async with engine.connect() as conn:
@@ -664,7 +664,7 @@ async def checkFilters(filtersDict, offset, limit, typeQuery, request):
                     listConcept_id = listConcept_id.union(concept_ids)
                 dictTableMap.append([tableMap, listConcept_id, operator, value])
     # logger.info(dictTableMap)
-    base_filter, filters_dict = create_dynamic_filter(dictTableMap, request)
+    base_filter, filters_dict = create_dynamic_filter(dictTableMap)
     query_count = super_query_count(base_filter)
     count_records = (await basic_query(query_count, filters_dict)).fetchone()[0]
 
@@ -683,10 +683,10 @@ async def filters(filtersDict, offset, limit):
     # logger.info(filtersDict)
     if type(filtersDict[0]) is dict:         # If filter is from Post
         # logger.info("post")
-        listFilters, count, discovery, filters_dict = await checkFilters(filtersDict, offset, limit, 'POST', request)
+        listFilters, count, discovery, filters_dict = await checkFilters(filtersDict, offset, limit, 'POST')
     else:
         # logger.info("get")
-        listFilters, count, discovery, filters_dict = await checkFilters(filtersDict, offset, limit, 'GET', request)
+        listFilters, count, discovery, filters_dict = await checkFilters(filtersDict, offset, limit, 'GET')
 
     return listFilters, count, discovery, filters_dict
                                                       
@@ -711,7 +711,7 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
         async with engine.connect() as conn:
             count_ids = await conn.execute(text(individual_queries.count_individuals.sql)) # Count individuals
             count_ids = count_ids.first()[0]
-            base_filter, filters_dict = create_dynamic_filter([], request)
+            base_filter, filters_dict = create_dynamic_filter([])
             discovery_data = await get_discovery(base_filter, filters_dict)
         
     # logger.info(f"Number of ids: ${count_ids}")
