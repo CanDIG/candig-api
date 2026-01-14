@@ -672,7 +672,7 @@ async def checkFilters(filtersDict, offset, limit, typeQuery, request):
     discovery = await get_discovery(base_filter, filters_dict)
 
     query_get = super_query_get(base_filter, offset, limit)
-    logger.info(query_get)
+    # logger.info(query_get)
     records_get = await basic_query(query_get, filters_dict)
     listOfList = [str(record[0]) for record in records_get]
 
@@ -682,7 +682,7 @@ async def checkFilters(filtersDict, offset, limit, typeQuery, request):
 async def filters(filtersDict, offset, limit):
     # logger.info(filtersDict)
     if type(filtersDict[0]) is dict:         # If filter is from Post
-        logger.info("post")
+        # logger.info("post")
         listFilters, count, discovery, filters_dict = await checkFilters(filtersDict, offset, limit, 'POST', request)
     else:
         # logger.info("get")
@@ -714,7 +714,7 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
             base_filter, filters_dict = create_dynamic_filter([], request)
             discovery_data = await get_discovery(base_filter, filters_dict)
         
-    logger.info(f"Number of ids: ${count_ids}")
+    # logger.info(f"Number of ids: ${count_ids}")
 
     # NB: I'm concerned about the memory usage of the following
 
@@ -798,7 +798,7 @@ async def get_filtering_terms_of_individual(entry_id: Optional[str], qparams: Re
                     continue
                 dict_filter = {"id":filters[0],"label":filters[1],"scopes":["individual"],"type":"ontology"}
                 l_indFilters.append(dict_filter)
-    logger.info(l_indFilters)
+    # logger.info(l_indFilters)
     return schema, len(l_indFilters), l_indFilters
 
 def get_cohort_individuals(cohort_id, offset=0, limit=10):
