@@ -1,24 +1,19 @@
-from typing import Dict, List, Optional
-# from beacon.omop.filters import apply_alphanumeric_filter, apply_filters
-# from beacon.omop.utils import  get_count, get_cross_query, get_documents, search_ontologies, basic_query
+import re
+
+from typing import Optional
 from ...beacon.omop.utils import  search_ontologies, basic_query, peek
 from ...beacon.omop import engine, mappings
-# from beacon.request.model import AlphanumericFilter, Operator, RequestParams
 from ...beacon.request.model import RequestParams
 from ...beacon.omop.schemas import DefaultSchemas
 from connexion import request
-import re
 import aiosql
-import itertools
 from sqlalchemy import text
 from ..conf import MAX_LIMIT
 
 import authx.auth
-from ...beacon.omop.utils import CDM_SCHEMA, VOCABULARIES_SCHEMA
 from ...beacon.omop.biosamples import get_biosamples_with_person_id
 from pathlib import Path
-
-from candigv2_logging.logging import CanDIGLogger, initialize
+from candigv2_logging.logging import CanDIGLogger
 
 logger = CanDIGLogger(__file__)
 
@@ -133,12 +128,12 @@ async def get_individuals_procedure(listIds, filters_dict):
                 if record[1] == "None":
                     ageOfOnset = "Not Available"
                 else:
-                    ageOfOnset = f"P{record[1]}Y"            
+                    ageOfOnset = f"P{record[1]}Y"
                 listValues.append({"procedure_concept_id" : record[0],
                                     "procedure_ageOfOnset" : ageOfOnset,
                                     "procedure_date" : record[2]})
             dict_procedure[person_id] = listValues
-    return dict_procedure        
+    return dict_procedure
 
 
 async def get_individuals_measures(listIds, filters_dict):
@@ -213,7 +208,7 @@ async def get_individuals_treatments(listIds, filters_dict):
                 listValues.append({"drugExposure_concept_id" : record[0],
                                     "drugExposure_ageOfOnset" : ageOfOnset})
             dict_treatments[person_id] = listValues
-    return dict_treatments 
+    return dict_treatments
 
 
 def format_query(listIds, dictPerson, dictCondition, dictProcedures, dictMeasures, dictExposures, dictTreatments, dictDatasets):
@@ -279,6 +274,13 @@ def safe_operator(operator):
         return '!='
     return '='
 
+def safe_column_name(name):
+    # https://www.postgresql.org/docs/7.0/syntax525.htm
+    # Names in SQL must begin with a letter (a-z) or underscore (_). Subsequent characters in a name can be letters, digits (0-9), or underscores
+    # Since none of the omop table column names involve quotation marks, I'm disallowing them here
+    # We can revisit this later if the above is not a valid assumption
+    return re.sub(r'[^a-zA-Z0-9_]', '', name)
+
 def create_dynamic_filter(filters):
     base_filter = {
         'demographic_filters': '',
@@ -301,7 +303,8 @@ def create_dynamic_filter(filters):
     query_exposure = ""
     n_open_treatment = 0
     query_treatment = ""
-    for i, filter in enumerate(filters):
+    i = 0
+    for filter in filters:
         # Default type of filter is ontology
         filterType = 'Ontology'
         if filter[2]:       # If filter has an operator (operator!=None) it is an Alphanumeric filter
@@ -309,13 +312,17 @@ def create_dynamic_filter(filters):
         if "person" in filter[0]:
             variable_name = filter[0]['person']
             list_concept_id = []
+            safe_var_name = safe_column_name(variable_name)
             for concept_id in filter[1]:
-                list_concept_id.append(variable_name + ' = ' + str(concept_id))
+                filters_dict[f'value{i}'] = concept_id
+                list_concept_id.append(f'{safe_var_name} = :value{i}')
+                i += 1
             query_person_id =  ' or '.join(list_concept_id)
             list_person.append(' ( ' + query_person_id + ' ) ')
         if "condition_occurrence" in filter[0]:
-            n_open_condition += 1 
+            n_open_condition += 1
             variable_name = filter[0]['condition_occurrence']
+            safe_var_name = safe_column_name(variable_name)
             list_concept_id = []
             for concept_id in filter[1]:
                 if variable_name == 'Age':
@@ -328,7 +335,9 @@ def create_dynamic_filter(filters):
                         END
                         """)
                 else:
-                    list_concept_id.append(variable_name + ' = ' + str(concept_id))
+                    filters_dict[f'value{i}'] = concept_id
+                    list_concept_id.append(f'{safe_var_name} = :value{i}')
+                i += 1
             query_person_id =  ' or '.join(list_concept_id)
             # This can be a function to no repeat always the same -> filter[0]
             query_condition += f"""
@@ -339,10 +348,11 @@ def create_dynamic_filter(filters):
                     and ({query_person_id})
             """
         if 'measurement' in filter[0]:
-            n_open_measurement += 1 
+            n_open_measurement += 1
             variable_name = filter[0]['measurement']
             list_concept_id = []
             for concept_id in filter[1]:
+                safe_var_name = safe_column_name(variable_name)
                 if variable_name == 'Age':
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
@@ -356,12 +366,11 @@ def create_dynamic_filter(filters):
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
                     filters_dict[f'concept{i}'] = str(concept_id)
-                    # TODO: fix this
-                    list_concept_id.append(variable_name + f' = :concept{i} and value_as_number {operator} :value{i}')
+                    list_concept_id.append(f'{safe_var_name} = :concept{i} and value_as_number {operator} :value{i}')
                 else:
-                    # TODO: fix this
                     filters_dict[f'concept{i}'] = str(concept_id)
-                    list_concept_id.append(variable_name + f' = :concept{i}')
+                    list_concept_id.append(f'{safe_var_name} = :concept{i}')
+                i += 1
             query_person_id =  ' or '.join(list_concept_id)
             query_measurement += f"""
                 and exists (
@@ -371,10 +380,11 @@ def create_dynamic_filter(filters):
                     and ({query_person_id})
             """
         if 'procedure_occurrence' in filter[0]:
-            n_open_procedure += 1 
+            n_open_procedure += 1
             variable_name = filter[0]['procedure_occurrence']
             list_concept_id = []
             for concept_id in filter[1]:
+                safe_var_name = safe_column_name(variable_name)
                 if variable_name == 'Age':
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
@@ -385,9 +395,9 @@ def create_dynamic_filter(filters):
                         END
                         """)
                 else:
-                    # TODO: fix this
-                    list_concept_id.append(variable_name + ' = ' + str(concept_id))
-            # TODO: fix this
+                    filters_dict[f'value{i}'] = concept_id
+                    list_concept_id.append(f'{safe_var_name} = :value{i}')
+                i += 1
             query_person_id =  ' or '.join(list_concept_id)
             query_procedure += f"""
                 and exists (
@@ -397,10 +407,11 @@ def create_dynamic_filter(filters):
                     and ({query_person_id})
             """
         if 'observation' in filter[0]:
-            n_open_exposure += 1 
+            n_open_exposure += 1
             variable_name = filter[0]['observation']
             list_concept_id = []
             for concept_id in filter[1]:
+                safe_var_name = safe_column_name(variable_name)
                 if variable_name == 'Age':
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
@@ -411,9 +422,9 @@ def create_dynamic_filter(filters):
                         END
                         """)
                 else:
-                    # TODO: fix this
-                    list_concept_id.append(variable_name + ' = ' + str(concept_id))
-            # TODO: fix this
+                    filters_dict[f'value{i}'] = concept_id
+                    list_concept_id.append(f'{safe_var_name} = :value{i}')
+                i += 1
             query_person_id =  ' or '.join(list_concept_id)
             query_exposure += f"""
                 and exists (
@@ -427,6 +438,7 @@ def create_dynamic_filter(filters):
             variable_name = filter[0]['drug_exposure']
             list_concept_id = []
             for concept_id in filter[1]:
+                safe_var_name = safe_column_name(variable_name)
                 if variable_name == 'Age':
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
@@ -437,9 +449,9 @@ def create_dynamic_filter(filters):
                         END
                         """)
                 else:
-                    # TODO: fix this
-                    list_concept_id.append(variable_name + ' = ' + str(concept_id))
-            # TODO: fix this
+                    filters_dict[f'value{i}'] = concept_id
+                    list_concept_id.append(f'{safe_var_name} = :value{i}')
+                i += 1
             query_person_id =  ' or '.join(list_concept_id)
             query_treatment += f"""
                 and exists (
@@ -447,8 +459,8 @@ def create_dynamic_filter(filters):
                     from omop.drug_exposure co
                     where p.person_id = co.person_id
                     and ({query_person_id})
-            """         
-        
+            """
+
     query_condition += ')'* n_open_condition
     query_measurement += ')'* n_open_measurement
     query_procedure += ')'* n_open_procedure
@@ -575,8 +587,8 @@ async def format_filtered_discovery(discovery_query, filters_dict):
 async def get_discovery(base_filter, filters_dict):
     """
     Obtain the discovery query portion of the "info" response
-    
-    :param dictTableMap: dictionary of filters from create_dynamic_filter() 
+
+    :param dictTableMap: dictionary of filters from create_dynamic_filter()
     """
     discovery = get_basic_discovery_response()
     discovery['primary_site_count'] = await format_filtered_discovery(discovery_query_primary_site(base_filter), filters_dict)
@@ -689,7 +701,7 @@ async def filters(filtersDict, offset, limit):
         listFilters, count, discovery, filters_dict = await checkFilters(filtersDict, offset, limit, 'GET')
 
     return listFilters, count, discovery, filters_dict
-                                                      
+
 async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=RequestParams()):
 
     schema = DefaultSchemas.INDIVIDUALS
@@ -713,7 +725,7 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
             count_ids = count_ids.first()[0]
             base_filter, filters_dict = create_dynamic_filter([])
             discovery_data = await get_discovery(base_filter, filters_dict)
-        
+
     # logger.info(f"Number of ids: ${count_ids}")
 
     # NB: I'm concerned about the memory usage of the following
@@ -742,14 +754,14 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
 
 
 def get_individual_with_id(entry_id: Optional[str], qparams: RequestParams):
-    
+
     schema = DefaultSchemas.INDIVIDUALS
 
     if qparams.query.filters:
         originalListIds = filters(qparams.query.filters)
         if not entry_id in listIds:
             return schema, 0, []
-    
+
     # Search Id
     listIds = get_individual_id(person_id=entry_id)
 
