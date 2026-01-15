@@ -10,9 +10,10 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 
-from authx.auth import get_user_id, is_action_allowed_for_program
+from authx.auth import get_user_id
 from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
+from src.api.auth import is_action_allowed
 
 from ..config import settings  # Import settings
 
@@ -46,9 +47,7 @@ async def upload_file(file):
             jsoncontent = json.loads(content)
             for dataset in jsoncontent['datasets']:
                 ds_id = dataset['dataset']['id']
-                # logger.info(f"Test1 {ds_id}")
-                if not is_action_allowed_for_program(token, method="POST", path="/ingest/program", program=ds_id):
-                    # logger.info(f"Test2 {ds_id}")
+                if not is_action_allowed(dataset=ds_id):
                     return {
                         "error": "Forbidden",
                         "message": f"User {get_user_id(request)} does not have permission to ingest '{ds_id}'",
