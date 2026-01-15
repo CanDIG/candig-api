@@ -3,7 +3,7 @@ import os
 import re
 import json
 import urllib
-
+from connexion import request
 
 def is_default_site_admin_set():
     default_site_admin = os.getenv("DEFAULT_SITE_ADMIN_USER", "")
@@ -24,7 +24,10 @@ def get_refresh_token(token):
         )
 
 
-def is_action_allowed_for_dataset(token, method=None, path=None, dataset=None):
+def is_action_allowed(dataset=None):
+    path = request.url.path
+    method = request.method
+    token = authx.auth.get_auth_token(request)
     return authx.auth.is_action_allowed_for_program(token, method=method, path=path, program=dataset)
 
 
