@@ -35,8 +35,7 @@ def get_service_info():
 
 async def add_s3_credential():
     data = await connexion.request.json()
-    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not auth.is_action_allowed_for_dataset(token, method="POST", path="/v1/authz/s3-credential", dataset=None):
+    if not auth.is_action_allowed():
         return {"error": "Not authorized to store aws credentials"}, 403
 
     # test endpoint before storing:
@@ -51,8 +50,7 @@ async def add_s3_credential():
 
 @app.route('/s3-credential/endpoint/<path:endpoint_id>/bucket/<path:bucket_id>')
 def get_s3_credential(endpoint_id, bucket_id):
-    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/s3-credential", dataset=None):
+    if not auth.is_action_allowed():
         return {"error": "Not authorized to view aws credentials"}, 403
     endpoint_cleaned = re.sub(r"\W", "_", endpoint_id)
     return authx.auth.get_aws_credential(endpoint=endpoint_cleaned, bucket=bucket_id)
@@ -60,8 +58,7 @@ def get_s3_credential(endpoint_id, bucket_id):
 
 @app.route('/s3-credential/endpoint/<path:endpoint_id>/bucket/<path:bucket_id>')
 def delete_s3_credential(endpoint_id, bucket_id):
-    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not auth.is_action_allowed_for_dataset(token, method="DELETE", path="/v1/authz/s3-credential", dataset=None):
+    if not auth.is_action_allowed():
         return {"error": "Not authorized to remove aws credentials"}, 403
     endpoint_cleaned = re.sub(r"\W", "_", endpoint_id)
     return authx.auth.remove_aws_credential(endpoint=endpoint_cleaned, bucket=bucket_id)
@@ -74,8 +71,7 @@ def delete_s3_credential(endpoint_id, bucket_id):
 @app.route('/site-role/<path:role_type>')
 def list_role(role_type):
     try:
-        token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-        if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/site-role", dataset=None):
+        if not auth.is_action_allowed():
             return {"error": f"User not authorized to list site roles"}, 403
 
         result, status_code = auth.get_role_type(role_type)
@@ -87,9 +83,7 @@ def list_role(role_type):
 @app.route('/site-role/<path:role_type>/user_id/<path:user_id>')
 def is_user_in_role(role_type, user_id):
     try:
-        token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-
-        if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/site-role", dataset=None):
+        if not auth.is_action_allowed():
             return {"error": f"User not authorized to list site roles"}, 403
 
         result, status_code = auth.get_role_type(role_type)
@@ -103,8 +97,7 @@ def is_user_in_role(role_type, user_id):
 @app.route('/site-role/<path:role_type>/user_id/<path:user_id>')
 def add_user_to_role(role_type, user_id):
     try:
-        token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-        if not auth.is_action_allowed_for_dataset(token, method="POST", path="/v1/authz/site-role", dataset=None):
+        if not auth.is_action_allowed():
             return {"error": f"User not authorized to add to site roles"}, 403
 
         result, status_code = auth.get_role_type(role_type)
@@ -120,8 +113,7 @@ def add_user_to_role(role_type, user_id):
 @app.route('/site-role/<path:role_type>/user_id/<path:user_id>')
 def remove_user_from_role(role_type, user_id):
     try:
-        token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-        if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/site-role", dataset=None):
+        if not auth.is_action_allowed():
             return {"error": f"User not authorized to remove users from site roles"}, 403
 
         result, status_code = auth.get_role_type(role_type)
@@ -143,9 +135,7 @@ def remove_user_from_role(role_type, user_id):
 ####
 
 def list_datasets():
-    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-
-    if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/dataset", dataset=None):
+    if not auth.is_action_allowed():
         return {"error": f"User not authorized to list datasets"}, 403
 
     response, status_code = auth.list_datasets()
@@ -154,8 +144,7 @@ def list_datasets():
 
 async def add_dataset():
     dataset = await connexion.request.json()
-    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not auth.is_action_allowed_for_dataset(token, method="POST", path="/v1/authz/dataset", dataset=dataset['dataset_id']):
+    if not auth.is_action_allowed(dataset=dataset['dataset_id']):
         return {"error": f"User not authorized to add dataset {dataset['dataset_id']}"}, 403
 
     response, status_code = auth.add_dataset(dataset)
@@ -167,9 +156,7 @@ async def add_dataset():
 
 @app.route('/dataset/<path:dataset_id>')
 def get_dataset(dataset_id):
-    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-
-    if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/dataset", dataset=dataset_id):
+    if not auth.is_action_allowed(dataset=dataset_id):
         return {"error": f"User not authorized to get dataset {dataset_id}"}, 403
 
     response, status_code = auth.get_dataset(dataset_id)
@@ -182,9 +169,7 @@ def get_dataset(dataset_id):
 
 @app.route('/dataset/<path:dataset_id>/dac_authorization')
 def get_dataset_dacs(dataset_id):
-    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-
-    if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/dataset", dataset=dataset_id):
+    if not auth.is_action_allowed(dataset=dataset_id):
         return {"error": f"User not authorized to get dataset {dataset_id}"}, 403
 
     response, status_code = auth.get_dataset(dataset_id)
@@ -199,9 +184,7 @@ def get_dataset_dacs(dataset_id):
 
 @app.route('/dataset/<path:dataset_id>')
 def remove_dataset(dataset_id):
-    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-
-    if not auth.is_action_allowed_for_dataset(token, method="DELETE", path="/v1/authz/dataset", dataset=dataset_id):
+    if not auth.is_action_allowed(dataset=dataset_id):
         return {"error": "User not authorized to remove datasets"}, 403
 
     response = {"errors": {}}
@@ -245,8 +228,7 @@ def list_pending_users():
 
 @app.route('/user/pending/<path:user_id>')
 def is_user_pending(user_id):
-    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-    if not auth.is_action_allowed_for_dataset(token, method="GET", path=f"/v1/authz/user/pending/{user_id}", dataset=None):
+    if not auth.is_action_allowed():
         return {"error": "User not authorized to list datasets for user"}, 403
 
     if user_id == "me":
@@ -392,7 +374,7 @@ def list_authz_for_user(user_id):
     token = connexion.request.headers['Authorization'].split("Bearer ")[1]
 
     status_code = 0
-    if not auth.is_action_allowed_for_dataset(token, method="GET", path=f"/v1/authz/user/{user_id}", dataset=None):
+    if not auth.is_action_allowed():
         return {"error": "User not authorized to list datasets for user"}, 403
 
     self_checkup = user_id == "me"
@@ -437,9 +419,7 @@ def list_authz_for_user(user_id):
 
 @app.route('/user/<path:user_id>')
 def revoke_authz_for_user(user_id):
-    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-
-    if not auth.is_action_allowed_for_dataset(token, method="DELETE", path=f"/v1/authz/user/{user_id}", dataset=None):
+    if not auth.is_action_allowed():
         return {"error": "User not authorized to revoke authorization for users"}, 403
 
     response, status_code = auth.remove_user(user_id)
@@ -454,7 +434,6 @@ async def add_dac_authz_for_user(user_id):
         # if the body was a dict, make it an array
         dataset_body = [dataset_body]
 
-    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
     user_dict, status_code = auth.get_user(user_id)
     if status_code != 200:
         user_dict = {
@@ -477,7 +456,7 @@ async def add_dac_authz_for_user(user_id):
 
     for dataset_dict in dataset_body:
         dataset_id = dataset_dict["dataset_id"]
-        if not auth.is_action_allowed_for_dataset(token, method="POST", path="/v1/authz/user", dataset=dataset_id):
+        if not auth.is_action_allowed(dataset=dataset_id):
             errors.append({dataset_id: "User not authorized to authorize datasets for user"})
 
         # we need to check to see if the dataset even exists in the system
@@ -516,9 +495,7 @@ async def add_dac_authz_for_user(user_id):
 
 @app.route('/user/<path:user_id>/dac_authorization/<path:dataset_id>')
 def get_dac_authz_for_user(user_id, dataset_id):
-    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-
-    if not auth.is_action_allowed_for_dataset(token, method="GET", path="/v1/authz/user", dataset=None):
+    if not auth.is_action_allowed():
         return {"error": "User not authorized to get datasets for user"}, 403
 
     user_dict, status_code = auth.get_user(user_id)
@@ -534,9 +511,7 @@ def get_dac_authz_for_user(user_id, dataset_id):
 
 @app.route('/user/<path:user_id>/authorize/<path:dataset_id>')
 def remove_dac_authz_for_user(user_id, dataset_id):
-    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
-
-    if not auth.is_action_allowed_for_dataset(token, method="DELETE", path="/v1/authz/user", dataset=dataset_id):
+    if not auth.is_action_allowed(dataset=dataset_id):
         return {"error": "User not authorized to remove datasets for user"}, 403
 
     user_dict, status_code = auth.get_user(user_id)
