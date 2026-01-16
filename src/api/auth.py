@@ -31,6 +31,10 @@ def is_action_allowed(dataset=None):
     return authx.auth.is_action_allowed_for_program(token, method=method, path=path, program=dataset)
 
 
+def get_authorized_datasets():
+    return authx.auth.get_opa_datasets(request)
+
+
 ######
 # Datasets
 ######
