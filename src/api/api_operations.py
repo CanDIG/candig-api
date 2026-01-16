@@ -46,7 +46,6 @@ async def upload_file(file):
             token = request.headers['Authorization'].split("Bearer ")[1]
             jsoncontent = json.loads(content)
             authzed_datasets = get_authorized_datasets()
-            logger.info(f"HELLO {authzed_datasets} {jsoncontent['datasets']}")
             for dataset in jsoncontent['datasets']:
                 ds_id = dataset['dataset']['id']
                 if ds_id not in authzed_datasets:
