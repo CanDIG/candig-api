@@ -409,8 +409,8 @@ def list_authz_for_user(user_id):
         user_key=user_key
     )
     if opa_status_code == 200:
-        user_result["dataset_authorizations"]["team_member"] = opa_permissions["debug"]["user_key_has_team_member_datasets"]
-        user_result["dataset_authorizations"]["dataset_curator"] = opa_permissions["debug"]["user_key_has_curator_datasets"]
+        user_result["dataset_authorizations"]["team_member"] = opa_permissions["debug"]["user_key_has_team_member_programs"]
+        user_result["dataset_authorizations"]["dataset_curator"] = opa_permissions["debug"]["user_key_has_curator_programs"]
 
     user_result["dataset_authorizations"]["dac_authorizations"] = list(user_result.pop("dac_authorizations").values())
     user_result["userinfo"]["is_candig_authorized"] = opa_permissions["user_is_candig_authorized"]

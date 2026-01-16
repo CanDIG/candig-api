@@ -228,9 +228,12 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/UserInfo"
+                type: object
+                properties:
+                  result:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UserInfo"
     post:
       summary: Approve pending users
       description: Approve bulk pending users for CanDIG access
