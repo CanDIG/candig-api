@@ -10,6 +10,7 @@ from sqlalchemy import text
 
 from ..config import settings
 from ..database.db_operations import get_db_session
+from src.api.auth import is_action_allowed
 
 logger = CanDIGLogger(__file__)
 
@@ -17,12 +18,12 @@ logger = CanDIGLogger(__file__)
 # --- List persons Endpoint ---
 async def list(dataset_id: str):
     """Lists all person for a given dataset"""
-    # TODO: implement authorize
-    authorized = True
+
+    authorized = is_action_allowed(dataset=dataset_id)
     if not authorized:
         stmt = text(f"""
-                SELECT person_id 
-                FROM {settings.CANDIG_SCHEMA}.person_in_dataset 
+                SELECT person_id
+                FROM {settings.CANDIG_SCHEMA}.person_in_dataset
                 WHERE dataset_id = :dataset_id
             """)
 
@@ -41,7 +42,7 @@ async def list(dataset_id: str):
                 )
     else:
         raw_sql = text(f"""
-            SELECT 
+            SELECT
                 p.person_id,
                 p.gender_concept_id,
                 p.year_of_birth,
@@ -106,8 +107,11 @@ async def list(dataset_id: str):
 # --- Get person Endpoint ---
 async def get_by_id(dataset_id: str, id: int):
     """Get a person by ID within a dataset."""
+    if not is_action_allowed(dataset=dataset_id):
+        return {"error": f"User is not authorized to get person in dataset {dataset_id}"}, 403
+
     raw_sql = raw_sql = text(f"""
-        SELECT 
+        SELECT
             p.person_id,
             p.gender_concept_id,
             p.year_of_birth,
@@ -186,6 +190,8 @@ async def get_by_id(dataset_id: str, id: int):
 async def create(dataset_id: str, body: dict):
     """Create a new person in the dataset"""
 
+    if not is_action_allowed(dataset=dataset_id):
+        return {"error": f"User is not authorized to create person in dataset {dataset_id}"}, 403
     # First check if the dataset exists
     check_dataset_sql = text(f"""
         SELECT id FROM {settings.CANDIG_SCHEMA}.dataset WHERE id = :dataset_id LIMIT 1
@@ -194,7 +200,7 @@ async def create(dataset_id: str, body: dict):
     # Insert into person table and return all fields
     insert_person_sql = text(f"""
         INSERT INTO {settings.CDM_SCHEMA}.person (
-            gender_concept_id, year_of_birth, month_of_birth, 
+            gender_concept_id, year_of_birth, month_of_birth,
             day_of_birth, birth_datetime, race_concept_id, ethnicity_concept_id,
             location_id, provider_id, care_site_id, person_source_value,
             gender_source_value, gender_source_concept_id, race_source_value,
@@ -205,7 +211,7 @@ async def create(dataset_id: str, body: dict):
             :location_id, :provider_id, :care_site_id, :person_source_value,
             :gender_source_value, :gender_source_concept_id, :race_source_value,
             :race_source_concept_id, :ethnicity_source_value, :ethnicity_source_concept_id
-        ) RETURNING person_id, gender_concept_id, year_of_birth, month_of_birth, 
+        ) RETURNING person_id, gender_concept_id, year_of_birth, month_of_birth,
                    day_of_birth, birth_datetime, race_concept_id, ethnicity_concept_id,
                    location_id, provider_id, care_site_id, person_source_value,
                    gender_source_value, gender_source_concept_id, race_source_value,
@@ -339,6 +345,8 @@ async def create(dataset_id: str, body: dict):
 # --- Update person Endpoint ---
 async def put(dataset_id: str, id: int, body: dict):
     """Update an existing person"""
+    if not is_action_allowed(dataset=dataset_id):
+        return {"error": f"User is not authorized to update person in dataset {dataset_id}"}, 403
 
     # First check if the dataset exists
     check_dataset_sql = text(f"""
@@ -374,7 +382,7 @@ async def put(dataset_id: str, id: int, body: dict):
             ethnicity_source_value = :ethnicity_source_value,
             ethnicity_source_concept_id = :ethnicity_source_concept_id
         WHERE person_id = :person_id
-        RETURNING person_id, gender_concept_id, year_of_birth, month_of_birth, 
+        RETURNING person_id, gender_concept_id, year_of_birth, month_of_birth,
                   day_of_birth, birth_datetime, race_concept_id, ethnicity_concept_id,
                   location_id, provider_id, care_site_id, person_source_value,
                   gender_source_value, gender_source_concept_id, race_source_value,
@@ -526,6 +534,9 @@ async def delete(dataset_id: str, id: str):
     """
     Delete a person from Person table
     """
+    if not is_action_allowed(dataset=dataset_id):
+        return {"error": f"User is not authorized to delete person in dataset {dataset_id}"}, 403
+
     # First check if the person exists in the dataset
     check_sql = text(f"""
         SELECT p.person_id
@@ -537,13 +548,13 @@ async def delete(dataset_id: str, id: str):
     # Delete from person_in_dataset first since we cannot use DELETE CASCADE
     # due to person_in_dataset references person
     delete_dataset_sql = text(f"""
-        DELETE FROM {settings.CANDIG_SCHEMA}.person_in_dataset 
+        DELETE FROM {settings.CANDIG_SCHEMA}.person_in_dataset
         WHERE dataset_id = :dataset_id AND person_id = :person_id
     """)
 
     # Then delete from person table
     delete_person_sql = text(f"""
-        DELETE FROM {settings.CDM_SCHEMA}.person 
+        DELETE FROM {settings.CDM_SCHEMA}.person
         WHERE person_id = :person_id
     """)
 
@@ -588,6 +599,8 @@ async def delete(dataset_id: str, id: str):
 # --- Update person Endpoint ---
 async def patch_user(dataset_id: str, id: str, body: dict):
     """Update an existing person in the database."""
+    if not is_action_allowed(dataset=dataset_id):
+        return {"error": f"User is not authorized to update person in dataset {dataset_id}"}, 403
     # TODO: update related record
 
     # First check if the person exists in the dataset
@@ -619,7 +632,7 @@ async def patch_user(dataset_id: str, id: str, body: dict):
             ethnicity_source_value = :ethnicity_source_value,
             ethnicity_source_concept_id = :ethnicity_source_concept_id
         WHERE person_id = :person_id
-        RETURNING person_id, gender_concept_id, year_of_birth, month_of_birth, 
+        RETURNING person_id, gender_concept_id, year_of_birth, month_of_birth,
                   day_of_birth, birth_datetime, race_concept_id, ethnicity_concept_id,
                   location_id, provider_id, care_site_id, person_source_value,
                   gender_source_value, gender_source_concept_id, race_source_value,
