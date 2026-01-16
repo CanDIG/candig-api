@@ -341,6 +341,15 @@ paths:
                 type: object
                 additionalProperties: true
                 description: Status information for the upload job
+                properties:
+                  status:
+                    type: string
+                    description: status of upload
+                    enum:
+                      - In Queue
+                      - Success
+                      - Partial Success
+                      - Failed
         404:
           $ref: "#/components/responses/404NotFoundError"
         default:
