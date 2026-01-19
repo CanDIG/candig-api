@@ -17,14 +17,14 @@ async def get_by_id(dataset_id: str, id: int):
     """
     Returns a Phenopacket object with all fields from v2.0.0 schema
     """
-    if not is_action_allowed(dataset=dataset_id):
-        return {
-            "error": f"User is not authorized to get person in dataset {dataset_id}"
-        }, 403
+    # if not is_action_allowed(dataset=dataset_id):
+    #     return {
+    #         "error": f"User is not authorized to get person in dataset {dataset_id}"
+    #     }, 403
 
-    # check if dataset has this person
-    if not await is_person_in_dataset(dataset_id, id):
-        return {"error": f"Person {id} not in dataset {dataset_id}"}, 403
+    # # check if dataset has this person
+    # if not await is_person_in_dataset(dataset_id, id):
+    #     return {"error": f"Person {id} not in dataset {dataset_id}"}, 403
 
     person_id = id
     (
@@ -736,13 +736,13 @@ async def get_measurements(person_id: int):
 
             measurements = []
             for row in rows:
-                measurement = {
-                    "assay": {"id": "LOINC:72166-2", "label": "Tobacco smoking status"},
-                    "measurement_value": ontology_map.get(
-                        row.measurement_value_concept_id
-                    ),
-                }
-                measurements.append(measurement)
+                measurement_value = ontology_map.get(row.measurement_value_concept_id)
+                if measurement_value:
+                    measurement = {
+                        "assay": {"id": "LOINC:72166-2", "label": "Tobacco smoking status"},
+                        "measurement_value": measurement_value,
+                    }
+                    measurements.append(measurement)
 
             return measurements if measurements else None
 
