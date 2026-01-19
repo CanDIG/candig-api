@@ -730,6 +730,7 @@ async def get_measurements(person_id: int):
             observation.value_as_concept_id as measurement_value_concept_id
         FROM {settings.CDM_SCHEMA}.observation observation
         WHERE observation.person_id = :person_id
+            AND observation.observation_concept_id = 43054909
     """)
 
     async for session in get_db_session():
