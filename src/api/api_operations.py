@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from authx.auth import get_user_id
 from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
-from src.api.auth import is_action_allowed, get_authorized_datasets
+from src.api.auth import get_authorized_datasets
 
 from ..config import settings  # Import settings
 
