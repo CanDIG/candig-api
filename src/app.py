@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from candigv2_logging.logging import CanDIGLogger, initialize
 from connexion import AsyncApp
 
-from .api import beacon_operations, dataset_operations, person_operations, query_operations, auth
+from .api import beacon_operations, dataset_operations, person_operations, api_operations, auth
 
 initialize()
 logger = CanDIGLogger(__file__)
@@ -18,7 +18,7 @@ logger = CanDIGLogger(__file__)
 sys.modules["auth"] = auth
 from .api import authz_operations
 sys.modules["authz_operations"] = authz_operations
-sys.modules["query_operations"] = query_operations
+sys.modules["api_operations"] = api_operations
 sys.modules["dataset_operations"] = dataset_operations
 sys.modules["person_operations"] = person_operations
 sys.modules['beacon_operations'] = beacon_operations

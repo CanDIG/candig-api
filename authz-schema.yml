@@ -136,24 +136,24 @@ paths:
           description: User not found in role
         405:
           description: Can't remove user from role
-  /program:
+  /dataset:
     post:
-      summary: Add authorization information for a new program (or overwrite authorization information for an existing program).
-      description: Add authorization information for a new program (or overwrite authorization information for an existing program). Information in the request body replaces any existing information for the program.
-      operationId: src.api.authz_operations.add_program
+      summary: Add authorization information for a new dataset (or overwrite authorization information for an existing dataset).
+      description: Add authorization information for a new dataset (or overwrite authorization information for an existing dataset). Information in the request body replaces any existing information for the dataset.
+      operationId: src.api.authz_operations.add_dataset
       requestBody:
-        $ref: '#/components/requestBodies/ProgramIngestRequest'
+        $ref: '#/components/requestBodies/DatasetIngestRequest'
       responses:
           200:
             description: Success
             content:
               application/json:
                 schema:
-                  $ref: "#/components/schemas/Program"
+                  $ref: "#/components/schemas/Dataset"
     get:
-      summary: List registered programs
-      description: List programs authorized on server
-      operationId: src.api.authz_operations.list_programs
+      summary: List registered datasets
+      description: List datasets authorized on server
+      operationId: src.api.authz_operations.list_datasets
       responses:
         200:
           description: Success
@@ -163,27 +163,27 @@ paths:
                 type: array
                 items:
                   type: string
-  /program/{program_id}:
+  /dataset/{dataset_id}:
     parameters:
       - in: path
-        name: program_id
+        name: dataset_id
         schema:
           type: string
         required: true
     get:
-      summary: Get authorization information for a program
-      description: Get authorization information for a program
-      operationId: src.api.authz_operations.get_program
+      summary: Get authorization information for a dataset
+      description: Get authorization information for a dataset
+      operationId: src.api.authz_operations.get_dataset
       responses:
         200:
           description: Success
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Program"
+                $ref: "#/components/schemas/Dataset"
     delete:
-      description: Delete a program
-      operationId: src.api.authz_operations.remove_program
+      description: Delete a dataset
+      operationId: src.api.authz_operations.remove_dataset
       responses:
         200:
           description: Success
@@ -191,17 +191,17 @@ paths:
             application/json:
               schema:
                 type: object
-  /program/{program_id}/dac_authorization:
+  /dataset/{dataset_id}/dac_authorization:
     parameters:
       - in: path
-        name: program_id
+        name: dataset_id
         schema:
           type: string
         required: true
     get:
-      summary: Get a program's DAC authorizations
-      description: Get a program's DAC authorizations
-      operationId: src.api.authz_operations.get_program_dacs
+      summary: Get a dataset's DAC authorizations
+      description: Get a dataset's DAC authorizations
+      operationId: src.api.authz_operations.get_dataset_dacs
       responses:
         200:
           description: Success
@@ -228,9 +228,12 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/UserInfo"
+                type: object
+                properties:
+                  result:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/UserInfo"
     post:
       summary: Approve pending users
       description: Approve bulk pending users for CanDIG access
@@ -380,8 +383,8 @@ paths:
           type: string
         required: true
     post:
-      summary: Authorize a program for a user
-      description: Authorize a program for a user (or update a program auth for a user)
+      summary: Authorize a dataset for a user
+      description: Authorize a dataset for a user (or update a dataset auth for a user)
       operationId: src.api.authz_operations.add_dac_authz_for_user
       requestBody:
         $ref: '#/components/requestBodies/DACAuthorizationRequest'
@@ -392,7 +395,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserAuthorization'
-  /user/{user_id}/dac_authorization/{program_id}:
+  /user/{user_id}/dac_authorization/{dataset_id}:
     parameters:
       - in: path
         name: user_id
@@ -400,7 +403,7 @@ paths:
           type: string
         required: true
       - in: path
-        name: program_id
+        name: dataset_id
         schema:
           type: string
         required: true
@@ -444,11 +447,11 @@ components:
         'application/json':
           schema:
             $ref: "#/components/schemas/S3Credential"
-    ProgramIngestRequest:
+    DatasetIngestRequest:
       content:
         'application/json':
           schema:
-            $ref: "#/components/schemas/Program"
+            $ref: "#/components/schemas/Dataset"
     ApprovePendingUserRequest:
       content:
         'application/json':
@@ -502,35 +505,35 @@ components:
         - bucket
         - access_key
         - secret_key
-    Program:
+    Dataset:
       type: object
-      description: Describes a program
+      description: Describes a dataset
       properties:
-        program_id:
+        dataset_id:
           type: string
-          description: name of the program
-        program_curators:
+          description: name of the dataset
+        dataset_curators:
           type: array
-          description: list of users who are program curators for this program
+          description: list of users who are dataset curators for this dataset
           items:
             type: string
         team_members:
           type: array
-          description: list of users who are original researchers for this program
+          description: list of users who are original researchers for this dataset
           items:
             type: string
         creation_date:
           type: string
           pattern: '^\d{4}-\d{2}-\d{2}$'
-          description: date program was created, for embargo purposes. This may or may not be the date of ingest.
+          description: date dataset was created, for embargo purposes. This may or may not be the date of ingest.
       required:
-        - program_id
-        - program_curators
+        - dataset_id
+        - dataset_curators
         - team_members
     DACAuthorization:
       type: object
       properties:
-        program_id:
+        dataset_id:
           type: string
         start_date:
           type: string
@@ -539,7 +542,7 @@ components:
           type: string
           pattern: '^\d{4}-\d{2}-\d{2}$'
       required:
-        - program_id
+        - dataset_id
         - start_date
         - end_date
     UserInfo:
@@ -556,7 +559,7 @@ components:
         - user_name
     UserAuthorization:
       type: object
-      description: describes an authorized user and the programs the user is authorized to view
+      description: describes an authorized user and the datasets the user is authorized to view
       properties:
         userinfo:
           $ref: "#/components/schemas/UserInfo"
@@ -564,22 +567,22 @@ components:
           type: array
           items:
             type: string
-        program_authorizations:
+        dataset_authorizations:
           type: object
           properties:
             team_member:
               type: array
-              description: list of programs that the user is a team member of
+              description: list of datasets that the user is a team member of
               items:
                 type: string
-            program_curator:
+            dataset_curator:
               type: array
-              description: list of programs that the user is a curator of
+              description: list of datasets that the user is a curator of
               items:
                 type: string
             dac_authorizations:
               type: array
-              description: list of programs that this user is authorized to view
+              description: list of datasets that this user is authorized to view
               items:
                 $ref: "#/components/schemas/DACAuthorization"
     Action:

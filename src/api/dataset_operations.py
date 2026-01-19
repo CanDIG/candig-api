@@ -11,6 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from src.database.db_operations import get_db_session
+from src.api.auth import is_action_allowed, get_authorized_datasets, remove_dataset
 
 from ..config import settings  # Import settings
 
@@ -21,12 +22,13 @@ logger = CanDIGLogger(__file__)
 async def list_all():
     """Lists all datasets"""
 
+    authzed_datasets = get_authorized_datasets()
     stmt = text(f"""
-            SELECT 
+            SELECT
                 d.id,
                 COUNT(pid.person_id) AS person_count
             FROM {settings.CANDIG_SCHEMA}.dataset d
-            LEFT OUTER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid 
+            LEFT OUTER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid
                 ON d.id = pid.dataset_id
             GROUP BY d.id
             ORDER BY d.id
@@ -37,13 +39,15 @@ async def list_all():
             result = await session.execute(stmt)
             records = result.all()
 
-            datasets = [
-                {
-                    "id": record.id,
-                    "count": record.person_count or 0,
-                }
-                for record in records
-            ]
+            datasets = []
+            for record in records:
+                if record.id in authzed_datasets:
+                    datasets.append(
+                        {
+                            "id": record.id,
+                            "count": record.person_count or 0,
+                        }
+                    )
 
             return datasets, 200
         except Exception as e:
@@ -60,6 +64,9 @@ async def create(body: dict):
     """
     Create a new dataset with new person(s)
     """
+    if not is_action_allowed(dataset=body['id']):
+        return {"error": f"User is not authorized to create dataset {body['id']}"}, 403
+
     async for session in get_db_session():
         try:
             dataset_id = body["id"]
@@ -85,7 +92,7 @@ async def create(body: dict):
 
                     insert_person_sql = text(f"""
                         INSERT INTO {settings.CDM_SCHEMA}.person (
-                            gender_concept_id, year_of_birth, month_of_birth, 
+                            gender_concept_id, year_of_birth, month_of_birth,
                             day_of_birth, birth_datetime, race_concept_id, ethnicity_concept_id,
                             location_id, provider_id, care_site_id, person_source_value,
                             gender_source_value, gender_source_concept_id, race_source_value,
@@ -183,13 +190,15 @@ async def create(body: dict):
 # --- Get dataset Endpoint ---
 async def get_by_id(id: str):
     """Gets a single dataset"""
+    if not is_action_allowed(dataset=id):
+        return {"error": f"User is not authorized to get dataset {id}"}, 403
 
     stmt = text(f"""
-    SELECT 
+    SELECT
         d.id,
         COUNT(pid.person_id) AS person_count
     FROM {settings.CANDIG_SCHEMA}.dataset d
-    LEFT OUTER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid 
+    LEFT OUTER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid
         ON d.id = pid.dataset_id
     WHERE d.id = :id
     GROUP BY d.id
@@ -229,11 +238,14 @@ async def put_by_id(id: str, body: dict):
     """
     Update an existing dataset with person(s)
     """
+    if not is_action_allowed(dataset=id):
+        return {"error": f"User is not authorized to update dataset {id}"}, 403
+
     async for session in get_db_session():
         try:
             # Check if dataset exists and get current data
             check_dataset_sql = text(f"""
-                SELECT id, info FROM {settings.CANDIG_SCHEMA}.dataset 
+                SELECT id, info FROM {settings.CANDIG_SCHEMA}.dataset
                 WHERE id = :id
             """)
             result = await session.execute(check_dataset_sql, {"id": id})
@@ -250,7 +262,7 @@ async def put_by_id(id: str, body: dict):
             info = body.get("info", {})
 
             update_dataset_sql = text(f"""
-                UPDATE {settings.CANDIG_SCHEMA}.dataset 
+                UPDATE {settings.CANDIG_SCHEMA}.dataset
                 SET info = :info
                 WHERE id = :id
             """)
@@ -362,7 +374,7 @@ async def put_by_id(id: str, body: dict):
 
                         # Link person to this dataset
                         check_link_sql = text(f"""
-                            SELECT 1 FROM {settings.CANDIG_SCHEMA}.person_in_dataset 
+                            SELECT 1 FROM {settings.CANDIG_SCHEMA}.person_in_dataset
                             WHERE person_id = :person_id AND dataset_id = :dataset_id LIMIT 1
                         """)
                         link_exists = await session.execute(
@@ -389,7 +401,7 @@ async def put_by_id(id: str, body: dict):
 
                         insert_person_sql = text(f"""
                             INSERT INTO {settings.CDM_SCHEMA}.person (
-                                gender_concept_id, year_of_birth, month_of_birth, 
+                                gender_concept_id, year_of_birth, month_of_birth,
                                 day_of_birth, birth_datetime, race_concept_id, ethnicity_concept_id,
                                 location_id, provider_id, care_site_id, person_source_value,
                                 gender_source_value, gender_source_concept_id, race_source_value,
@@ -458,7 +470,7 @@ async def put_by_id(id: str, body: dict):
             if persons_to_delete:
                 # Delete from person_in_dataset table first
                 delete_person_dataset_sql = text(f"""
-                    DELETE FROM {settings.CANDIG_SCHEMA}.person_in_dataset 
+                    DELETE FROM {settings.CANDIG_SCHEMA}.person_in_dataset
                     WHERE person_id = ANY(:person_ids) AND dataset_id = :dataset_id
                 """)
                 await session.execute(
@@ -468,7 +480,7 @@ async def put_by_id(id: str, body: dict):
 
                 # Delete the persons from omop.person table
                 delete_persons_sql = text(f"""
-                    DELETE FROM {settings.CDM_SCHEMA}.person 
+                    DELETE FROM {settings.CDM_SCHEMA}.person
                     WHERE person_id = ANY(:person_ids)
                 """)
                 await session.execute(
@@ -518,8 +530,11 @@ async def put_by_id(id: str, body: dict):
 async def get_info(id: str):
     """Gets dataset info"""
 
+    if not is_action_allowed(dataset=id):
+        return {"error": f"User is not authorized to get info about dataset {id}"}, 403
+
     stmt = text(f"""
-        SELECT * FROM {settings.CANDIG_SCHEMA}.dataset 
+        SELECT * FROM {settings.CANDIG_SCHEMA}.dataset
         WHERE id = :id
     """)
 
@@ -559,11 +574,14 @@ async def patch_info(id: str, body: dict):
     Updates dataset info
     """
 
+    if not is_action_allowed(dataset=id):
+        return {"error": f"User is not authorized to update dataset {id}"}, 403
+
     async for session in get_db_session():
         try:
             # Check if dataset exists
             check_dataset_sql = text(f"""
-                SELECT id FROM {settings.CANDIG_SCHEMA}.dataset 
+                SELECT id FROM {settings.CANDIG_SCHEMA}.dataset
                 WHERE id = :id
             """)
             result = await session.execute(check_dataset_sql, {"id": id})
@@ -579,7 +597,7 @@ async def patch_info(id: str, body: dict):
             # Update dataset info
             info = body if body else {}
             update_info_sql = text(f"""
-                UPDATE {settings.CANDIG_SCHEMA}.dataset 
+                UPDATE {settings.CANDIG_SCHEMA}.dataset
                 SET info = :info
                 WHERE id = :id
             """)
@@ -613,11 +631,11 @@ async def statistics():
 
     # Get total dataset count and person counts per dataset
     stmt = text(f"""
-    SELECT 
+    SELECT
         d.id,
         COUNT(pid.person_id) AS person_count
     FROM {settings.CANDIG_SCHEMA}.dataset d
-    LEFT OUTER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid 
+    LEFT OUTER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid
         ON d.id = pid.dataset_id
     GROUP BY d.id
 """)
@@ -658,11 +676,11 @@ async def statistics_by_id(id: str):
     """
 
     stmt = text(f"""
-    SELECT 
+    SELECT
         d.id,
         COUNT(pid.person_id) AS person_count
     FROM {settings.CANDIG_SCHEMA}.dataset d
-    LEFT OUTER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid 
+    LEFT OUTER JOIN {settings.CANDIG_SCHEMA}.person_in_dataset pid
         ON d.id = pid.dataset_id
     WHERE d.id = :id
     GROUP BY d.id
@@ -703,11 +721,14 @@ async def delete_by_id(id: str):
     2. Removes person-dataset link from person_in_dataset
     3. Deletes all persons with its associated clinical data (treatments, events...) through FK
     """
+    if not is_action_allowed(dataset=id):
+        return {"error": f"User is not authorized to delete dataset {id}"}, 403
+
     async for session in get_db_session():
         try:
             # Check if dataset exists
             check_dataset_sql = text(f"""
-                SELECT id FROM {settings.CANDIG_SCHEMA}.dataset 
+                SELECT id FROM {settings.CANDIG_SCHEMA}.dataset
                 WHERE id = :id
             """)
             result = await session.execute(check_dataset_sql, {"id": id})
@@ -732,18 +753,23 @@ async def delete_by_id(id: str):
             # This also cascade to other tables through person_id
             if person_ids:
                 delete_persons_sql = text(f"""
-                    DELETE FROM {settings.CDM_SCHEMA}.person 
+                    DELETE FROM {settings.CDM_SCHEMA}.person
                     WHERE person_id = ANY(:person_ids)
                 """)
                 await session.execute(delete_persons_sql, {"person_ids": person_ids})
 
             # Finally delete the dataset
             delete_dataset_sql = text(f"""
-                DELETE FROM {settings.CANDIG_SCHEMA}.dataset 
+                DELETE FROM {settings.CANDIG_SCHEMA}.dataset
                 WHERE id = :id
             """)
             await session.execute(delete_dataset_sql, {"id": id})
             await session.commit()
+
+            # delete the authorization as well
+            authz_response, status_code = remove_dataset(id)
+            if authz_response != 200:
+                return authz_response, status_code
 
             return {
                 "message": f"Dataset {id} and {len(person_ids)} associated person(s) deleted successfully."

@@ -3,7 +3,7 @@ import os
 import re
 import json
 import urllib
-
+from connexion import request
 
 def is_default_site_admin_set():
     default_site_admin = os.getenv("DEFAULT_SITE_ADMIN_USER", "")
@@ -24,91 +24,102 @@ def get_refresh_token(token):
         )
 
 
+def is_action_allowed(dataset=None):
+    path = request.url.path
+    method = request.method
+    token = authx.auth.get_auth_token(request)
+    return authx.auth.is_action_allowed_for_program(token, method=method, path=path, program=dataset)
+
+
+def get_authorized_datasets():
+    return authx.auth.get_opa_datasets(request)
+
+
 ######
-# Programs
+# Datasets
 ######
 
-def get_program(program_id):
+def get_dataset(dataset_id):
     """
-    Returns a ProgramAuthorization for the program_id
+    Returns a DatasetAuthorization for the dataset_id
     Authorized only if the service requesting it is allowed to see Opa's vault secrets.
     """
-    response, status_code = authx.auth.get_service_store_secret("opa", key=f"programs/{program_id}")
+    response, status_code = authx.auth.get_service_store_secret("opa", key=f"programs/{dataset_id}")
     if status_code < 300:
-        return response[program_id], status_code
-    return {"message": f"{program_id} not found"}, status_code
+        return response[dataset_id], status_code
+    return {"message": f"{dataset_id} not found"}, status_code
 
 
-def list_programs():
+def list_datasets():
     progs_response, status_code = authx.auth.get_service_store_secret("opa", key="programs")
     if status_code == 200:
         return progs_response['programs'], status_code
     return progs_response, status_code
 
 
-def add_program(program_auth):
+def add_dataset(dataset_auth):
     """
-    Creates or updates a ProgramAuthorization in Opa's vault service store for the program_id.
+    Creates or updates a DatasetAuthorization in Opa's vault service store for the dataset_id.
     Authorized only if the requesting service is allowed to write Opa's vault secrets.
     """
-    program_id = program_auth["program_id"]
-    response, status_code = get_program(program_id)
+    dataset_id = dataset_auth["dataset_id"]
+    response, status_code = get_dataset(dataset_id)
     if status_code < 300 or status_code == 404:
-        # create or update the program itself
-        program_auth["program_curators"] = list(map(lambda x: x.lower(), program_auth["program_curators"]))
-        program_auth["team_members"] = list(map(lambda x: x.lower(), program_auth["team_members"]))
+        # create or update the dataset itself
+        dataset_auth["program_curators"] = list(map(lambda x: x.lower(), dataset_auth["dataset_curators"]))
+        dataset_auth["team_members"] = list(map(lambda x: x.lower(), dataset_auth["team_members"]))
 
-        if "date_created" not in program_auth:
+        # add the users to the preapproved user list
+        for user_id in dataset_auth["team_members"]:
+            # if the user isn't already approved, make sure they will be:
+            response, status_code = add_preapproved_user(user_id)
+        for user_id in dataset_auth["program_curators"]:
+            # if the user isn't already approved, make sure they will be:
+            response, status_code = add_preapproved_user(user_id)
+
+        if "date_created" not in dataset_auth:
             from datetime import datetime
-            program_auth["date_created"] = datetime.today().strftime('%Y-%m-%d')
-        response, status_code = authx.auth.set_service_store_secret("opa", key=f"programs/{program_id}", value=json.dumps({program_id: program_auth}))
+            dataset_auth["date_created"] = datetime.today().strftime('%Y-%m-%d')
+        response, status_code = authx.auth.set_service_store_secret("opa", key=f"programs/{dataset_id}", value=json.dumps({dataset_id: dataset_auth}))
         if status_code < 300:
-            # update the values for the program list
+            # update the values for the dataset list
             response2, status_code = authx.auth.get_service_store_secret("opa", key="programs")
 
             if status_code == 200:
                 # check to see if it's already here:
-                if program_id not in response2['programs']:
-                    response2['programs'].append(program_id)
+                if dataset_id not in response2['programs']:
+                    response2['programs'].append(dataset_id)
             else:
-                response2 = {'programs': [program_id]}
+                response2 = {'programs': [dataset_id]}
             response2, status_code = authx.auth.set_service_store_secret("opa", key="programs", value=json.dumps(response2))
             return response, status_code
 
-    # add the users to the preapproved user list
-    for user_id in program_auth["team_members"]:
-        # if the user isn't already approved, make sure they will be:
-        response, status_code = add_preapproved_user(user_id)
-    for user_id in program_auth["program_curators"]:
-        # if the user isn't already approved, make sure they will be:
-        response, status_code = add_preapproved_user(user_id)
-
-    return {"message": f"{program_id} not added"}, status_code
+    return {"message": f"{dataset_id} not added: {response}"}, status_code
 
 
-def remove_program(program_id):
+def remove_dataset(dataset_id):
     """
-    Removes the ProgramAuthorization in Opa's vault service store for the program_id.
+    Removes the DatasetAuthorization in Opa's vault service store for the dataset_id.
     Authorized only if the requesting service is allowed to write Opa's vault service store.
     """
-    response, status_code = get_program(program_id)
+    response, status_code = get_dataset(dataset_id)
     if status_code == 404:
         return response, status_code
     if status_code < 300:
-        # create or update the program itself
-        response, status_code = authx.auth.delete_service_store_secret("opa", key=f"programs/{program_id}")
+        # create or update the dataset itself
+        response, status_code = authx.auth.delete_service_store_secret("opa", key=f"programs/{dataset_id}")
 
-        # update the values for the program list
+        # update the values for the dataset list
         response, status_code = authx.auth.get_service_store_secret("opa", key="programs")
 
         if status_code == 200:
             # check to see if it's here:
-            if program_id in response['programs']:
-                response['programs'].remove(program_id)
+            if dataset_id in response['programs']:
+                response['programs'].remove(dataset_id)
                 response, status_code = authx.auth.set_service_store_secret("opa", key="programs", value=json.dumps(response))
 
-        return {"success": f"{program_id} removed"}, status_code
-    return {"message": f"{program_id} not removed"}, status_code
+        return {"success": f"{dataset_id} removed"}, status_code
+    return {"message": f"{dataset_id} not removed"}, status_code
 
 
 #####
@@ -191,15 +202,15 @@ def remove_user(user_name):
                 members.remove(user_name)
                 set_role_type(role_type, members)
 
-        # remove the user from any program roles:
-        programs, status_code = list_programs()
-        for program_id in programs:
-            program, status_code = get_program(program_id)
-            if user_name in program["program_curators"]:
-                program["program_curators"].remove(user_name)
-            if user_name in program["team_members"]:
-                program["team_members"].remove(user_name)
-            add_program(program)
+        # remove the user from any dataset roles:
+        datasets, status_code = list_datasets()
+        for dataset_id in datasets:
+            dataset, status_code = get_dataset(dataset_id)
+            if user_name in dataset["dataset_curators"]:
+                dataset["dataset_curators"].remove(user_name)
+            if user_name in dataset["team_members"]:
+                dataset["team_members"].remove(user_name)
+            add_dataset(dataset)
         return {"message": f"User {user_name} was removed"}, 200
     return {"error": f"User {user_name} could not be removed"}, status_code
 
