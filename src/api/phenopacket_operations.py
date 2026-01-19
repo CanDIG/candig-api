@@ -889,16 +889,10 @@ async def is_person_in_dataset(dataset_id: str, person_id: int):
             row = result.fetchone()
 
             if not row or row.count == 0:
-                raise ProblemException(
-                    status=404,
-                    title="Not Found",
-                    detail=f"Person {person_id} not found in dataset {dataset_id}.",
-                )
+                return False
 
             return True
 
-        except ProblemException:
-            raise
         except Exception as e:
             logger.error(f"Database Error in is_person_id_in_dataset: {str(e)}")
             raise ProblemException(
