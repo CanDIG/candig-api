@@ -702,8 +702,8 @@ async def get_radiation_therapies(person_id: int):
                 therapy = {
                     "modality": ontology_map.get(row.modality_concept_id),
                     "body_site": ontology_map.get(row.body_site_concept_id),
-                    "dosage": int(row.dosage) if row.dosage else None,
-                    "fractions": int(row.fractions) if row.fractions else None,
+                    "dosage": int(row.dosage) if row.dosage else -99,
+                    "fractions": int(row.fractions) if row.fractions else -99,
                 }
                 radiation_therapies.append(therapy)
 
