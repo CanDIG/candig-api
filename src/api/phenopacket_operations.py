@@ -178,11 +178,14 @@ async def get_diseases(person_id: int):
         AND episode.episode_concept_id = 32528
     """)
 
-    (clinical_tnm_finding_list, laterality, disease_stages) = await asyncio.gather(
+    (clinical_tnm_finding_list, laterality_list, disease_stages) = await asyncio.gather(
         get_tnm_findings(person_id, [4164336, 4164336, 4164466]),
         get_tnm_findings(person_id, [35918306]),
         get_disease_stages(person_id),
     )
+
+    # laterality should be a single object, not a list
+    laterality = laterality_list[0] if laterality_list else None
 
     async for session in get_db_session():
         try:
@@ -699,16 +702,20 @@ async def get_radiation_therapies(person_id: int):
             # Convert rows to list of radiation therapy objects
             radiation_therapies = []
             for row in rows:
-                therapy = {
-                    "modality": ontology_map.get(row.modality_concept_id),
-                    "body_site": ontology_map.get(row.body_site_concept_id),
-                    "dosage": int(row.dosage) if row.dosage else -99,
-                    "fractions": int(row.fractions) if row.fractions else -99,
-                }
-                radiation_therapies.append(therapy)
+                modality = ontology_map.get(row.modality_concept_id)
+                body_site = ontology_map.get(row.body_site_concept_id)
+                
+                # Only include radiation therapy if ALL required fields are present
+                if modality and body_site and row.dosage is not None and row.fractions is not None:
+                    therapy = {
+                        "modality": modality,
+                        "body_site": body_site,
+                        "dosage": int(row.dosage),
+                        "fractions": int(row.fractions),
+                    }
+                    radiation_therapies.append(therapy)
 
-            # Filter out None values if conversion failed
-            return [rt for rt in radiation_therapies if rt is not None]
+            return radiation_therapies
 
         except Exception as e:
             logger.error(f"Database Error in get_radiation_therapies: {str(e)}")
