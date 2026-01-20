@@ -289,7 +289,7 @@ async def get_biosamples(person_id: int):
             specimen.specimen_id as id,
             specimen.anatomic_site_concept_id as sampled_tissue,
             specimen.specimen_date as time_of_collection,
-            hist_obs.observation_concept_id as histological_diagnosis,
+            hist_obs.value_as_concept_id as histological_diagnosis,
             tumor_obs.value_as_concept_id as tumor_grade,
             proc_obs.value_as_concept_id as sample_processing,
             storage_obs.value_as_concept_id as sample_storage
