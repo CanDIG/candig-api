@@ -79,7 +79,7 @@ def get_datasets_allowed_filter(filters_dict):
     datasets = authx.auth.get_opa_datasets(request)
     # Create a filter on allowed datasets for this user
     if len(datasets) == 0:
-        return "and false" # No allowed datasets
+        return "and false", filters_dict # No allowed datasets
 
     ret_filter = 'and exists (SELECT 1 FROM candig.person_in_dataset d where p.person_id = d.person_id and ('
     first = True
