@@ -376,7 +376,9 @@ async def get_subject(id: int):
             SELECT 
                 person.person_id as id,
                 person.gender_concept_id as sex_concept_id,
-                person.birth_datetime as date_of_birth,
+                person.year_of_birth,
+                person.month_of_birth,
+                person.day_of_birth,
                 person.person_source_value as alternate_ids,
                 gender_obs.value_as_concept_id as gender_concept_id,
                 death.death_date as time_of_death,
@@ -421,7 +423,9 @@ async def get_subject(id: int):
             subject = {
                 "id": str(row.id),
                 "alternate_ids": [row.alternate_ids],
-                "date_of_birth": get_timestamp(row.date_of_birth),
+                "date_of_birth": get_birth_timestamp(
+                    row.year_of_birth, row.month_of_birth, row.day_of_birth
+                ),
                 "sex": get_sex_status(row.sex_concept_id),
                 "gender": ontology_map.get(row.gender_concept_id),
                 "taxonomy": {
@@ -456,6 +460,18 @@ async def get_subject(id: int):
         title="Database Error",
         detail="Unable to establish database session.",
     )
+
+
+def get_birth_timestamp(year, month, day):
+    if not year:
+        return None
+    
+    # Default to 1 if month or day is missing
+    month = month if month else 1
+    day = day if day else 1
+    
+    # Format as YYYY-MM-DD
+    return f"{year:04d}-{month:02d}-{day:02d}"
 
 
 def get_sex_status(gender_concept_id):
