@@ -489,6 +489,7 @@ def super_query_count(filter):
         {filter['procedures_filters']}
         {filter['exposures_filters']}
         {filter['treatments_filters']}
+        {filter['datasets_filters']}
 
     """
 
