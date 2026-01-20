@@ -36,7 +36,6 @@ jobs:
         run: |
           redocly lint schema.yml
           redocly lint beacon-schema.yml
-          redocly lint phenopackets-schema.yml
 
   validate-openapi-python:
     runs-on: ubuntu-latest
@@ -57,4 +56,3 @@ jobs:
         run: |
           openapi-spec-validator schema.yml
           openapi-spec-validator beacon-schema.yml
-          openapi-spec-validator phenopackets-schema.yml

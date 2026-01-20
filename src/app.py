@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from candigv2_logging.logging import CanDIGLogger, initialize
 from connexion import AsyncApp
 
-from .api import beacon_operations, dataset_operations, person_operations, api_operations, auth
+from .api import beacon_operations, dataset_operations, person_operations, api_operations, auth, phenopacket_operations
 
 initialize()
 logger = CanDIGLogger(__file__)
@@ -22,6 +22,7 @@ sys.modules["api_operations"] = api_operations
 sys.modules["dataset_operations"] = dataset_operations
 sys.modules["person_operations"] = person_operations
 sys.modules['beacon_operations'] = beacon_operations
+sys.modules['phenopacket_operations'] = phenopacket_operations
 
 @asynccontextmanager
 async def lifespan(app):
