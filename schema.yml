@@ -1764,7 +1764,7 @@ components:
             type: string
         date_of_birth:
           type: string
-          format: date-time
+          format: date
           description: >
             The date or age at which the individual was born.
         time_at_last_encounter:
