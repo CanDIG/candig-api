@@ -1763,7 +1763,8 @@ components:
           items:
             type: string
         date_of_birth:
-          $ref: '#/components/schemas/TimeElement'
+          type: string
+          format: date-time
           description: >
             The date or age at which the individual was born.
         time_at_last_encounter:
