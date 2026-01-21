@@ -24,7 +24,8 @@ where cohort_definition_id = :cohort_id
 -- name: count_individuals$
 -- Get individuals count
 SELECT count(*)
-FROM omop.person
+FROM candig.person_in_dataset
+WHERE dataset_id IN :dataset_ids
 
 -- name: count_primary_sites$
 -- Get individuals count
