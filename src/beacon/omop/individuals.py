@@ -725,18 +725,23 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
         if count_ids == 0:
             return schema, count_ids, [], {}
     else:
-        listIds = await get_individual_id(offset=qparams.query.pagination.skip,
-                                            limit=qparams.query.pagination.limit,
-                                            person_id=entry_id)                 # List with all Ids
-        async with engine.connect() as conn:
-            datasets = authx.auth.get_opa_datasets(request)
-            count_sql_text = text(individual_queries.count_individuals.sql \
-                .replace("%(dataset_ids)s", ":dataset_ids"))
-            count_sql_text = count_sql_text.bindparams(bindparam("dataset_ids", expanding=True))
-            count_ids = await conn.execute(count_sql_text, {"dataset_ids": datasets})
-            count_ids = count_ids.first()[0]
-            base_filter, filters_dict = create_dynamic_filter([])
-            discovery_data = await get_discovery(base_filter, filters_dict)
+        datasets = authx.auth.get_opa_datasets(request)
+        if len(datasets) == 0:
+            listIds = []
+            count_ids = 0
+        else:
+            listIds = await get_individual_id(offset=qparams.query.pagination.skip,
+                                                limit=qparams.query.pagination.limit,
+                                                person_id=entry_id)                 # List with all Ids
+            async with engine.connect() as conn:
+                count_sql_text = text(individual_queries.count_individuals.sql \
+                    .replace("%(dataset_ids)s", ":dataset_ids"))
+                count_sql_text = count_sql_text.bindparams(bindparam("dataset_ids", expanding=True))
+                count_ids = await conn.execute(count_sql_text, {"dataset_ids": datasets})
+                count_ids = count_ids.first()[0]
+
+        base_filter, filters_dict = create_dynamic_filter([])
+        discovery_data = await get_discovery(base_filter, filters_dict)
 
     # logger.info(f"Number of ids: ${count_ids}")
 
