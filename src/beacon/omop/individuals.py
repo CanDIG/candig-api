@@ -29,6 +29,9 @@ def get_basic_discovery_response():
 
 async def get_individual_id(offset=0, limit=10, person_id=None):
     datasets = authx.auth.get_opa_datasets(request)
+    if len(datasets) == 0:
+        return []
+
     async with engine.connect() as conn:
         if person_id == None:
             # aiosql likes to swap params like :limit and :offset to %(limit)s and %(offset)s, which is unsafe
