@@ -1149,7 +1149,7 @@ components:
       properties:
         observation_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         observation_concept_id:
           type: integer
         observation_date:
@@ -1190,7 +1190,7 @@ components:
           maxLength: 50
         observation_event_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
 
     IngestDeath:
       type: object
@@ -1232,7 +1232,7 @@ components:
       properties:
         condition_occurrence_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         condition_concept_id:
           type: integer
         condition_start_date:
@@ -1256,13 +1256,13 @@ components:
           maxLength: 20
         provider_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         visit_occurrence_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         visit_detail_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         condition_source_value:
           type: string
           maxLength: 50
@@ -1280,7 +1280,7 @@ components:
       properties:
         episode_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         episode_concept_id:
           type: integer
         episode_start_date:
@@ -1297,7 +1297,7 @@ components:
           format: date-time
         episode_parent_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         episode_number:
           type: integer
         episode_object_concept_id:
@@ -1319,10 +1319,10 @@ components:
       properties:
         episode_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         event_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         episode_event_field_concept_id:
           type: integer
 
@@ -1335,7 +1335,7 @@ components:
       properties:
         measurement_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         measurement_concept_id:
           type: integer
         measurement_date:
@@ -1363,13 +1363,13 @@ components:
           type: number
         provider_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         visit_occurrence_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         visit_detail_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         measurement_source_value:
           type: string
         measurement_source_concept_id:
@@ -1384,7 +1384,7 @@ components:
           maxLength: 50
         measurement_event_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         meas_event_field_concept_id:
           type: integer
 
@@ -1398,7 +1398,7 @@ components:
       properties:
         specimen_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         specimen_concept_id:
           type: integer
           format: int32
@@ -1461,7 +1461,7 @@ components:
       properties:
         procedure_occurrence_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         procedure_concept_id:
           type: integer
         procedure_date:
@@ -1484,13 +1484,13 @@ components:
           type: integer
         provider_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         visit_occurrence_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         visit_detail_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         procedure_source_value:
           type: string
           maxLength: 50
@@ -1510,7 +1510,7 @@ components:
       properties:
         drug_exposure_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         drug_concept_id:
           type: integer
         drug_exposure_start_date:
@@ -1548,13 +1548,13 @@ components:
           maxLength: 50
         provider_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         visit_occurrence_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         visit_detail_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         drug_source_value:
           type: string
           maxLength: 50
@@ -1576,7 +1576,7 @@ components:
       properties:
         drug_era_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         drug_concept_id:
           type: integer
         drug_era_start_date:
@@ -1599,7 +1599,7 @@ components:
       properties:
         condition_era_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         condition_concept_id:
           type: integer
         condition_era_start_date:
@@ -1622,7 +1622,7 @@ components:
       properties:
         dose_era_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         drug_concept_id:
           type: integer
         unit_concept_id:
@@ -1649,12 +1649,12 @@ components:
           type: integer
         fact_id_1:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         domain_concept_id_2:
           type: integer
         fact_id_2:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         relationship_concept_id:
           type: integer
 
@@ -1669,7 +1669,7 @@ components:
       properties:
         visit_occurrence_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         visit_concept_id:
           type: integer
         visit_start_date:
@@ -1688,10 +1688,10 @@ components:
           type: integer
         provider_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         care_site_id:
           type: string
-          pattern: ^[A-Za-z0-9\-\._~]{1,200}$
+          pattern: ^[A-Za-z0-9\-\._~\+\$\[\]]{1,200}$
         visit_source_value:
           type: string
           maxLength: 50
