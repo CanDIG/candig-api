@@ -732,7 +732,7 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
             datasets = authx.auth.get_opa_datasets(request)
             count_sql_text = text(individual_queries.count_individuals.sql \
                 .replace("%(dataset_ids)s", ":dataset_ids"))
-            count_sql_text.bindparams(bindparam("dataset_ids", expanding=True))
+            count_sql_text = count_sql_text.bindparams(bindparam("dataset_ids", expanding=True))
             count_ids = await conn.execute(count_sql_text, {"dataset_ids": datasets})
             count_ids = count_ids.first()[0]
             base_filter, filters_dict = create_dynamic_filter([])
