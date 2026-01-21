@@ -7,7 +7,7 @@ from ...beacon.request.model import RequestParams
 from ...beacon.omop.schemas import DefaultSchemas
 from connexion import request
 import aiosql
-from sqlalchemy import text
+from sqlalchemy import text, bindparam
 from ..conf import MAX_LIMIT
 
 import authx.auth
@@ -35,13 +35,17 @@ async def get_individual_id(offset=0, limit=10, person_id=None):
             # we swap it back before continuing
             transformed_sql = individual_queries.sql_get_individuals.sql \
                 .replace("%(limit)s", ":limit") \
-                .replace("%(offset)s", ":offset")
-            records = (await conn.execute(text(transformed_sql), {"limit": limit, "offset": offset})).all()
-            listId = [str(record[0]) for record in records if record[1] in datasets]
+                .replace("%(offset)s", ":offset") \
+                .replace("%(dataset_ids)s", ":dataset_ids")
+            transformed_sql_text = text(transformed_sql).bindparams(bindparam('dataset_ids', expanding=True))
+            records = (await conn.execute(transformed_sql_text, {"limit": limit, "offset": offset, "dataset_ids": datasets})).all()
+            listId = [str(record[0]) for record in records]
         else:
-            transformed_sql = individual_queries.sql_get_individual_id.sql.replace("%(person_id)s", ":person_id")
-            records = (await conn.execute(text(transformed_sql), {"person_id": person_id})).fetchone()
-            listId = [str(records[0])] if records[1] in datasets else []
+            transformed_sql = individual_queries.sql_get_individual_id.sql.replace("%(person_id)s", ":person_id") \
+                .replace("%(dataset_ids)s", ":dataset_ids")
+            transformed_sql_text = text(transformed_sql).bindparams(bindparam('dataset_ids', expanding=True))
+            records = (await conn.execute(transformed_sql, {"person_id": person_id, "dataset_ids": datasets})).fetchone()
+            listId = [str(records[0])]
     return listId
 
 async def get_individuals_person(listIds, filters_dict):

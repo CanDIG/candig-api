@@ -3,6 +3,7 @@
 -- Get individuals
 SELECT person_id, dataset_id
 FROM candig.person_in_dataset
+WHERE dataset_id IN :dataset_ids
 LIMIT :limit
 OFFSET :offset
 
@@ -36,6 +37,7 @@ JOIN omop.person AS p ON p.person_id=c.person_id
 SELECT DISTINCT person_id, dataset_id
 FROM candig.person_in_dataset
 WHERE person_id = :person_id
+AND dataset_id IN :dataset_ids
 
 -- name: sql_get_person
 -- Get gender and race by id
