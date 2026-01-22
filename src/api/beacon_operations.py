@@ -1,3 +1,5 @@
+import connexion
+
 #from ..beacon.request.handlers import filtering_terms_handler
 from ..beacon.omop import datasets, filtering_terms, individuals
 #from ..beacon.omop.schemas import DefaultSchemas
@@ -89,11 +91,14 @@ async def post(body: dict):
 # /persons/
 async def post_person(body: dict):
     retval = {}
+    request = connexion.request
+    request.method = "POST",
+    request.path = "/v1/beacon/persons"
     # Figure out what kind of search we should be doing (see beacon/request/routes)
     params = RequestParams(**body).from_request(body)
 
     # Pass out the parsed search parameters to SQL (see beacon/omop/)
-    schema, count, records, discovery_data = await individuals.get_individuals(None, params)
+    schema, count, records, discovery_data = await individuals.get_individuals(request, None, params)
 
     # Fill out the return value with all parameters that belong there (see beacon/response/build_response)
     # Start by assuming max granularity, and downgrade as needed
