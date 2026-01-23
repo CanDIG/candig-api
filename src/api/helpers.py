@@ -296,8 +296,7 @@ async def ingest_data(data: dict, queue_id: str) -> Tuple[List[str], List[str], 
 
     dataset_list = data.get("datasets", [])
 
-    for dataset_entry in dataset_list:
-        ds_data = dataset_entry.get("dataset", {})
+    for ds_data in dataset_list:
         ds_id = ds_data.get("id")
         ds_info = ds_data.get("info", {})
         ds_persons = ds_data.get("linked_records", [])

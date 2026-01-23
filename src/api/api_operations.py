@@ -47,7 +47,7 @@ async def upload_file(file):
             jsoncontent = json.loads(content)
             authzed_datasets = get_authorized_datasets()
             for dataset in jsoncontent['datasets']:
-                ds_id = dataset['dataset']['id']
+                ds_id = dataset["id"]
                 if ds_id not in authzed_datasets:
                     return {
                         "error": "Forbidden",
