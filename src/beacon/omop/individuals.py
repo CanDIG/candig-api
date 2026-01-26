@@ -1,5 +1,6 @@
 import re
 
+from connexion import request
 from typing import Optional
 from ...beacon.omop.utils import  search_ontologies, basic_query, peek
 from ...beacon.omop import engine, mappings
@@ -26,7 +27,7 @@ def get_basic_discovery_response():
         'patients_per_program': {}
     }
 
-async def get_individual_id(request=None, offset=0, limit=10, person_id=None):
+async def get_individual_id(offset=0, limit=10, person_id=None):
     datasets = authx.auth.get_opa_datasets(request)
     if len(datasets) == 0:
         return []
@@ -81,7 +82,7 @@ async def get_individuals_dataset(listIds, filters_dict):
 
     return dict_dataset
 
-def get_datasets_allowed_filter(filters_dict, request):
+def get_datasets_allowed_filter(filters_dict):
     datasets = authx.auth.get_opa_datasets(request)
     # Create a filter on allowed datasets for this user
     if len(datasets) == 0:
@@ -287,7 +288,7 @@ def safe_column_name(name):
     # We can revisit this later if the above is not a valid assumption
     return re.sub(r'[^a-zA-Z0-9_]', '', name)
 
-def create_dynamic_filter(filters, request):
+def create_dynamic_filter(filters):
     base_filter = {
         'demographic_filters': '',
         'condition_filters': '',
@@ -481,7 +482,7 @@ def create_dynamic_filter(filters, request):
     base_filter['procedures_filters'] += query_procedure
     base_filter['exposures_filters'] += query_exposure
     base_filter['treatments_filters'] += query_treatment
-    base_filter['datasets_filters'], filters_dict = get_datasets_allowed_filter(filters_dict, request)
+    base_filter['datasets_filters'], filters_dict = get_datasets_allowed_filter(filters_dict)
 
     return base_filter, filters_dict
 
@@ -604,7 +605,7 @@ async def get_discovery(base_filter, filters_dict):
     discovery['drug_type_count'] = await format_filtered_discovery(discovery_query_drug_type(base_filter), filters_dict)
     return discovery
 
-async def checkFilters(request, filtersDict, offset, limit):
+async def checkFilters(filtersDict, offset, limit):
     listOfList = []
     dictTableMap = []
     typeQuery = request.method
@@ -684,7 +685,7 @@ async def checkFilters(request, filtersDict, offset, limit):
                     listConcept_id = listConcept_id.union(concept_ids)
                 dictTableMap.append([tableMap, listConcept_id, operator, value])
     # logger.info(dictTableMap)
-    base_filter, filters_dict = create_dynamic_filter(dictTableMap, request)
+    base_filter, filters_dict = create_dynamic_filter(dictTableMap)
     query_count = super_query_count(base_filter)
     count_records = (await basic_query(query_count, filters_dict)).fetchone()[0]
 
@@ -699,11 +700,11 @@ async def checkFilters(request, filtersDict, offset, limit):
     return listOfList, count_records, discovery, filters_dict
 
 # /individuals/?filters=SNOMED:0&filters=OMOP:23
-async def filters(request, filtersDict, offset, limit):
+async def filters(filtersDict, offset, limit):
     # There used to be a lot of code here, but now that we pass the connexion request it's all unnecessary
-    return await checkFilters(request, filtersDict, offset, limit)
+    return await checkFilters(filtersDict, offset, limit)
 
-async def get_individuals(request: dict, entry_id: Optional[str]=None, qparams: RequestParams=RequestParams()):
+async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=RequestParams()):
 
     schema = DefaultSchemas.INDIVIDUALS
     count_ids = 0
@@ -712,8 +713,7 @@ async def get_individuals(request: dict, entry_id: Optional[str]=None, qparams: 
         qparams.query.pagination.limit = MAX_LIMIT
     if qparams.query.filters and len(qparams.query.filters) > 0 and len(qparams.query.filters[0]) > 0:
         # NB: qparams.query.filters is a list, whereas we need it to be a dict?
-        listIds, count_ids, discovery_data, filters_dict = await filters(request,
-                                                                        qparams.query.filters[0],
+        listIds, count_ids, discovery_data, filters_dict = await filters(qparams.query.filters[0],
                                                                         offset=qparams.query.pagination.skip,
                                                                         limit=qparams.query.pagination.limit)
         if count_ids == 0:
@@ -724,8 +724,7 @@ async def get_individuals(request: dict, entry_id: Optional[str]=None, qparams: 
             listIds = []
             count_ids = 0
         else:
-            listIds = await get_individual_id(request=request,
-                                                offset=qparams.query.pagination.skip,
+            listIds = await get_individual_id(offset=qparams.query.pagination.skip,
                                                 limit=qparams.query.pagination.limit,
                                                 person_id=entry_id)                 # List with all Ids
             async with engine.connect() as conn:
@@ -735,7 +734,7 @@ async def get_individuals(request: dict, entry_id: Optional[str]=None, qparams: 
                 count_ids = await conn.execute(count_sql_text, {"dataset_ids": datasets})
                 count_ids = count_ids.first()[0]
 
-        base_filter, filters_dict = create_dynamic_filter([], request)
+        base_filter, filters_dict = create_dynamic_filter([])
         discovery_data = await get_discovery(base_filter, filters_dict)
 
     # logger.info(f"Number of ids: ${count_ids}")
