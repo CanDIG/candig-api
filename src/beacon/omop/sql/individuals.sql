@@ -3,6 +3,7 @@
 -- Get individuals
 SELECT person_id, dataset_id
 FROM candig.person_in_dataset
+WHERE dataset_id IN :dataset_ids
 LIMIT :limit
 OFFSET :offset
 
@@ -23,7 +24,8 @@ where cohort_definition_id = :cohort_id
 -- name: count_individuals$
 -- Get individuals count
 SELECT count(*)
-FROM omop.person
+FROM candig.person_in_dataset
+WHERE dataset_id IN :dataset_ids
 
 -- name: count_primary_sites$
 -- Get individuals count
@@ -36,6 +38,7 @@ JOIN omop.person AS p ON p.person_id=c.person_id
 SELECT DISTINCT person_id, dataset_id
 FROM candig.person_in_dataset
 WHERE person_id = :person_id
+AND dataset_id IN :dataset_ids
 
 -- name: sql_get_person
 -- Get gender and race by id

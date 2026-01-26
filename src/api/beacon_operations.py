@@ -1,3 +1,5 @@
+import connexion
+
 #from ..beacon.request.handlers import filtering_terms_handler
 from ..beacon.omop import datasets, filtering_terms, individuals
 #from ..beacon.omop.schemas import DefaultSchemas

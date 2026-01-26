@@ -1,13 +1,13 @@
 import re
 
+from connexion import request
 from typing import Optional
 from ...beacon.omop.utils import  search_ontologies, basic_query, peek
 from ...beacon.omop import engine, mappings
 from ...beacon.request.model import RequestParams
 from ...beacon.omop.schemas import DefaultSchemas
-from connexion import request
 import aiosql
-from sqlalchemy import text
+from sqlalchemy import text, bindparam
 from ..conf import MAX_LIMIT
 
 import authx.auth
@@ -29,19 +29,26 @@ def get_basic_discovery_response():
 
 async def get_individual_id(offset=0, limit=10, person_id=None):
     datasets = authx.auth.get_opa_datasets(request)
+    if len(datasets) == 0:
+        return []
+
     async with engine.connect() as conn:
         if person_id == None:
             # aiosql likes to swap params like :limit and :offset to %(limit)s and %(offset)s, which is unsafe
             # we swap it back before continuing
             transformed_sql = individual_queries.sql_get_individuals.sql \
                 .replace("%(limit)s", ":limit") \
-                .replace("%(offset)s", ":offset")
-            records = (await conn.execute(text(transformed_sql), {"limit": limit, "offset": offset})).all()
-            listId = [str(record[0]) for record in records if record[1] in datasets]
+                .replace("%(offset)s", ":offset") \
+                .replace("%(dataset_ids)s", ":dataset_ids")
+            transformed_sql_text = text(transformed_sql).bindparams(bindparam('dataset_ids', expanding=True))
+            records = (await conn.execute(transformed_sql_text, {"limit": limit, "offset": offset, "dataset_ids": datasets})).all()
+            listId = [str(record[0]) for record in records]
         else:
-            transformed_sql = individual_queries.sql_get_individual_id.sql.replace("%(person_id)s", ":person_id")
-            records = (await conn.execute(text(transformed_sql), {"person_id": person_id})).fetchone()
-            listId = [str(records[0])] if records[1] in datasets else []
+            transformed_sql = individual_queries.sql_get_individual_id.sql.replace("%(person_id)s", ":person_id") \
+                .replace("%(dataset_ids)s", ":dataset_ids")
+            transformed_sql_text = text(transformed_sql).bindparams(bindparam('dataset_ids', expanding=True))
+            records = (await conn.execute(transformed_sql, {"person_id": person_id, "dataset_ids": datasets})).fetchone()
+            listId = [str(records[0])]
     return listId
 
 async def get_individuals_person(listIds, filters_dict):
@@ -598,9 +605,10 @@ async def get_discovery(base_filter, filters_dict):
     discovery['drug_type_count'] = await format_filtered_discovery(discovery_query_drug_type(base_filter), filters_dict)
     return discovery
 
-async def checkFilters(filtersDict, offset, limit, typeQuery):
+async def checkFilters(filtersDict, offset, limit):
     listOfList = []
     dictTableMap = []
+    typeQuery = request.method
     async with engine.connect() as conn:
         for filter in filtersDict:
             listConcept_id = set()
@@ -693,15 +701,8 @@ async def checkFilters(filtersDict, offset, limit, typeQuery):
 
 # /individuals/?filters=SNOMED:0&filters=OMOP:23
 async def filters(filtersDict, offset, limit):
-    # logger.info(filtersDict)
-    if type(filtersDict[0]) is dict:         # If filter is from Post
-        # logger.info("post")
-        listFilters, count, discovery, filters_dict = await checkFilters(filtersDict, offset, limit, 'POST')
-    else:
-        # logger.info("get")
-        listFilters, count, discovery, filters_dict = await checkFilters(filtersDict, offset, limit, 'GET')
-
-    return listFilters, count, discovery, filters_dict
+    # There used to be a lot of code here, but now that we pass the connexion request it's all unnecessary
+    return await checkFilters(filtersDict, offset, limit)
 
 async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=RequestParams()):
 
@@ -713,19 +714,28 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
     if qparams.query.filters and len(qparams.query.filters) > 0 and len(qparams.query.filters[0]) > 0:
         # NB: qparams.query.filters is a list, whereas we need it to be a dict?
         listIds, count_ids, discovery_data, filters_dict = await filters(qparams.query.filters[0],
-                        offset=qparams.query.pagination.skip,
-                        limit=qparams.query.pagination.limit)
+                                                                        offset=qparams.query.pagination.skip,
+                                                                        limit=qparams.query.pagination.limit)
         if count_ids == 0:
             return schema, count_ids, [], {}
     else:
-        listIds = await get_individual_id(offset=qparams.query.pagination.skip,
-                                            limit=qparams.query.pagination.limit,
-                                            person_id=entry_id)                 # List with all Ids
-        async with engine.connect() as conn:
-            count_ids = await conn.execute(text(individual_queries.count_individuals.sql)) # Count individuals
-            count_ids = count_ids.first()[0]
-            base_filter, filters_dict = create_dynamic_filter([])
-            discovery_data = await get_discovery(base_filter, filters_dict)
+        datasets = authx.auth.get_opa_datasets(request)
+        if len(datasets) == 0:
+            listIds = []
+            count_ids = 0
+        else:
+            listIds = await get_individual_id(offset=qparams.query.pagination.skip,
+                                                limit=qparams.query.pagination.limit,
+                                                person_id=entry_id)                 # List with all Ids
+            async with engine.connect() as conn:
+                count_sql_text = text(individual_queries.count_individuals.sql \
+                    .replace("%(dataset_ids)s", ":dataset_ids"))
+                count_sql_text = count_sql_text.bindparams(bindparam("dataset_ids", expanding=True))
+                count_ids = await conn.execute(count_sql_text, {"dataset_ids": datasets})
+                count_ids = count_ids.first()[0]
+
+        base_filter, filters_dict = create_dynamic_filter([])
+        discovery_data = await get_discovery(base_filter, filters_dict)
 
     # logger.info(f"Number of ids: ${count_ids}")
 
