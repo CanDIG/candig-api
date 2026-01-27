@@ -24,7 +24,8 @@ def get_basic_discovery_response():
     return {
         'primary_site_count': {},
         'treatment_type_count': {},
-        'patients_per_program': {}
+        'patients_per_program': {},
+        'drug_type_count': {}
     }
 
 async def get_individual_id(offset=0, limit=10, person_id=None):
@@ -630,7 +631,7 @@ async def checkFilters(filtersDict, offset, limit):
                 if 'id' in filter:
                     filterId = filter['id']
                 else:
-                    return [], 0
+                    return [], 0, get_basic_discovery_response(), {}
                 if (filterId == 'ageOfOnset' or
                     filterId == 'ageAtProcedure' or
                     filterId == 'observationMoment' or
@@ -670,7 +671,7 @@ async def checkFilters(filtersDict, offset, limit):
                 #                                                    concept_code=concept_code)
                 # Check if records is empty
                 if records.rowcount <= 0:
-                    return [], 0
+                    return [], 0, get_basic_discovery_response(), {}
                 records = records.fetchall()
                 for record in records:
                     original_concept_id = record[0]
