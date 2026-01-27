@@ -83,13 +83,20 @@ async def get_individuals_dataset(listIds, filters_dict):
 
     return dict_dataset
 
-def get_datasets_allowed_filter(filters_dict, request_datasets=[]):
+def get_datasets_allowed_filter(filters_dict, request_datasets=[], discovery=False):
     # Create a filter on allowed datasets for this user
     datasets = authx.auth.get_opa_datasets(request)
 
-    # If the user has requested specific datasets, we filter down to only the ones they have permissions for
-    if len(request_datasets) > 0:
-        datasets = list(set(datasets) & set(request_datasets))
+    if discovery:
+        if len(request_datasets) > 0:
+            # Discovery queries bypass authorization
+            datasets = request_datasets
+        else:
+            return "and true", filters_dict
+    else:
+        # If the user has requested specific datasets, we filter down to only the ones they have permissions for
+        if len(request_datasets) > 0:
+            datasets = list(set(datasets) & set(request_datasets))
 
     if len(datasets) == 0:
         return "and false", filters_dict # No allowed datasets
@@ -499,6 +506,7 @@ def create_dynamic_filter(filters):
     base_filter['exposures_filters'] += query_exposure
     base_filter['treatments_filters'] += query_treatment
     base_filter['datasets_filters'], filters_dict = get_datasets_allowed_filter(filters_dict, request_datasets)
+    base_filter['datasets_discovery_filters'], filters_dict = get_datasets_allowed_filter(filters_dict, request_datasets, discovery=True)
 
     return base_filter, filters_dict
 
@@ -528,6 +536,7 @@ def discovery_query_primary_site(filter):
         {filter['procedures_filters']}
         {filter['exposures_filters']}
         {filter['treatments_filters']}
+        {filter['datasets_discovery_filters']}
         GROUP BY c.concept_name
     """
 
@@ -543,6 +552,7 @@ def discovery_query_treatment_type(filter):
         {filter['procedures_filters']}
         {filter['exposures_filters']}
         {filter['treatments_filters']}
+        {filter['datasets_discovery_filters']}
         GROUP BY c.concept_name
     """
 
@@ -558,6 +568,7 @@ def discovery_query_drug_type(filter):
         {filter['procedures_filters']}
         {filter['exposures_filters']}
         {filter['treatments_filters']}
+        {filter['datasets_discovery_filters']}
         GROUP BY c.concept_name
     """
 
@@ -572,6 +583,7 @@ def discovery_query_program(filter):
         {filter['procedures_filters']}
         {filter['exposures_filters']}
         {filter['treatments_filters']}
+        {filter['datasets_discovery_filters']}
         GROUP BY d.dataset_id
     """
 
@@ -743,7 +755,7 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
                                                                         offset=qparams.query.pagination.skip,
                                                                         limit=qparams.query.pagination.limit)
         if count_ids == 0:
-            return schema, count_ids, [], {}
+            return schema, count_ids, [], discovery_data
     else:
         datasets = authx.auth.get_opa_datasets(request)
         if len(datasets) == 0:
