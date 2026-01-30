@@ -516,8 +516,12 @@ def get_timestamp(datetime_value):
     Convert OMOP datetime to Phenopacket Timestamp format.
     """
     if isinstance(datetime_value, datetime):
+        if datetime_value.date() == date(1800, 1, 1):
+            return None
         return {"iso8601timestamp": datetime_value.isoformat()}
     elif isinstance(datetime_value, date):
+        if datetime_value == date(1800, 1, 1):
+            return None
         return {"iso8601timestamp": datetime_value.isoformat()}
 
     return None
@@ -540,6 +544,9 @@ def get_survival_time(disease_first_occurrence_date, death_date):
         end_date = death_date.date()
     else:
         end_date = death_date
+
+    if start_date == date(1800, 1, 1) or end_date == date(1800, 1, 1):
+        return None
 
     # Calculate difference in days
     delta = end_date - start_date
