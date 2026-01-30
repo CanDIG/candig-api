@@ -963,7 +963,7 @@ def get_meta_data():
     return {
         "created": datetime.now(timezone.utc).isoformat(),
         "created_by": "DHDP",
-        "submitter_by": "DHDP",
+        "submitted_by": "DHDP",
         "phenopacket_schema_version": "2.0.0",
         "resources": [
             {

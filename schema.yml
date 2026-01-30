@@ -2352,7 +2352,7 @@ components:
           type: string
           description: >
             The agent or organization that created the phenopacket.
-        submitter_by:
+        submitted_by:
           type: string
           description: >
             Name of person who submitted the phenopacket
