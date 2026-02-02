@@ -128,23 +128,15 @@ async def get_medical_actions(person_id: int):
 async def get_disease_stages(person_id: int):
     raw_sql = text(f"""
     SELECT DISTINCT
-        m.value_as_concept_id as disease_stage_concept_id
-    FROM {settings.CDM_SCHEMA}.measurement AS m
+        m.{settings.MAPPING_JSON['diseases']['disease_stage']['filtering_field']} as disease_stage_concept_id
+    FROM {settings.CDM_SCHEMA}.{settings.MAPPING_JSON['diseases']['disease_stage']['omop_object']} AS m
     WHERE m.person_id = :person_id
-        AND m.measurement_concept_id IN (
-            SELECT descendant_concept_id
-            FROM {settings.CDM_SCHEMA}.concept_ancestor
-            WHERE ancestor_concept_id = (
-                SELECT concept_id
-                FROM {settings.CDM_SCHEMA}.concept
-                WHERE vocabulary_id = 'SNOMED'
-                  AND concept_code = '254292007'
+        AND (
+                m.{settings.MAPPING_JSON['diseases']['disease_stage']['filtering_field']} IN (
+                SELECT descendant_concept_id FROM {settings.CDM_SCHEMA}.concept_ancestor
+                WHERE ancestor_concept_id IN ({','.join([str(x) for x in settings.MAPPING_JSON['diseases']['disease_stage']['ancestor_ids']])})) 
+                OR m.value_as_concept_id IN ({','.join([str(x) for x in settings.MAPPING_JSON['diseases']['disease_stage']['concept_ids']])})
             )
-            UNION
-            SELECT 37163866
-            UNION
-            SELECT 607126
-        )
     """)
 
     async for session in get_db_session():

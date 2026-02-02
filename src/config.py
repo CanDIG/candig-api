@@ -5,6 +5,7 @@ This module defines the variables for the app.
 """
 
 import os
+import json
 
 
 class Settings:
@@ -25,6 +26,8 @@ class Settings:
     CDM_SCHEMA: str = os.getenv("CDM_SCHEMA", "omop")
     TO_INGEST_DIR = "upload/to_ingest"
     RESULTS_DIR = "upload/results"
+    with open("src/concept_mappings.json", "r") as f:
+        MAPPING_JSON = json.load(f)
 
     @property
     def DATABASE_URI(self) -> str:
