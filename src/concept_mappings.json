@@ -3,7 +3,7 @@
         "disease_stage": {
             "omop_object": "measurement",
             "filtering_field": "value_as_concept_id",
-            "value_field": "value_as_concept_id",
+            "concept_value_field": "value_as_concept_id",
             "concept_ids": [
                 4136272,
                 4114652,
@@ -53,15 +53,26 @@
             ]
         }
     },
-    "measurements": {
-        "omop_object": "observation",
-        "filtering_field": "observation_concept_id",
-        "value_field": "value_as_concept_id",
-        "concept_ids": [
-            4203711,
-            43054909
-        ],
-        "date_field": "observation_date"
-    }
-
+    "measurements": [
+        {
+            "omop_object": "observation",
+            "filtering_field": "observation_concept_id",
+            "concept_value_field": "value_as_concept_id",
+            "concept_ids": [
+                4203711,
+                43054909
+            ],
+            "date_field": "observation_date"
+        },
+        {
+            "omop_object": "measurement",
+            "filtering_field": "measurement_concept_id",
+            "concept_value_field": "value_as_concept_id",
+            "number_value_field": "value_as_number",
+            "unit_field": "unit_concept_id",
+            "date_field": "measurement_date",
+            "concept_ids": [],
+            "ancestor_ids": [4326835]
+        }
+    ]
 }

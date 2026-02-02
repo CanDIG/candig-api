@@ -128,7 +128,7 @@ async def get_medical_actions(person_id: int):
 async def get_disease_stages(person_id: int):
     raw_sql = text(f"""
     SELECT DISTINCT
-        m.{settings.MAPPING_JSON['diseases']['disease_stage']['value_field']} as disease_stage_concept_id
+        m.{settings.MAPPING_JSON['diseases']['disease_stage']['concept_value_field']} as disease_stage_concept_id
     FROM {settings.CDM_SCHEMA}.{settings.MAPPING_JSON['diseases']['disease_stage']['omop_object']} AS m
     WHERE m.person_id = :person_id
         AND (
@@ -915,46 +915,102 @@ async def get_radiation_therapies(person_id: int):
 
 
 async def get_measurements(person_id: int):
-    raw_sql = text(f"""
-        SELECT DISTINCT
-            {settings.MAPPING_JSON['measurements']['omop_object']}.{settings.MAPPING_JSON['measurements']['value_field']} as measurement_value_concept_id,
-            {settings.MAPPING_JSON['measurements']['omop_object']}.{settings.MAPPING_JSON['measurements']['filtering_field']} as measurement_type_concept_id,
-            {settings.MAPPING_JSON['measurements']['omop_object']}.{settings.MAPPING_JSON['measurements']['date_field']} as measurement_date
-        FROM {settings.CDM_SCHEMA}.{settings.MAPPING_JSON['measurements']['omop_object']} observation
-        WHERE {settings.MAPPING_JSON['measurements']['omop_object']}.person_id = :person_id
-            AND {settings.MAPPING_JSON['measurements']['omop_object']}.{settings.MAPPING_JSON['measurements']['filtering_field']} 
-            IN({','.join([str(x) for x in settings.MAPPING_JSON['measurements']['concept_ids']])})
-    """)
+    measurements = []
+    for mapping in settings.MAPPING_JSON['measurements']:
+        if mapping['omop_object'] == "observation":
+            raw_sql = text(f"""
+                SELECT DISTINCT
+                    {mapping['omop_object']}.{mapping['concept_value_field']} as measurement_value_concept_id,
+                    {mapping['omop_object']}.{mapping['filtering_field']} as measurement_type_concept_id,
+                    {mapping['omop_object']}.{mapping['date_field']} as measurement_date
+                FROM {settings.CDM_SCHEMA}.{mapping['omop_object']}
+                WHERE {mapping['omop_object']}.person_id = :person_id
+                    AND {mapping['omop_object']}.{mapping['filtering_field']} 
+                    IN({','.join([str(x) for x in mapping['concept_ids']])})
+            """)
 
-    async for session in get_db_session():
-        try:
-            result = await session.execute(raw_sql, {"person_id": person_id})
-            rows = result.fetchall()
+            async for session in get_db_session():
+                try:
+                    result = await session.execute(raw_sql, {"person_id": person_id})
+                    rows = result.fetchall()
 
-            # Batch fetch ontologies
-            concept_ids = [row.measurement_value_concept_id for row in rows] + [row.measurement_type_concept_id for row in rows]
-            ontology_map = await get_ontologies(concept_ids)
+                    # Batch fetch ontologies
+                    concept_ids = [row.measurement_value_concept_id for row in rows] + [row.measurement_type_concept_id for row in rows]
+                    ontology_map = await get_ontologies(concept_ids)
 
-            measurements = []
-            for row in rows:
-                measurement_value = ontology_map.get(row.measurement_value_concept_id)
-                type_value = ontology_map.get(row.measurement_type_concept_id)
-                date_value = row.measurement_date
-                if measurement_value:
-                    measurement = {
-                        "assay": type_value,
-                        "measurement_value": measurement_value,
-                        "time_observed":get_timestamp(date_value)
-                    }
-                    measurements.append(measurement)
+                    for row in rows:
+                        measurement_value = ontology_map.get(row.measurement_value_concept_id)
+                        type_value = ontology_map.get(row.measurement_type_concept_id)
+                        date_value = row.measurement_date
+                        if measurement_value:
+                            measurement = {
+                                "assay": type_value,
+                                "measurement_value": measurement_value,
+                                "time_observed": get_timestamp(date_value)
+                            }
+                            measurements.append(measurement)
 
-            return measurements if measurements else None
+                except Exception as e:
+                    logger.error(f"Database Error in get_measurements: {str(e)}")
+                    return None
+        if mapping['omop_object'] == "measurement":
+            raw_sql = text(f"""
+                SELECT DISTINCT
+                    {mapping['omop_object']}.{mapping['concept_value_field']} as measurement_value_concept_id,
+                    {mapping['omop_object']}.{mapping['number_value_field']} as measurement_value,
+                    {mapping['omop_object']}.{mapping['filtering_field']} as measurement_type_concept_id,
+                    {mapping['omop_object']}.{mapping['date_field']} as measurement_date,
+                    {mapping['omop_object']}.{mapping['unit_field']} as measurement_unit_concept_id
+                FROM {settings.CDM_SCHEMA}.{mapping['omop_object']}
+                WHERE {mapping['omop_object']}.person_id = :person_id
+                    AND ({mapping['filtering_field']} IN (
+                    SELECT descendant_concept_id FROM {settings.CDM_SCHEMA}.concept_ancestor
+                    WHERE ancestor_concept_id IN ({','.join([str(x) for x in mapping['ancestor_ids']])})))
+            """)
 
-        except Exception as e:
-            logger.error(f"Database Error in get_measurements: {str(e)}")
-            return None
+            async for session in get_db_session():
+                try:
+                    result = await session.execute(raw_sql, {"person_id": person_id})
+                    rows = result.fetchall()
 
-    return None
+                    # Batch fetch ontologies
+                    concept_ids = ([row.measurement_value_concept_id for row in rows] + 
+                                   [row.measurement_type_concept_id for row in rows] + 
+                                   [row.measurement_unit_concept_id for row in rows])
+                    ontology_map = await get_ontologies(concept_ids)
+
+                    for row in rows:
+                        if row.measurement_value_concept_id:
+                            measurement_value = ontology_map.get(row.measurement_value_concept_id)
+                            type_value = ontology_map.get(row.measurement_type_concept_id)
+                            date_value = row.measurement_date
+                            if measurement_value:
+                                measurement = {
+                                    "assay": type_value,
+                                    "measurement_value": measurement_value,
+                                    "time_observed": get_timestamp(date_value)
+                                }
+                                measurements.append(measurement)
+                        elif row.measurement_value:
+                            type_value = ontology_map.get(row.measurement_type_concept_id)
+                            unit_value = ontology_map.get(row.measurement_unit_concept_id)
+                            measurement_value = row.measurement_value
+                            if measurement_value:
+                                measurement = {
+                                    "assay": type_value,
+                                    "measurement_value": {
+                                        "unit": unit_value,
+                                        "value": measurement_value
+                                    },
+                                    "time_observed": get_timestamp(row.measurement_date)
+                                }
+                                measurements.append(measurement)
+
+                except Exception as e:
+                    logger.error(f"Database Error in get_measurements: {str(e)}")
+                    return None
+    
+    return measurements if measurements else None
 
 
 def get_meta_data():
