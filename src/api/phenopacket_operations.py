@@ -128,7 +128,7 @@ async def get_medical_actions(person_id: int):
 async def get_disease_stages(person_id: int):
     raw_sql = text(f"""
     SELECT DISTINCT
-        m.{settings.MAPPING_JSON['diseases']['disease_stage']['filtering_field']} as disease_stage_concept_id
+        m.{settings.MAPPING_JSON['diseases']['disease_stage']['value_field']} as disease_stage_concept_id
     FROM {settings.CDM_SCHEMA}.{settings.MAPPING_JSON['diseases']['disease_stage']['omop_object']} AS m
     WHERE m.person_id = :person_id
         AND (
@@ -917,10 +917,13 @@ async def get_radiation_therapies(person_id: int):
 async def get_measurements(person_id: int):
     raw_sql = text(f"""
         SELECT DISTINCT
-            observation.value_as_concept_id as measurement_value_concept_id
-        FROM {settings.CDM_SCHEMA}.observation observation
-        WHERE observation.person_id = :person_id
-            AND observation.observation_concept_id = 43054909
+            {settings.MAPPING_JSON['measurements']['omop_object']}.{settings.MAPPING_JSON['measurements']['value_field']} as measurement_value_concept_id,
+            {settings.MAPPING_JSON['measurements']['omop_object']}.{settings.MAPPING_JSON['measurements']['filtering_field']} as measurement_type_concept_id,
+            {settings.MAPPING_JSON['measurements']['omop_object']}.{settings.MAPPING_JSON['measurements']['date_field']} as measurement_date
+        FROM {settings.CDM_SCHEMA}.{settings.MAPPING_JSON['measurements']['omop_object']} observation
+        WHERE {settings.MAPPING_JSON['measurements']['omop_object']}.person_id = :person_id
+            AND {settings.MAPPING_JSON['measurements']['omop_object']}.{settings.MAPPING_JSON['measurements']['filtering_field']} 
+            IN({','.join([str(x) for x in settings.MAPPING_JSON['measurements']['concept_ids']])})
     """)
 
     async for session in get_db_session():
@@ -929,16 +932,21 @@ async def get_measurements(person_id: int):
             rows = result.fetchall()
 
             # Batch fetch ontologies
-            concept_ids = [row.measurement_value_concept_id for row in rows]
-            ontology_map = await get_ontologies(concept_ids)
+            value_concept_ids = [row.measurement_value_concept_id for row in rows]
+            value_ontology_map = await get_ontologies(value_concept_ids)
+            type_concept_ids = [row.measurement_type_concept_id for row in rows]
+            type_concept_map = await get_ontologies(type_concept_ids)
 
             measurements = []
             for row in rows:
-                measurement_value = ontology_map.get(row.measurement_value_concept_id)
+                measurement_value = value_ontology_map.get(row.measurement_value_concept_id)
+                type_value = type_concept_map.get(row.measurement_type_concept_id)
+                date_value = row.measurement_date
                 if measurement_value:
                     measurement = {
-                        "assay": {"id": "LOINC:72166-2", "label": "Tobacco smoking status"},
+                        "assay": type_value,
                         "measurement_value": measurement_value,
+                        "time_observed":get_timestamp(date_value)
                     }
                     measurements.append(measurement)
 
