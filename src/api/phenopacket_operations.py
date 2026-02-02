@@ -932,15 +932,13 @@ async def get_measurements(person_id: int):
             rows = result.fetchall()
 
             # Batch fetch ontologies
-            value_concept_ids = [row.measurement_value_concept_id for row in rows]
-            value_ontology_map = await get_ontologies(value_concept_ids)
-            type_concept_ids = [row.measurement_type_concept_id for row in rows]
-            type_concept_map = await get_ontologies(type_concept_ids)
+            concept_ids = [row.measurement_value_concept_id for row in rows] + [row.measurement_type_concept_id for row in rows]
+            ontology_map = await get_ontologies(concept_ids)
 
             measurements = []
             for row in rows:
-                measurement_value = value_ontology_map.get(row.measurement_value_concept_id)
-                type_value = type_concept_map.get(row.measurement_type_concept_id)
+                measurement_value = ontology_map.get(row.measurement_value_concept_id)
+                type_value = ontology_map.get(row.measurement_type_concept_id)
                 date_value = row.measurement_date
                 if measurement_value:
                     measurement = {
