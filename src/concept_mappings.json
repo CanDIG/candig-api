@@ -1,4 +1,25 @@
 {
+    "medical_actions": {
+        "response_to_treatment": {
+            "omop_object": "observation",
+            "filtering_field": "observation_concept_id",
+            "concept_value_field": "value_as_concept_id",
+            "concept_ids": [
+                4082405
+            ],
+            "grouping_field": "observation_event_id"
+        },
+        "treatment_intent": {
+            "omop_object": "observation",
+            "filtering_field": "observation_concept_id",
+            "concept_value_field": "value_as_concept_id",
+            "concept_ids": [
+                4133895
+            ],
+            "grouping_field": "observation_event_id"
+        }
+
+    },
     "diseases": {
         "disease_stage": {
             "omop_object": "measurement",

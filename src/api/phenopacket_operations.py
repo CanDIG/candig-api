@@ -68,8 +68,8 @@ async def get_medical_actions(person_id: int):
         procedures,
         radiation_therapies,
     ) = await asyncio.gather(
-        get_treatment_responses(person_id),
-        get_treatment_intents(person_id),
+        get_treatment_info_by_field(person_id, "response_to_treatment"),
+        get_treatment_info_by_field(person_id, "treatment_intent"),
         get_treatment_targets(person_id),
         get_treatment_agents(person_id),
         get_procedures(person_id),
@@ -86,18 +86,17 @@ async def get_medical_actions(person_id: int):
 
     medical_actions = []
 
-    # Use first intent/target for now since we can't figure out the link
-    treatment_intent = treatment_intents[0] if treatment_intents else None
+    # Use first target for now since we can't figure out the link
     treatment_target = treatment_targets[0] if treatment_targets else None
 
     # Create combinations of each treatment type with each response
-    for response in response_to_treatments:
+    for episode, response in response_to_treatments.items():
         # Combine treatment agents with responses
         for agent in treatment_agents:
             medical_action = {
                 "action": agent,
                 "treatment_target": treatment_target,
-                "treatment_intent": treatment_intent,
+                "treatment_intent": treatment_intents[episode],
                 "response_to_treatment": response,
             }
             medical_actions.append(medical_action)
@@ -107,7 +106,7 @@ async def get_medical_actions(person_id: int):
             medical_action = {
                 "action": procedure,
                 "treatment_target": treatment_target,
-                "treatment_intent": treatment_intent,
+                "treatment_intent": treatment_intents[episode],
                 "response_to_treatment": response,
             }
             medical_actions.append(medical_action)
@@ -117,7 +116,7 @@ async def get_medical_actions(person_id: int):
             medical_action = {
                 "action": radiation,
                 "treatment_target": treatment_target,
-                "treatment_intent": treatment_intent,
+                "treatment_intent": treatment_intents[episode],
                 "response_to_treatment": response,
             }
             medical_actions.append(medical_action)
@@ -589,15 +588,16 @@ async def get_ontologies(concept_ids: list):
 
     return {}
 
-
-async def get_treatment_responses(person_id: int):
+async def get_treatment_info_by_field(person_id: int, field: str):
+    mapping = settings.MAPPING_JSON['medical_actions'][field]
     raw_sql = text(f"""
         SELECT DISTINCT
-            observation.value_as_concept_id as treatment_response_concept_id
+            {mapping['omop_object']}.{mapping['concept_value_field']} as treatment_info_concept_id,
+            {mapping['omop_object']}.{mapping['grouping_field']} as episode_id
         FROM {settings.CDM_SCHEMA}.observation observation
-        WHERE observation.person_id = :person_id
-            AND observation.observation_concept_id = 4082405
-            AND observation.value_as_concept_id IS NOT NULL
+        WHERE {mapping['omop_object']}.person_id = :person_id
+            AND {mapping['omop_object']}.{mapping['filtering_field']} IN ({','.join([str(x) for x in mapping['concept_ids']])})
+            AND {mapping['omop_object']}.{mapping['concept_value_field']} IS NOT NULL
     """)
 
     async for session in get_db_session():
@@ -606,55 +606,27 @@ async def get_treatment_responses(person_id: int):
             rows = result.fetchall()
 
             # Batch fetch ontologies
-            concept_ids = [row.treatment_response_concept_id for row in rows]
+            concept_ids = [row.treatment_info_concept_id for row in rows]
             ontology_map = await get_ontologies(concept_ids)
 
             # Convert rows to list of OntologyClass objects
-            treatments = [
-                ontology_map.get(row.treatment_response_concept_id) for row in rows
-            ]
+            treatment_info = {}
+            for row in rows:
+                treatment_info_ontology = ontology_map.get(row.treatment_info_concept_id)
+                if treatment_info_ontology:
+                    treatment_info[row.episode_id] = treatment_info_ontology
+                else:
+                    continue
 
             # Filter out None values if conversion failed
-            return [t for t in treatments if t is not None]
+            return treatment_info
 
         except Exception as e:
             logger.error(f"Database Error in get_treatments: {str(e)}")
-            return []
+            return {}
 
-    return []
+    return {}
 
-async def get_treatment_intents(person_id: int):
-    raw_sql = text(f"""
-        SELECT DISTINCT
-            observation.value_as_concept_id as treatment_intent_concept_id
-        FROM {settings.CDM_SCHEMA}.observation observation
-        WHERE observation.person_id = :person_id
-            AND observation.observation_concept_id = 4133895
-            AND observation.value_as_concept_id IS NOT NULL
-    """)
-
-    async for session in get_db_session():
-        try:
-            result = await session.execute(raw_sql, {"person_id": person_id})
-            rows = result.fetchall()
-
-            # Batch fetch ontologies
-            concept_ids = [row.treatment_intent_concept_id for row in rows]
-            ontology_map = await get_ontologies(concept_ids)
-
-            # Convert rows to list of OntologyClass objects
-            intents = [
-                ontology_map.get(row.treatment_intent_concept_id) for row in rows
-            ]
-
-            # Filter out None values if conversion failed
-            return [i for i in intents if i is not None]
-
-        except Exception as e:
-            logger.error(f"Database Error in get_treatment_intents: {str(e)}")
-            return []
-
-    return []
 
 async def get_treatment_targets(person_id: int):
     raw_sql = text(f"""
