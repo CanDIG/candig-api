@@ -188,7 +188,7 @@ async def get_diseases(person_id: int):
     """)
 
     (clinical_tnm_finding_list, laterality_list, disease_stages) = await asyncio.gather(
-        get_tnm_findings(person_id, [4164336, 4164336, 4164466]),
+        get_tnm_findings(person_id, [4164336, 4164182, 4164466]),
         get_tnm_findings(person_id, [35918306]),
         get_disease_stages(person_id),
     )
@@ -238,7 +238,7 @@ async def get_diseases(person_id: int):
 
 async def get_tnm_findings(person_id: int, measurement_concept_ids: list[int]):
     """
-    Get pathological TNM findings
+    Get TNM findings
     """
     concept_ids_str = ",".join(map(str, measurement_concept_ids))
 
@@ -921,39 +921,41 @@ async def get_measurements(person_id: int):
             raw_sql = text(f"""
                 SELECT DISTINCT
                     {mapping['omop_object']}.{mapping['concept_value_field']} as measurement_value_concept_id,
+                    {mapping['omop_object']}.{mapping['number_value_field']} as measurement_value,
                     {mapping['omop_object']}.{mapping['filtering_field']} as measurement_type_concept_id,
-                    {mapping['omop_object']}.{mapping['date_field']} as measurement_date
+                    {mapping['omop_object']}.{mapping['date_field']} as measurement_date,
+                    {mapping['omop_object']}.{mapping['unit_field']} as measurement_unit_concept_id
                 FROM {settings.CDM_SCHEMA}.{mapping['omop_object']}
                 WHERE {mapping['omop_object']}.person_id = :person_id
                     AND {mapping['omop_object']}.{mapping['filtering_field']} 
                     IN({','.join([str(x) for x in mapping['concept_ids']])})
             """)
 
-            async for session in get_db_session():
-                try:
-                    result = await session.execute(raw_sql, {"person_id": person_id})
-                    rows = result.fetchall()
+            # async for session in get_db_session():
+            #     try:
+            #         result = await session.execute(raw_sql, {"person_id": person_id})
+            #         rows = result.fetchall()
 
-                    # Batch fetch ontologies
-                    concept_ids = [row.measurement_value_concept_id for row in rows] + [row.measurement_type_concept_id for row in rows]
-                    ontology_map = await get_ontologies(concept_ids)
+            #         # Batch fetch ontologies
+            #         concept_ids = [row.measurement_value_concept_id for row in rows] + [row.measurement_type_concept_id for row in rows]
+            #         ontology_map = await get_ontologies(concept_ids)
 
-                    for row in rows:
-                        measurement_value = ontology_map.get(row.measurement_value_concept_id)
-                        type_value = ontology_map.get(row.measurement_type_concept_id)
-                        date_value = row.measurement_date
-                        if measurement_value:
-                            measurement = {
-                                "assay": type_value,
-                                "measurement_value": measurement_value,
-                                "time_observed": get_timestamp(date_value)
-                            }
-                            measurements.append(measurement)
+            #         for row in rows:
+            #             measurement_value = ontology_map.get(row.measurement_value_concept_id)
+            #             type_value = ontology_map.get(row.measurement_type_concept_id)
+            #             date_value = row.measurement_date
+            #             if measurement_value:
+            #                 measurement = {
+            #                     "assay": type_value,
+            #                     "measurement_value": measurement_value,
+            #                     "time_observed": get_timestamp(date_value)
+            #                 }
+            #                 measurements.append(measurement)
 
-                except Exception as e:
-                    logger.error(f"Database Error in get_measurements: {str(e)}")
-                    return None
-        if mapping['omop_object'] == "measurement":
+            #     except Exception as e:
+            #         logger.error(f"Database Error in get_measurements: {str(e)}")
+            #         return None
+        elif mapping['omop_object'] == "measurement":
             raw_sql = text(f"""
                 SELECT DISTINCT
                     {mapping['omop_object']}.{mapping['concept_value_field']} as measurement_value_concept_id,
@@ -968,48 +970,49 @@ async def get_measurements(person_id: int):
                     WHERE ancestor_concept_id IN ({','.join([str(x) for x in mapping['ancestor_ids']])})))
             """)
 
-            async for session in get_db_session():
-                try:
-                    result = await session.execute(raw_sql, {"person_id": person_id})
-                    rows = result.fetchall()
+        async for session in get_db_session():
+            try:
+                result = await session.execute(raw_sql, {"person_id": person_id})
+                rows = result.fetchall()
 
-                    # Batch fetch ontologies
-                    concept_ids = ([row.measurement_value_concept_id for row in rows] + 
-                                   [row.measurement_type_concept_id for row in rows] + 
-                                   [row.measurement_unit_concept_id for row in rows])
-                    ontology_map = await get_ontologies(concept_ids)
+                # Batch fetch ontologies
+                concept_ids = ([row.measurement_value_concept_id for row in rows] + 
+                                [row.measurement_type_concept_id for row in rows] + 
+                                [row.measurement_unit_concept_id for row in rows] + [4129922])
+                ontology_map = await get_ontologies(concept_ids)
 
-                    for row in rows:
-                        if row.measurement_value_concept_id:
-                            measurement_value = ontology_map.get(row.measurement_value_concept_id)
-                            type_value = ontology_map.get(row.measurement_type_concept_id)
-                            date_value = row.measurement_date
-                            if measurement_value:
-                                measurement = {
-                                    "assay": type_value,
-                                    "measurement_value": measurement_value,
-                                    "time_observed": get_timestamp(date_value)
-                                }
-                                measurements.append(measurement)
-                        elif row.measurement_value:
-                            type_value = ontology_map.get(row.measurement_type_concept_id)
-                            unit_value = ontology_map.get(row.measurement_unit_concept_id)
-                            measurement_value = row.measurement_value
-                            if measurement_value:
-                                measurement = {
-                                    "assay": type_value,
-                                    "measurement_value": {
-                                        "unit": unit_value,
-                                        "value": measurement_value
-                                    },
-                                    "time_observed": get_timestamp(row.measurement_date)
-                                }
-                                measurements.append(measurement)
+                for row in rows:
+                    if row.measurement_value_concept_id:
+                        measurement_value = ontology_map.get(row.measurement_value_concept_id)
+                        type_value = ontology_map.get(row.measurement_type_concept_id)
+                        date_value = row.measurement_date
+                        if measurement_value:
+                            measurement = {
+                                "assay": type_value,
+                                "measurement_value": measurement_value,
+                                "time_observed": get_timestamp(date_value)
+                            }
+                            measurements.append(measurement)
+                    elif row.measurement_value:
+                        type_value = ontology_map.get(row.measurement_type_concept_id)
+                        unit_value = ontology_map.get(row.measurement_unit_concept_id)
+                        if not unit_value:
+                            unit_value = ontology_map.get(4129922)
+                        measurement_value = row.measurement_value
+                        if measurement_value:
+                            measurement = {
+                                "assay": type_value,
+                                "measurement_value": {
+                                    "unit": unit_value,
+                                    "value": measurement_value
+                                },
+                                "time_observed": get_timestamp(row.measurement_date)
+                            }
+                            measurements.append(measurement)
 
-                except Exception as e:
-                    logger.error(f"Database Error in get_measurements: {str(e)}")
-                    return None
-    
+            except Exception as e:
+                logger.error(f"Database Error in get_measurements: {str(e)}")
+                return None
     return measurements if measurements else None
 
 
