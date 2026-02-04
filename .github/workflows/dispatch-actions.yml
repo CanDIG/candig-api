@@ -36,4 +36,4 @@ jobs:
                   pr_title: '${{ github.repository }} merging: ${{ fromJson(steps.get_pr_data.outputs.result).title }}'
                   pr_description: "PR triggered by update to develop branch on ${{ github.repository }}. Commit hash: `${{ github.sha }}`. PR link: [#${{ fromJson(steps.get_pr_data.outputs.result).number }}](https://github.com/${{ github.repository }}/pull/${{ fromJson(steps.get_pr_data.outputs.result).number }})"
                   owner: ${{ env.OWNER }}
-                  submodule_path: lib/<app-name>/<app-repo>
+                  submodule_path: lib/candig-api/candig-api
