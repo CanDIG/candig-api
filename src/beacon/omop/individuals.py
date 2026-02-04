@@ -24,7 +24,8 @@ def get_basic_discovery_response():
     return {
         'primary_site_count': {},
         'treatment_type_count': {},
-        'patients_per_program': {}
+        'patients_per_program': {},
+        'drug_type_count': {}
     }
 
 async def get_individual_id(offset=0, limit=10, person_id=None):
@@ -82,9 +83,21 @@ async def get_individuals_dataset(listIds, filters_dict):
 
     return dict_dataset
 
-def get_datasets_allowed_filter(filters_dict):
-    datasets = authx.auth.get_opa_datasets(request)
+def get_datasets_allowed_filter(filters_dict, request_datasets=[], discovery=False):
     # Create a filter on allowed datasets for this user
+    datasets = authx.auth.get_opa_datasets(request)
+
+    if discovery:
+        if len(request_datasets) > 0:
+            # Discovery queries bypass authorization
+            datasets = request_datasets
+        else:
+            return "and true", filters_dict
+    else:
+        # If the user has requested specific datasets, we filter down to only the ones they have permissions for
+        if len(request_datasets) > 0:
+            datasets = list(set(datasets) & set(request_datasets))
+
     if len(datasets) == 0:
         return "and false", filters_dict # No allowed datasets
 
@@ -298,6 +311,7 @@ def create_dynamic_filter(filters):
         'treatments_filters': '',
     }
     filters_dict = {}
+    request_datasets = []
 
     list_person = []
     n_open_condition = 0
@@ -467,6 +481,15 @@ def create_dynamic_filter(filters):
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
+        if 'dataset_ids' in filter[0]:
+            # Are we dealing with a string or a list?
+            if isinstance(filter[3], list):
+                request_datasets.extend(filter[3])
+            elif isinstance(filter[3], str):
+                request_datasets.append(filter[3])
+            else:
+                logger.warning(f"Unknown dataset_ids data type: {type(filter[1])}")
+
 
     query_condition += ')'* n_open_condition
     query_measurement += ')'* n_open_measurement
@@ -482,7 +505,8 @@ def create_dynamic_filter(filters):
     base_filter['procedures_filters'] += query_procedure
     base_filter['exposures_filters'] += query_exposure
     base_filter['treatments_filters'] += query_treatment
-    base_filter['datasets_filters'], filters_dict = get_datasets_allowed_filter(filters_dict)
+    base_filter['datasets_filters'], filters_dict = get_datasets_allowed_filter(filters_dict, request_datasets)
+    base_filter['datasets_discovery_filters'], filters_dict = get_datasets_allowed_filter(filters_dict, request_datasets, discovery=True)
 
     return base_filter, filters_dict
 
@@ -512,6 +536,7 @@ def discovery_query_primary_site(filter):
         {filter['procedures_filters']}
         {filter['exposures_filters']}
         {filter['treatments_filters']}
+        {filter['datasets_discovery_filters']}
         GROUP BY c.concept_name
     """
 
@@ -527,6 +552,7 @@ def discovery_query_treatment_type(filter):
         {filter['procedures_filters']}
         {filter['exposures_filters']}
         {filter['treatments_filters']}
+        {filter['datasets_discovery_filters']}
         GROUP BY c.concept_name
     """
 
@@ -542,6 +568,7 @@ def discovery_query_drug_type(filter):
         {filter['procedures_filters']}
         {filter['exposures_filters']}
         {filter['treatments_filters']}
+        {filter['datasets_discovery_filters']}
         GROUP BY c.concept_name
     """
 
@@ -556,6 +583,7 @@ def discovery_query_program(filter):
         {filter['procedures_filters']}
         {filter['exposures_filters']}
         {filter['treatments_filters']}
+        {filter['datasets_discovery_filters']}
         GROUP BY d.dataset_id
     """
 
@@ -630,7 +658,7 @@ async def checkFilters(filtersDict, offset, limit):
                 if 'id' in filter:
                     filterId = filter['id']
                 else:
-                    return [], 0
+                    return [], 0, get_basic_discovery_response(), {}
                 if (filterId == 'ageOfOnset' or
                     filterId == 'ageAtProcedure' or
                     filterId == 'observationMoment' or
@@ -655,34 +683,44 @@ async def checkFilters(filtersDict, offset, limit):
             else: # If GET
                 filterId = filter
 
-            if typeFilter=="Ontology" or  typeFilter=="Alphanumeric":
+            if typeFilter=="Ontology" or typeFilter=="Alphanumeric":
                 vocabulary_id, concept_code = filterId.split(':')
-                concept_domain_sql = text(individual_queries.sql_get_concept_domain.sql
-                    .replace("%(vocabulary_id)s", ":vocabulary_id")
-                    .replace("%(concept_code)s", ":concept_code"))
-                records = await conn.execute(concept_domain_sql,
-                                            {
-                                                "vocabulary_id": vocabulary_id,
-                                                "concept_code": concept_code
-                                            })
-                #records = individual_queries.sql_get_concept_domain(engine,
-                #                                                    vocabulary_id=vocabulary_id,
-                #                                                    concept_code=concept_code)
-                # Check if records is empty
-                if records.rowcount <= 0:
-                    return [], 0
-                records = records.fetchall()
-                for record in records:
-                    original_concept_id = record[0]
-                    domain_id = record[1]
-                listConcept_id.add(original_concept_id)
-                # Look in which domains the concept_id belongs
-                tableMap = map_domains(domain_id)
-                if includeDescendantTerms:
-                    # Import descendants of the concept_id
-                    concept_ids = await search_descendants(original_concept_id)
-                    # Concept_id and descendants in same set()
-                    listConcept_id = listConcept_id.union(concept_ids)
+
+                # In most cases, we'll be looking through the concept domain to figure it out
+                # However, there's a special exception: datasets don't exist in the concept domain
+                # Instead, we'll pull them out here
+                if vocabulary_id == 'dataset_id':
+                    # This is a very weird adaptation to get create_dynamic_filter() to work
+                    tableMap = {'dataset_ids': []}
+                    listConcept_id = []
+                    value = concept_code.split('|')
+                else:
+                    concept_domain_sql = text(individual_queries.sql_get_concept_domain.sql
+                        .replace("%(vocabulary_id)s", ":vocabulary_id")
+                        .replace("%(concept_code)s", ":concept_code"))
+                    records = await conn.execute(concept_domain_sql,
+                                                {
+                                                    "vocabulary_id": vocabulary_id,
+                                                    "concept_code": concept_code
+                                                })
+                    #records = individual_queries.sql_get_concept_domain(engine,
+                    #                                                    vocabulary_id=vocabulary_id,
+                    #                                                    concept_code=concept_code)
+                    # Check if records is empty
+                    if records.rowcount <= 0:
+                        return [], 0, get_basic_discovery_response(), {}
+                    records = records.fetchall()
+                    for record in records:
+                        original_concept_id = record[0]
+                        domain_id = record[1]
+                    listConcept_id.add(original_concept_id)
+                    # Look in which domains the concept_id belongs
+                    tableMap = map_domains(domain_id)
+                    if includeDescendantTerms:
+                        # Import descendants of the concept_id
+                        concept_ids = await search_descendants(original_concept_id)
+                        # Concept_id and descendants in same set()
+                        listConcept_id = listConcept_id.union(concept_ids)
                 dictTableMap.append([tableMap, listConcept_id, operator, value])
     # logger.info(dictTableMap)
     base_filter, filters_dict = create_dynamic_filter(dictTableMap)
@@ -717,7 +755,7 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
                                                                         offset=qparams.query.pagination.skip,
                                                                         limit=qparams.query.pagination.limit)
         if count_ids == 0:
-            return schema, count_ids, [], {}
+            return schema, count_ids, [], discovery_data
     else:
         datasets = authx.auth.get_opa_datasets(request)
         if len(datasets) == 0:
