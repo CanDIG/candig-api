@@ -27,32 +27,56 @@ jobs:
         id: get_pr_data
         with:
           script: |
-            const prs = await github.rest.repos
+            const response = await github.rest.repos
               .listPullRequestsAssociatedWithCommit({
                 commit_sha: context.sha,
                 owner: context.repo.owner,
-                repo: context.repo.repo,
+                repo: context.repo.repo
               });
 
-            if (!prs.data.length) {
-              core.setFailed('No PR associated with this commit.');
-              return;
+            if (!response.data || response.data.length === 0) {
+              core.notice("No PR associated with this commit.");
+              return null;
             }
 
-            return prs.data[0];
+            // Pick the most recently updated PR (important for merge commits)
+            const pr = response.data.sort(
+              (a, b) => new Date(b.updated_at) - new Date(a.updated_at)
+            )[0];
+
+            return {
+              number: pr.number,
+              title: pr.title,
+              url: pr.html_url,
+              head_ref: pr.head.ref,
+              base_ref: pr.base.ref,
+              author: pr.user.login
+            };
 
       - name: Create PR in CanDIGv3
-        id: make_pr
+        if: steps.get_pr_data.outputs.result != 'null'
         uses: CanDIG/github-action-pr-expanded@v4
         with:
           github_token: ${{ secrets.SUBMODULE_PR }}
           parent_repository: ${{ env.PARENT_REPOSITORY }}
           checkout_branch: ${{ env.CHECKOUT_BRANCH }}
           pr_against_branch: ${{ env.PR_AGAINST_BRANCH }}
-          pr_title: '${{ github.repository }} merging: ${{ fromJson(steps.get_pr_data.outputs.result).title }}'
+
+          pr_title: >
+            ${{ github.repository }} merging:
+            ${{ fromJson(steps.get_pr_data.outputs.result).title }}
+
           pr_description: |
             PR triggered by update to develop branch on ${{ github.repository }}.
-            Commit hash: ${{ github.sha }}.
-            PR link: [#${{ fromJson(steps.get_pr_data.outputs.result).number }}](https://github.com/${{ github.repository }}/pull/${{ fromJson(steps.get_pr_data.outputs.result).number }})
+
+            Source PR: #${{ fromJson(steps.get_pr_data.outputs.result).number }}
+            Source PR title: ${{ fromJson(steps.get_pr_data.outputs.result).title }}
+            Source PR author: ${{ fromJson(steps.get_pr_data.outputs.result).author }}
+            Source PR branch: ${{ fromJson(steps.get_pr_data.outputs.result).head_ref }}
+            Target branch: ${{ fromJson(steps.get_pr_data.outputs.result).base_ref }}
+
+            Commit hash: `${{ github.sha }}`
+            PR link: ${{ fromJson(steps.get_pr_data.outputs.result).url }}
+
           owner: ${{ env.OWNER }}
           submodule_path: lib/candig-api/candig-api
