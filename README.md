@@ -11,7 +11,7 @@ Implemeted using connextion and SQLAlchemy.
 There are two OpenAPI schemas, both under development:
 
 * [schema.yml](schema.yml) implements basic CRUD operations on clinical data objects (Datasets and Persons)
-* [beacon-schema.yml](beacon-schema.yml) will implement a [GA4GH Beacon v2](https://www.ga4gh.org/product/beacon-api/) API for data discovery across datatypes (clinical, genomic). 
+* [beacon-schema.yml](beacon-schema.yml) will implement a [GA4GH Beacon v2](https://www.ga4gh.org/product/beacon-api/) API for data discovery across datatypes (clinical, genomic).
 
 ## Branch structure
 
