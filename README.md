@@ -4,7 +4,7 @@ _Currently a work in progress. Not yet part of any CanDIG stable release._
 
 This repo implements a top-level API that provides access to all CanDIG data services, including clinical data in [OMOP](https://www.ohdsi.org/data-standardization/) and blob data in an object store. 
 
-Implemeted using connextion and SQLAlchemy. 
+Implemeted using connextion and SQLAlchemy.
 
 ## API schemas
 
