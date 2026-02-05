@@ -35,7 +35,7 @@ Edit this file with the appropriate submodule path on line 26.
 
 #### `test.yml`
 
-This action assumes you have setup tests in the repo using [pytest](https://docs.pytest.org/en/7.4.x/). 
+This action assumes you have setup tests in the repo using [pytest](https://docs.pytest.org/en/stable/). 
 
 It automatically runs `pytest` on the repo each time a commit is pushed into the remote repo. 
 
