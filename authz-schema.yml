@@ -294,9 +294,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/UserInfo"
+                type: object
     post:
       summary: Add preapproved users
       description: Add bulk preapproved users for CanDIG access
