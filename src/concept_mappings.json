@@ -1,5 +1,21 @@
 {
     "medical_actions": {
+        "treatment_agent": {
+            "omop_object": "drug_exposure",
+            "grouping_omop_object": "episode",
+            "grouping_concept_id": 32941,
+            "filtering_field": "drug_type_concept_id",
+            "concept_ids": [
+                32833,
+                32838
+            ]
+        },
+        "treatment_target": {
+            "omop_object": "condition_occurrence",
+            "concept_value_field": "condition_concept_id",
+            "grouping_omop_object": "episode",
+            "grouping_concept_id": 32528
+        },
         "response_to_treatment": {
             "omop_object": "observation",
             "filtering_field": "observation_concept_id",
@@ -7,7 +23,8 @@
             "concept_ids": [
                 4082405
             ],
-            "grouping_field": "observation_event_id"
+            "grouping_field": "observation_event_id",
+            "grouping_omop_object": "episode"
         },
         "treatment_intent": {
             "omop_object": "observation",
@@ -16,11 +33,58 @@
             "concept_ids": [
                 4133895
             ],
-            "grouping_field": "observation_event_id"
+            "grouping_field": "observation_event_id",
+            "grouping_omop_object": "episode"
         }
 
     },
     "diseases": {
+        "onset": {
+            "omop_object": "condition_occurrence",
+            "date_field": "condition_start_date",
+            "event_omop_object": "episode_event",
+            "event_field": "episode_event_id",
+            "event_concept_id": 1147127,
+            "grouping_omop_object": "episode",
+            "grouping_concept_id": 32528,
+            "group_event_joining_key": "episode_id"
+        },
+        "term": {
+            "omop_object": "condition_occurrence",
+            "concept_value_field": "condition_concept_id",
+            "event_omop_object": "episode_event",
+            "event_field": "episode_event_id",
+            "event_concept_id": 1147127,
+            "grouping_omop_object": "episode",
+            "grouping_concept_id": 32528,
+            "group_event_joining_key": "episode_id"
+        },
+        "resolution": {
+            "omop_object": "condition_occurrence",
+            "date_field": "condition_end_date",
+            "event_omop_object": "episode_event",
+            "event_field": "episode_event_id",
+            "event_concept_id": 1147127,
+            "grouping_omop_object": "episode",
+            "grouping_concept_id": 32528,
+            "group_event_joining_key": "episode_id"
+        },
+        "primary_site": {
+            "omop_object": "observation",
+            "filtering_field": "observation_concept_id",
+            "concept_value_field": "value_as_concept_id",
+            "concept_ids": [3011717]
+        },
+        "clinical_tnm_finding": {
+            "concept_ids": [
+                4164336, 4164182, 4164466
+            ]
+        },
+        "laterality": {
+            "concept_ids": [
+                35918306
+            ]
+        },
         "disease_stage": {
             "omop_object": "measurement",
             "filtering_field": "value_as_concept_id",
@@ -71,10 +135,49 @@
                 37163866,
                 4130406,
                 734333
-            ]
+            ],
+            "concept_ids_description": "Concept ids include all currently mapped concept_ids used in mohccn_omop_mapping https://github.com/CanDIG/mohccn-omop-etl/blob/b4d58adcb4ea5d944d071371a045de730f18dd23/config/mohccn_vocabulary_mapped_20250909_JL.csv#L367",
+            "ancestor_ids_description": "Allows any child terms of 'American Joint Committee on Cancer allowable value', 'Stages' or 'INRG finding'."
         }
     },
     "biosamples": {
+        "pathological_tnm_finding":{
+            "concept_ids": [
+                4293617, 4161174, 4154262
+            ]
+        },
+        "histological_diagnosis": {
+            "omop_object": "observation",
+            "filtering_field": "observation_concept_id",
+            "concept_ids": [36716952],
+            "concept_value_field": "value_as_concept_id",
+            "grouping_omop_object": "specimen",
+            "grouping_field": "observation_event_id"
+        },
+        "tumor_grade": {
+            "omop_object": "observation",
+            "filtering_field": "observation_concept_id",
+            "concept_ids": [4160340],
+            "concept_value_field": "value_as_concept_id",
+            "grouping_omop_object": "specimen",
+            "grouping_field": "observation_event_id"
+        },
+        "sample_processing": {
+            "omop_object": "observation",
+            "filtering_field": "observation_concept_id",
+            "concept_ids": [4154128],
+            "concept_value_field": "value_as_concept_id",
+            "grouping_omop_object": "specimen",
+            "grouping_field": "observation_event_id"
+        },
+        "sample_storage": {
+            "omop_object": "observation",
+            "filtering_field": "observation_concept_id",
+            "concept_ids": [37169821],
+            "concept_value_field": "value_as_concept_id",
+            "grouping_omop_object": "specimen",
+            "grouping_field": "observation_event_id"
+        },
         "measurements": {
             "omop_object": "measurement",
             "filtering_field": "measurement_concept_id",

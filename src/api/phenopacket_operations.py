@@ -58,7 +58,7 @@ async def get_by_id(dataset_id: str, id: int):
 
 async def get_medical_actions(person_id: int):
     # TODO: need to group/link each
-    # response_to_treatments, treatment_intents, treatment_targets
+    # treatment_targets
     # instead of getting only 1
     (
         response_to_treatments,
@@ -124,17 +124,22 @@ async def get_medical_actions(person_id: int):
     return medical_actions if medical_actions else None
 
 
-async def get_disease_stages(person_id: int):
+async def get_concept_by_id_or_ancestor(person_id: int, omop_object: str, filtering_field: str, 
+                                        concept_value_field: str, concept_ids: list[str], 
+                                        ancestor_concept_ids: list[str]) -> list[dict]:
+    """
+    Get ontologies from a specific omop object filtered by concept and ancestor concept ids
+    """
     raw_sql = text(f"""
     SELECT DISTINCT
-        m.{settings.MAPPING_JSON['diseases']['disease_stage']['concept_value_field']} as disease_stage_concept_id
-    FROM {settings.CDM_SCHEMA}.{settings.MAPPING_JSON['diseases']['disease_stage']['omop_object']} AS m
+        m.{concept_value_field} as concept_id
+    FROM {settings.CDM_SCHEMA}.{omop_object} AS m
     WHERE m.person_id = :person_id
         AND (
-                m.{settings.MAPPING_JSON['diseases']['disease_stage']['filtering_field']} IN (
+                m.{filtering_field} IN (
                 SELECT descendant_concept_id FROM {settings.CDM_SCHEMA}.concept_ancestor
-                WHERE ancestor_concept_id IN ({','.join([str(x) for x in settings.MAPPING_JSON['diseases']['disease_stage']['ancestor_ids']])})) 
-                OR m.value_as_concept_id IN ({','.join([str(x) for x in settings.MAPPING_JSON['diseases']['disease_stage']['concept_ids']])})
+                WHERE ancestor_concept_id IN ({','.join([str(x) for x in ancestor_concept_ids])})) 
+                OR m.value_as_concept_id IN ({','.join([str(x) for x in concept_ids])})
             )
     """)
 
@@ -144,19 +149,19 @@ async def get_disease_stages(person_id: int):
             rows = result.fetchall()
 
             # Batch fetch ontologies
-            concept_ids = [row.disease_stage_concept_id for row in rows]
-            ontology_map = await get_ontologies(concept_ids)
+            found_concept_ids = [row.concept_id for row in rows]
+            ontology_map = await get_ontologies(found_concept_ids)
 
             # Convert rows to list of OntologyClass objects
             measurements = [
-                ontology_map.get(row.disease_stage_concept_id) for row in rows
+                ontology_map.get(row.concept_id) for row in rows
             ]
 
             # Filter out None values if conversion failed
             return [m for m in measurements if m is not None]
 
         except Exception as e:
-            logger.error(f"Database Error in _find_measurement: {str(e)}")
+            logger.error(f"Database Error in get_concept_by_id_or_ancestor: {str(e)}")
             return []
 
     return []
@@ -164,9 +169,20 @@ async def get_disease_stages(person_id: int):
 
 async def get_diseases(person_id: int):
     """
-    Get diseases for a person from episode and condition_occurrence tables.
+    To populate the diseases object in Phenopackets:
+
+    Get term, onset, resolution, primary_site for a person by joining their 'Disease First Occurrence' 
+    episode (concept_id=32528) with its linked condition_occurrence tables via the episode_event table, 
+    join with 'Primary site Cancer' (concept_id=3011717) observation to get the primary site.
+
+    Then look up clinical_tnm stages, laterality and disease_stages.
+
+    Combine all retrieved information into disease object(s)
+
     Optimized with concurrent queries.
     """
+    diseases_map = settings.MAPPING_JSON['diseases']
+
     raw_sql = text(f"""
     SELECT 
         condition_occurrence.condition_concept_id as term,
@@ -181,16 +197,23 @@ async def get_diseases(person_id: int):
         ON episode_event.event_id = condition_occurrence.condition_occurrence_id
     LEFT JOIN {settings.CDM_SCHEMA}.observation primary_site_obs
         ON primary_site_obs.person_id = :person_id
-        AND primary_site_obs.observation_concept_id = 3011717
+        AND primary_site_obs.observation_concept_id 
+        IN({",".join(map(str, diseases_map['primary_site']['concept_ids']))})
     WHERE episode.person_id = :person_id
-        AND episode.episode_concept_id = 32528
+        AND episode.episode_concept_id = {diseases_map['term']['grouping_concept_id']}
     """)
 
     (clinical_tnm_finding_list, laterality_list, disease_stages) = await asyncio.gather(
-        get_tnm_findings(person_id, [4164336, 4164182, 4164466]),
-        get_tnm_findings(person_id, [35918306]),
-        get_disease_stages(person_id),
-    )
+        # get ontologies for clinical tnm measurements [cT category, cM category, cN category]
+        get_measurement_concepts(person_id, diseases_map['clinical_tnm_finding']['concept_ids']),
+        # get ontologies for Laterality measurements
+        get_measurement_concepts(person_id, diseases_map['laterality']['concept_ids']),
+        get_concept_by_id_or_ancestor(person_id, 
+                                      diseases_map['disease_stage']['omop_object'],
+                                      diseases_map['disease_stage']['filtering_field'], 
+                                      diseases_map['disease_stage']['concept_value_field'], 
+                                      diseases_map['disease_stage']['concept_ids'], 
+                                      diseases_map['disease_stage']['ancestor_ids']))
 
     # laterality should be a single object, not a list
     laterality = laterality_list[0] if laterality_list else None
@@ -235,9 +258,9 @@ async def get_diseases(person_id: int):
     )
 
 
-async def get_tnm_findings(person_id: int, measurement_concept_ids: list[int]):
+async def get_measurement_concepts(person_id: int, measurement_concept_ids: list[int]) -> list[dict]:
     """
-    Get TNM findings
+    Lookup measurements based on a list of concept ids and return as a list of mapped ontologies
     """
     concept_ids_str = ",".join(map(str, measurement_concept_ids))
 
@@ -265,19 +288,19 @@ async def get_tnm_findings(person_id: int, measurement_concept_ids: list[int]):
             rows = result.fetchall()
 
             # Convert rows to list of OntologyClass objects
-            tnm_findings = []
+            concepts = []
             for row in rows:
                 if row.vocabulary_id and row.concept_code and row.concept_name:
                     ontology = {
                         "id": f"{row.vocabulary_id}:{row.concept_code}",
                         "label": row.concept_name,
                     }
-                    tnm_findings.append(ontology)
+                    concepts.append(ontology)
 
-            return tnm_findings
+            return concepts
 
         except Exception as e:
-            logger.error(f"Database Error in get_tnm_finding: {str(e)}")
+            logger.error(f"Database Error in get_measurement_concepts: {str(e)}")
             return []
 
     return []
@@ -288,8 +311,10 @@ async def get_biosamples(person_id: int):
     Query from OMOP specimen table joined on person_id.
     Returns a list of biosample objects.
     """
-    pathological_tnm_finding = await get_tnm_findings(
-        person_id, [4293617, 4161174, 4154262]
+    biosamples_map = settings.MAPPING_JSON['biosamples']
+
+    pathological_tnm_finding = await get_measurement_concepts(
+        person_id, biosamples_map['pathological_tnm_finding']['concept_ids']
     )
 
     raw_sql = text(f"""
@@ -300,25 +325,28 @@ async def get_biosamples(person_id: int):
             hist_obs.value_as_concept_id as histological_diagnosis,
             tumor_obs.value_as_concept_id as tumor_grade,
             proc_obs.value_as_concept_id as sample_processing,
-            storage_obs.value_as_concept_id as sample_storage
-                    
+            storage_obs.value_as_concept_id as sample_storage                   
         FROM {settings.CDM_SCHEMA}.specimen specimen
         LEFT JOIN {settings.CDM_SCHEMA}.observation hist_obs
             ON hist_obs.obs_event_field_concept_id = 1147049
             AND hist_obs.observation_event_id = specimen.specimen_id
-            AND hist_obs.observation_concept_id = 36716952
+            AND hist_obs.observation_concept_id 
+            IN ({",".join(map(str, biosamples_map['histological_diagnosis']['concept_ids']))})
         LEFT JOIN {settings.CDM_SCHEMA}.observation tumor_obs
             ON tumor_obs.obs_event_field_concept_id = 1147049
             AND tumor_obs.observation_event_id = specimen.specimen_id
-            AND tumor_obs.observation_concept_id = 4160340
+            AND tumor_obs.observation_concept_id 
+            IN ({",".join(map(str, biosamples_map['tumor_grade']['concept_ids']))})
         LEFT JOIN {settings.CDM_SCHEMA}.observation proc_obs
             ON proc_obs.obs_event_field_concept_id = 1147049
             AND proc_obs.observation_event_id = specimen.specimen_id
-            AND proc_obs.observation_concept_id = 4243140
+            AND proc_obs.observation_concept_id 
+            IN ({",".join(map(str, biosamples_map['sample_processing']['concept_ids']))})
         LEFT JOIN {settings.CDM_SCHEMA}.observation storage_obs
             ON storage_obs.obs_event_field_concept_id = 1147049
             AND storage_obs.observation_event_id = specimen.specimen_id
-            AND storage_obs.observation_concept_id = 37169821
+            AND storage_obs.observation_concept_id 
+            IN ({",".join(map(str, biosamples_map['sample_storage']['concept_ids']))})
         WHERE specimen.person_id = :person_id
     """)
 
@@ -380,6 +408,9 @@ async def get_biosamples(person_id: int):
 
 
 async def get_subject(id: int):
+    """
+    Get all metadata for the phenopackets subject object
+    """
     raw_sql = text(f"""
             SELECT 
                 person.person_id as id,
@@ -471,7 +502,7 @@ async def get_subject(id: int):
 
 
 def get_birth_timestamp(year, month, day):
-    if not year:
+    if not year or year == 1800:
         return None
     
     # Default to 1 if month or day is missing
@@ -589,15 +620,15 @@ async def get_ontologies(concept_ids: list):
     return {}
 
 async def get_treatment_info_by_field(person_id: int, field: str):
-    mapping = settings.MAPPING_JSON['medical_actions'][field]
+    ma_map = settings.MAPPING_JSON['medical_actions'][field]
     raw_sql = text(f"""
         SELECT DISTINCT
-            {mapping['omop_object']}.{mapping['concept_value_field']} as treatment_info_concept_id,
-            {mapping['omop_object']}.{mapping['grouping_field']} as episode_id
+            {ma_map['omop_object']}.{ma_map['concept_value_field']} as treatment_info_concept_id,
+            {ma_map['omop_object']}.{ma_map['grouping_field']} as episode_id
         FROM {settings.CDM_SCHEMA}.observation observation
-        WHERE {mapping['omop_object']}.person_id = :person_id
-            AND {mapping['omop_object']}.{mapping['filtering_field']} IN ({','.join([str(x) for x in mapping['concept_ids']])})
-            AND {mapping['omop_object']}.{mapping['concept_value_field']} IS NOT NULL
+        WHERE {ma_map['omop_object']}.person_id = :person_id
+            AND {ma_map['omop_object']}.{ma_map['filtering_field']} IN ({','.join([str(x) for x in ma_map['concept_ids']])})
+            AND {ma_map['omop_object']}.{ma_map['concept_value_field']} IS NOT NULL
     """)
 
     async for session in get_db_session():
@@ -629,6 +660,13 @@ async def get_treatment_info_by_field(person_id: int, field: str):
 
 
 async def get_treatment_targets(person_id: int):
+    """
+        Get the ontology term for the condition_occurrence disease matching the mapped episode.
+
+        Currently Disease First Occurrence (concept id: 32528)
+    """
+    ma_map = settings.MAPPING_JSON['medical_actions']
+
     raw_sql = text(f"""
         SELECT DISTINCT
             condition_occurrence.condition_concept_id as treatment_target_concept_id
@@ -639,7 +677,7 @@ async def get_treatment_targets(person_id: int):
         INNER JOIN {settings.CDM_SCHEMA}.condition_occurrence condition_occurrence
             ON episode_event.event_id = condition_occurrence.condition_occurrence_id
         WHERE episode.person_id = :person_id
-            AND episode.episode_concept_id = 32528
+            AND episode.episode_concept_id = {ma_map['treatment_target']['grouping_concept_id']}
     """)
 
     async for session in get_db_session():
@@ -666,6 +704,13 @@ async def get_treatment_targets(person_id: int):
     return []
 
 async def get_treatment_agents(person_id: int):
+    """
+    Get all drug exposures that link to the mapped episode type and mapped drug exposure type
+
+    Currently Cancer Drug Treatment (concept id 32941) episodes and EHR Order  or EHR prescribed drug types
+    """
+    ma_map = settings.MAPPING_JSON['medical_actions']
+
     raw_sql = text(f"""
         SELECT DISTINCT
             drug_exposure.drug_concept_id,
@@ -683,7 +728,7 @@ async def get_treatment_agents(person_id: int):
         INNER JOIN {settings.CDM_SCHEMA}.drug_exposure drug_exposure
             ON episode_event.event_id = drug_exposure.drug_exposure_id
         WHERE episode.person_id = :person_id
-            AND episode.episode_concept_id = 32941
+            AND episode.episode_concept_id = {ma_map['treatment_agent']['grouping_concept_id']}
             AND drug_exposure.drug_concept_id IS NOT NULL
             AND drug_exposure.drug_type_concept_id = 32833
     """)
