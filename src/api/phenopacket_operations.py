@@ -707,9 +707,9 @@ async def get_treatment_agents(person_id: int):
     """
     Get all drug exposures that link to the mapped episode type and mapped drug exposure type
 
-    Currently Cancer Drug Treatment (concept id 32941) episodes and EHR Order  or EHR prescribed drug types
+    Currently Cancer Drug Treatment (concept id 32941) episodes and EHR Order (concept id 32833) or EHR prescribed (32838) drug types
     """
-    ma_map = settings.MAPPING_JSON['medical_actions']
+    tx_map = settings.MAPPING_JSON['medical_actions']['action']['treatment']
 
     raw_sql = text(f"""
         SELECT DISTINCT
@@ -720,7 +720,8 @@ async def get_treatment_agents(person_id: int):
             drug_exposure.drug_exposure_start_date as dose_intervals_start,
             drug_exposure.dose_unit_source_value as dose_intervals_quantity_unit,
             drug_exposure.quantity as dose_intervals_quantity_value,
-            drug_exposure.route_concept_id as route_concept_id     
+            drug_exposure.route_concept_id as route_concept_id,
+            drug_exposure.drug_type_concept_id as drug_type_concept_id  
         FROM {settings.CDM_SCHEMA}.episode episode
         INNER JOIN {settings.CDM_SCHEMA}.episode_event episode_event
             ON episode.episode_id = episode_event.episode_id
@@ -728,9 +729,10 @@ async def get_treatment_agents(person_id: int):
         INNER JOIN {settings.CDM_SCHEMA}.drug_exposure drug_exposure
             ON episode_event.event_id = drug_exposure.drug_exposure_id
         WHERE episode.person_id = :person_id
-            AND episode.episode_concept_id = {ma_map['treatment_agent']['grouping_concept_id']}
+            AND episode.episode_concept_id = {tx_map['agent']['grouping_concept_id']}
             AND drug_exposure.drug_concept_id IS NOT NULL
-            AND drug_exposure.drug_type_concept_id = 32833
+            AND drug_exposure.drug_type_concept_id 
+            IN({','.join([str(x) for x in tx_map['agent']['concept_ids']])})
     """)
 
     async for session in get_db_session():
@@ -739,7 +741,8 @@ async def get_treatment_agents(person_id: int):
             rows = result.fetchall()
 
             # Batch fetch ontologies for both drug_concept_id and route_concept_id
-            concept_ids = [row.drug_concept_id for row in rows]
+            concept_ids = ([row.drug_concept_id for row in rows] + 
+                          list(map(int, list(tx_map['cumulative_dose']['unit']['concept_map'].values()))))
             # Add route_concept_ids that are not None
             concept_ids.extend([row.route_concept_id for row in rows if row.route_concept_id is not None])
             ontology_map = await get_ontologies(concept_ids)
@@ -749,10 +752,16 @@ async def get_treatment_agents(person_id: int):
             for row in rows:
                 agent = ontology_map.get(row.drug_concept_id)
                 if agent:
-                    treatment_agent = {
-                        "agent": agent,
-                        "drug_type": "UNKNOWN_DRUG_TYPE"
-                    }
+                    if row.drug_type_concept_id == 32838:
+                        treatment_agent = {
+                            "agent": agent,
+                            "drug_type": "PRESCRIPTION"
+                        }
+                    else:
+                        treatment_agent = {
+                            "agent": agent,
+                            "drug_type": "UNKNOWN_DRUG_TYPE"
+                        }
                     
                     # Add route_of_administration
                     if row.route_concept_id is not None:
@@ -771,10 +780,20 @@ async def get_treatment_agents(person_id: int):
                         }
                     
                     # TODO: need to figureout quantity_unit ontology
-                    # treatment_agent["cumulative_dose"] = {
-                    #         "value": row.quantity_value,
-                    #         "unit": row.quantity_unit 
-                    # }
+                    if row.drug_type_concept_id != 32838 and row.quantity_value:
+                        if row.quantity_unit in tx_map['cumulative_dose']['unit']['concept_map'].keys():
+                            treatment_agent["cumulative_dose"] = {
+                                    "value": row.quantity_value,
+                                    "unit": ontology_map[tx_map['cumulative_dose']['unit']['concept_map'][row.quantity_unit]]
+                            }
+                        elif row.quantity_value:
+                            treatment_agent["cumulative_dose"] = {
+                                    "value": row.quantity_value,
+                                    "unit": {
+                                        "id": "SNOMED:261665006",
+                                        "label": "Unknown"
+                                    }
+                            }
                     
                     # TODO: need to figureout quantity_unit ontology
                     # Add dose_intervals if we have the necessary data
@@ -948,30 +967,6 @@ async def get_measurements(person_id: int):
                     IN({','.join([str(x) for x in mapping['concept_ids']])})
             """)
 
-            # async for session in get_db_session():
-            #     try:
-            #         result = await session.execute(raw_sql, {"person_id": person_id})
-            #         rows = result.fetchall()
-
-            #         # Batch fetch ontologies
-            #         concept_ids = [row.measurement_value_concept_id for row in rows] + [row.measurement_type_concept_id for row in rows]
-            #         ontology_map = await get_ontologies(concept_ids)
-
-            #         for row in rows:
-            #             measurement_value = ontology_map.get(row.measurement_value_concept_id)
-            #             type_value = ontology_map.get(row.measurement_type_concept_id)
-            #             date_value = row.measurement_date
-            #             if measurement_value:
-            #                 measurement = {
-            #                     "assay": type_value,
-            #                     "measurement_value": measurement_value,
-            #                     "time_observed": get_timestamp(date_value)
-            #                 }
-            #                 measurements.append(measurement)
-
-            #     except Exception as e:
-            #         logger.error(f"Database Error in get_measurements: {str(e)}")
-            #         return None
         elif mapping['omop_object'] == "measurement":
             raw_sql = text(f"""
                 SELECT DISTINCT

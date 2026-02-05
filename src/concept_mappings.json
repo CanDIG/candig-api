@@ -1,15 +1,33 @@
 {
     "medical_actions": {
-        "treatment_agent": {
-            "omop_object": "drug_exposure",
-            "grouping_omop_object": "episode",
-            "grouping_concept_id": 32941,
-            "filtering_field": "drug_type_concept_id",
-            "concept_ids": [
-                32833,
-                32838
-            ]
-        },
+        "action": {
+            "treatment": {
+                "agent": {
+                    "omop_object": "drug_exposure",
+                    "grouping_omop_object": "episode",
+                    "grouping_concept_id": 32941,
+                    "filtering_field": "drug_type_concept_id",
+                    "concept_ids": [
+                        32833,
+                        32838
+                    ]
+                },
+                "cumulative_dose": {
+                    "unit": {
+                        "concept_map": {
+                            "mg/m2": 4223319,
+                            "IU/m2": 4185926,
+                            "ug/m2": 4230598,
+                            "g/m2": 4262467,
+                            "mg/kg": 4245255,
+                            "IU/kg": 4117787,
+                            "mg": 4122384,
+                            "Not available": 45884396
+                        }
+                    }
+                }
+            }
+        },       
         "treatment_target": {
             "omop_object": "condition_occurrence",
             "concept_value_field": "condition_concept_id",
@@ -213,4 +231,4 @@
             "ancestor_ids": [4326835]
         }
     ]
-}
+}   
