@@ -93,7 +93,7 @@ async def get_medical_actions(person_id: int):
 
     # Create combinations of each treatment type with each response
     for episode in episodes:
-        # Combine treatment agents with responses
+        # get intent and response linked to the episode
         try:
             this_intent = treatment_intents[episode]
         except KeyError as e:
@@ -102,7 +102,7 @@ async def get_medical_actions(person_id: int):
             this_response = response_to_treatments[episode]
         except KeyError as e:
             this_response = {'id': 'SNOMED:408094002', 'label': 'No value'}
-        
+        # Combine treatment agents with responses
         for agent in treatment_agents:
             medical_action = {
                 "action": agent,
