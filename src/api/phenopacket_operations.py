@@ -779,8 +779,8 @@ async def get_treatment_agents(person_id: int):
                             "label": "Unknown"
                         }
                     
-                    # TODO: need to figureout quantity_unit ontology
-                    if row.drug_type_concept_id != 32838 and row.quantity_value:
+                    # If drug exposure is from 'EHR Order' drug type, include cumulative dose
+                    if row.drug_type_concept_id in tx_map['cumulative_dose']['concept_ids'] and row.quantity_value:
                         if row.quantity_unit in tx_map['cumulative_dose']['unit']['concept_map'].keys():
                             treatment_agent["cumulative_dose"] = {
                                     "value": row.quantity_value,
@@ -795,7 +795,6 @@ async def get_treatment_agents(person_id: int):
                                     }
                             }
                     
-                    # TODO: need to figureout quantity_unit ontology
                     # Add dose_intervals if we have the necessary data
                     # if row.dose_intervals_start or row.dose_intervals_end or row.dose_intervals_quantity_value:
                     #     dose_intervals = {}
@@ -824,7 +823,6 @@ async def get_treatment_agents(person_id: int):
                     #     if dose_intervals:
                     #         treatment_agent["dose_intervals"] = dose_intervals
                     
-                    
                     treatment_agents.append(treatment_agent)
 
             return treatment_agents
@@ -838,6 +836,12 @@ async def get_treatment_agents(person_id: int):
 
 
 async def get_procedures(person_id: int):
+    """
+    Get procedure_occurrence and site information grouped by episodes with mapped episode type via episode events.
+
+    Currently maps to Cancer Surgery (concept id 32939) episodes and Procedure sites (concept id 4181646)
+    """
+    procedure_map = settings.MAPPING_JSON['medical_actions']['action']['procedure']
     raw_sql = text(f"""
         SELECT DISTINCT
             procedure_occurrence.procedure_concept_id,
@@ -851,10 +855,11 @@ async def get_procedures(person_id: int):
             ON episode_event.event_id = procedure_occurrence.procedure_occurrence_id
         LEFT JOIN {settings.CDM_SCHEMA}.observation observation
             ON observation.observation_event_id = episode.episode_id
-            AND observation.observation_concept_id = 4181646
+            AND observation.observation_concept_id 
+            IN({','.join([str(x) for x in procedure_map['body_site']['concept_ids']])})
             AND observation.obs_event_field_concept_id = 798885
         WHERE episode.person_id = :person_id
-            AND episode.episode_concept_id = 32939
+            AND episode.episode_concept_id = {procedure_map['code']['grouping_concept_id']}
     """)
 
     async for session in get_db_session():
@@ -893,6 +898,15 @@ async def get_procedures(person_id: int):
 
 
 async def get_radiation_therapies(person_id: int):
+    """
+    Gets radiation therapy information from measurements and observations mapped to specific episodes
+
+    Currently mapped to Cancer radiotherapy (32940) episodes with
+        - Total radiation dose delivered (40483776) measurement
+        - Fractions (4037631) measurement
+        - Procedure site (4181646) observation
+    """
+    rt_map = settings.MAPPING_JSON['medical_actions']['action']['radiation_therapy']
     raw_sql = text(f"""
         SELECT 
             episode.episode_object_concept_id as modality_concept_id,
@@ -902,15 +916,18 @@ async def get_radiation_therapies(person_id: int):
         FROM {settings.CDM_SCHEMA}.episode episode
         LEFT JOIN {settings.CDM_SCHEMA}.observation observation
             ON observation.observation_event_id = episode.episode_id
-            AND observation.observation_concept_id = 4181646
+            AND observation.observation_concept_id 
+            IN({','.join([str(x) for x in rt_map['body_site']['concept_ids']])})
         LEFT JOIN {settings.CDM_SCHEMA}.measurement dosage_measurement
             ON dosage_measurement.person_id = episode.person_id
-            AND dosage_measurement.measurement_concept_id = 40483776
+            AND dosage_measurement.measurement_concept_id 
+            IN({','.join([str(x) for x in rt_map['dosage']['concept_ids']])})
         LEFT JOIN {settings.CDM_SCHEMA}.measurement fractions_measurement
             ON fractions_measurement.person_id = episode.person_id
-            AND fractions_measurement.measurement_concept_id = 4037631
+            AND fractions_measurement.measurement_concept_id 
+            IN({','.join([str(x) for x in rt_map['fractions']['concept_ids']])})
         WHERE episode.person_id = :person_id
-            AND episode.episode_concept_id = 32940
+            AND episode.episode_concept_id = {rt_map['grouping_concept_id']}
     """)
 
     async for session in get_db_session():
@@ -951,6 +968,11 @@ async def get_radiation_therapies(person_id: int):
 
 
 async def get_measurements(person_id: int):
+    """
+    Get measurements objects based on concept and ancestor mappings in concept_mappings.json
+
+    Currently mapped to various measurements and observations
+    """
     measurements = []
     for mapping in settings.MAPPING_JSON['measurements']:
         if mapping['omop_object'] == "observation":
@@ -1128,6 +1150,9 @@ def get_meta_data():
 
 
 def remove_empty_values(obj):
+    """
+    If any value is None, remove it from the object
+    """
     if isinstance(obj, dict):
         cleaned = {k: remove_empty_values(v) for k, v in obj.items() if v is not None}
         # Remove empty lists and empty dicts

@@ -13,6 +13,9 @@
                     ]
                 },
                 "cumulative_dose": {
+                    "concept_ids": [
+                        32833
+                    ],
                     "unit": {
                         "concept_map": {
                             "mg/m2": 4223319,
@@ -25,6 +28,46 @@
                             "Not available": 45884396
                         }
                     }
+                }
+            },
+            "procedure": {
+                "code": {
+                    "omop_object": "procedure_occurrence",
+                    "grouping_object": "episode",
+                    "grouping_concept_id": "32939"
+                },
+                "body_site": {
+                    "omop_object": "observation",
+                    "concept_ids": [
+                        4181646
+                    ]
+                }
+                
+            },
+            "radiation_therapy": {
+                "grouping_object": "episode",
+                "grouping_field": "episode_concept_id",
+                "grouping_concept_id": 32940,
+                "fractions": {
+                    "omop_object": "measurement",
+                    "filtering_field": "measurement_concept_id",
+                    "concept_ids": [
+                        4037631
+                    ]
+                },
+                "dosage": {
+                    "omop_object": "measurement",
+                    "filtering_field": "measurement_concept_id",
+                    "concept_ids": [
+                        40483776
+                    ]
+                },
+                "body_site": {
+                    "omop_object": "observation",
+                    "filtering_field": "observation_concept_id",
+                    "concept_ids": [
+                        4181646
+                    ]
                 }
             }
         },       
