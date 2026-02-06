@@ -96,7 +96,7 @@ async def get_medical_actions(person_id: int):
             medical_action = {
                 "action": agent,
                 "treatment_target": treatment_target,
-                "treatment_intent": treatment_intents[episode] if treatment_intents else None,
+                "treatment_intent": treatment_intents[episode] if treatment_intents else {'id': 'SNOMED:408094002', 'label': 'No value'},
                 "response_to_treatment": response,
             }
             medical_actions.append(medical_action)
@@ -106,7 +106,7 @@ async def get_medical_actions(person_id: int):
             medical_action = {
                 "action": procedure,
                 "treatment_target": treatment_target,
-                "treatment_intent": treatment_intents[episode] if treatment_intents else None,
+                "treatment_intent": treatment_intents[episode] if treatment_intents else {'id': 'SNOMED:408094002', 'label': 'No value'},
                 "response_to_treatment": response,
             }
             medical_actions.append(medical_action)
@@ -116,7 +116,7 @@ async def get_medical_actions(person_id: int):
             medical_action = {
                 "action": radiation,
                 "treatment_target": treatment_target,
-                "treatment_intent": treatment_intents[episode] if treatment_intents else None,
+                "treatment_intent": treatment_intents[episode] if treatment_intents else {'id': 'SNOMED:408094002', 'label': 'No value'},
                 "response_to_treatment": response,
             }
             medical_actions.append(medical_action)
