@@ -96,7 +96,7 @@ async def get_medical_actions(person_id: int):
             medical_action = {
                 "action": agent,
                 "treatment_target": treatment_target,
-                "treatment_intent": treatment_intents[episode],
+                "treatment_intent": treatment_intents[episode] if treatment_intents else None,
                 "response_to_treatment": response,
             }
             medical_actions.append(medical_action)
@@ -106,7 +106,7 @@ async def get_medical_actions(person_id: int):
             medical_action = {
                 "action": procedure,
                 "treatment_target": treatment_target,
-                "treatment_intent": treatment_intents[episode],
+                "treatment_intent": treatment_intents[episode] if treatment_intents else None,
                 "response_to_treatment": response,
             }
             medical_actions.append(medical_action)
@@ -116,7 +116,7 @@ async def get_medical_actions(person_id: int):
             medical_action = {
                 "action": radiation,
                 "treatment_target": treatment_target,
-                "treatment_intent": treatment_intents[episode],
+                "treatment_intent": treatment_intents[episode] if treatment_intents else None,
                 "response_to_treatment": response,
             }
             medical_actions.append(medical_action)
@@ -647,7 +647,7 @@ async def get_treatment_info_by_field(person_id: int, field: str):
                 if treatment_info_ontology:
                     treatment_info[row.episode_id] = treatment_info_ontology
                 else:
-                    continue
+                    treatment_info[row.episode_id] = {'id': 'SNOMED:408094002', 'label': 'No value'}
 
             # Filter out None values if conversion failed
             return treatment_info
