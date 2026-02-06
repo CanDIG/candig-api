@@ -68,8 +68,8 @@ async def get_medical_actions(person_id: int):
         procedures,
         radiation_therapies,
     ) = await asyncio.gather(
-        get_treatment_info_by_field(person_id, "response_to_treatment"),
-        get_treatment_info_by_field(person_id, "treatment_intent"),
+        get_medical_action_by_field(person_id, "response_to_treatment"),
+        get_medical_action_by_field(person_id, "treatment_intent"),
         get_treatment_targets(person_id),
         get_treatment_agents(person_id),
         get_procedures(person_id),
@@ -89,15 +89,26 @@ async def get_medical_actions(person_id: int):
     # Use first target for now since we can't figure out the link
     treatment_target = treatment_targets[0] if treatment_targets else None
 
+    episodes = list(set(list(response_to_treatments.keys()) + list(treatment_intents.keys())))
+
     # Create combinations of each treatment type with each response
-    for episode, response in response_to_treatments.items():
+    for episode in episodes:
         # Combine treatment agents with responses
+        try:
+            this_intent = treatment_intents[episode]
+        except KeyError as e:
+            this_intent = {'id': 'SNOMED:408094002', 'label': 'No value'}
+        try:
+            this_response = response_to_treatments[episode]
+        except KeyError as e:
+            this_response = {'id': 'SNOMED:408094002', 'label': 'No value'}
+        
         for agent in treatment_agents:
             medical_action = {
                 "action": agent,
                 "treatment_target": treatment_target,
-                "treatment_intent": treatment_intents[episode] if treatment_intents else {'id': 'SNOMED:408094002', 'label': 'No value'},
-                "response_to_treatment": response,
+                "treatment_intent": this_intent,
+                "response_to_treatment": this_response,
             }
             medical_actions.append(medical_action)
 
@@ -106,8 +117,8 @@ async def get_medical_actions(person_id: int):
             medical_action = {
                 "action": procedure,
                 "treatment_target": treatment_target,
-                "treatment_intent": treatment_intents[episode] if treatment_intents else {'id': 'SNOMED:408094002', 'label': 'No value'},
-                "response_to_treatment": response,
+                "treatment_intent": this_intent,
+                "response_to_treatment": this_response,
             }
             medical_actions.append(medical_action)
 
@@ -116,8 +127,8 @@ async def get_medical_actions(person_id: int):
             medical_action = {
                 "action": radiation,
                 "treatment_target": treatment_target,
-                "treatment_intent": treatment_intents[episode] if treatment_intents else {'id': 'SNOMED:408094002', 'label': 'No value'},
-                "response_to_treatment": response,
+                "treatment_intent": this_intent,
+                "response_to_treatment": this_response,
             }
             medical_actions.append(medical_action)
 
@@ -619,11 +630,18 @@ async def get_ontologies(concept_ids: list):
 
     return {}
 
-async def get_treatment_info_by_field(person_id: int, field: str):
+async def get_medical_action_by_field(person_id: int, field: str) -> dict:
+    """
+    Get medical action information based on field mapping grouped by episode ids
+
+    Return is a dict with episode ids as keys and field mapping as an ontology
+    {episode_id_1: {id: "ontology_curie", label: "ontology label"},
+     episode_id_2: {id: "ontology_curie", label: "ontology label"}}
+    """
     ma_map = settings.MAPPING_JSON['medical_actions'][field]
     raw_sql = text(f"""
         SELECT DISTINCT
-            {ma_map['omop_object']}.{ma_map['concept_value_field']} as treatment_info_concept_id,
+            {ma_map['omop_object']}.{ma_map['concept_value_field']} as medical_action_concept_id,
             {ma_map['omop_object']}.{ma_map['grouping_field']} as episode_id
         FROM {settings.CDM_SCHEMA}.observation observation
         WHERE {ma_map['omop_object']}.person_id = :person_id
@@ -637,20 +655,20 @@ async def get_treatment_info_by_field(person_id: int, field: str):
             rows = result.fetchall()
 
             # Batch fetch ontologies
-            concept_ids = [row.treatment_info_concept_id for row in rows]
+            concept_ids = [row.medical_action_concept_id for row in rows]
             ontology_map = await get_ontologies(concept_ids)
 
             # Convert rows to list of OntologyClass objects
-            treatment_info = {}
+            medical_action = {}
             for row in rows:
-                treatment_info_ontology = ontology_map.get(row.treatment_info_concept_id)
-                if treatment_info_ontology:
-                    treatment_info[row.episode_id] = treatment_info_ontology
+                medical_action_ontology = ontology_map.get(row.medical_action_concept_id)
+                if medical_action_ontology:
+                    medical_action[row.episode_id] = medical_action_ontology
                 else:
-                    treatment_info[row.episode_id] = {'id': 'SNOMED:408094002', 'label': 'No value'}
+                    medical_action[row.episode_id] = {'id': 'SNOMED:408094002', 'label': 'No value'}
 
             # Filter out None values if conversion failed
-            return treatment_info
+            return medical_action
 
         except Exception as e:
             logger.error(f"Database Error in get_treatments: {str(e)}")
