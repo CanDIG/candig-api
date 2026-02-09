@@ -93,7 +93,7 @@ async def get_medical_actions(person_id: int):
 
     # Create combinations of each treatment type with each response
     for episode in episodes:
-        # get intent and response linked to the episode
+        # get intent and response linked to the episode, return No value if not in dict
         try:
             this_intent = treatment_intents[episode]
         except KeyError as e:
@@ -316,6 +316,60 @@ async def get_measurement_concepts(person_id: int, measurement_concept_ids: list
 
     return []
 
+async def get_biosamples_measurements(person_id: int) -> dict:
+    bm_map = settings.MAPPING_JSON['biosamples']['measurements']
+    biosample_measurements = {}
+    for mapping in bm_map:
+        concept_ids_str = ",".join(map(str, mapping['concept_ids']))
+        raw_sql = text(f"""
+        SELECT 
+            {mapping['omop_object']}.{mapping['omop_object']}_id as obj_id,
+            {mapping['omop_object']}.person_id,
+            {mapping['omop_object']}.{mapping['filtering_field']} as measurement_type_concept_id,
+            {mapping['omop_object']}.{mapping['concept_value_field']} as measurement_value_concept_id,
+            {mapping['omop_object']}.{mapping['date_field']} as date,
+            {mapping['grouping_omop_object']}.{mapping['grouping_omop_object']}_id as group_id
+        FROM {settings.CDM_SCHEMA}.{mapping['omop_object']} {mapping['omop_object']}
+        LEFT JOIN {settings.CDM_SCHEMA}.{mapping['grouping_omop_object']} {mapping['grouping_omop_object']}
+        ON {mapping['omop_object']}.{mapping['grouping_field']}={mapping['grouping_omop_object']}.{mapping['grouping_omop_object']}_id
+        WHERE {mapping['omop_object']}.person_id = :person_id
+            AND {mapping['omop_object']}.{mapping['concept_value_field']} IS NOT NULL
+            AND {mapping['omop_object']}.{mapping['filtering_field']} IN ({concept_ids_str})
+        """)
+
+        async for session in get_db_session():
+            try:
+                result = await session.execute(raw_sql, {"person_id": person_id})
+                rows = result.fetchall()
+
+                concept_ids = [row.measurement_type_concept_id for row in rows] + [
+                    row.measurement_value_concept_id for row in rows
+                ]
+                ontology_map = await get_ontologies(concept_ids)
+
+                # Convert rows to list of OntologyClass objects
+                for row in rows:
+                    if row.measurement_value_concept_id:
+                        measurement_value = ontology_map.get(row.measurement_value_concept_id)
+                        type_value = ontology_map.get(row.measurement_type_concept_id)
+                        date_value = row.date
+                        if measurement_value:
+                            measurement = {
+                                "assay": type_value,
+                                "measurement_value": measurement_value,
+                                "time_observed": get_timestamp(date_value)
+                            }
+                            try:
+                                biosample_measurements[row.group_id].append(measurement)
+                            except KeyError as e:
+                                biosample_measurements[row.group_id] = [measurement]
+                return biosample_measurements
+
+            except Exception as e:
+                logger.error(f"Database Error in get_biosamples_measurements: {str(e)}")
+                return {}
+    return {}
+
 
 async def get_biosamples(person_id: int):
     """
@@ -327,6 +381,8 @@ async def get_biosamples(person_id: int):
     pathological_tnm_finding = await get_measurement_concepts(
         person_id, biosamples_map['pathological_tnm_finding']['concept_ids']
     )
+
+    biosamples_measurements = await get_biosamples_measurements(person_id)
 
     raw_sql = text(f"""
         SELECT 
@@ -399,6 +455,9 @@ async def get_biosamples(person_id: int):
                     "sample_processing": ontology_map.get(row.sample_processing),
                     "sample_storage": ontology_map.get(row.sample_storage),
                 }
+                if row.id in biosamples_measurements.keys():
+                    biosample['measurements'] = biosamples_measurements[row.id]
+
                 biosamples.append(biosample)
 
             return biosamples, 200
