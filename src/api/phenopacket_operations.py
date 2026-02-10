@@ -1234,6 +1234,22 @@ def get_meta_data():
                 "iri_prefix": "http://purl.bioontology.org/ontology/RXNORM/",
             },
             {
+                "id": "PubChem",
+                "name": "PubChem",
+                "namespace_prefix": "PubChem",
+                "url": "https://pubchem.ncbi.nlm.nih.gov/",
+                "version": "PubChem 2026",
+                "iri_prefix": "N/A",
+            },
+            {
+                "id": "UMLS",
+                "name": "Unified Medical Language System UMLS",
+                "namespace_prefix": "UMLS",
+                "url": "https://www.nlm.nih.gov/research/umls/index.html",
+                "version": "UMLS 2026",
+                "iri_prefix": "N/A",
+            },
+            {
                 "id": "UCUM",
                 "name": "Unified Code for Units of Measure",
                 "namespace_prefix": "Not Applicable",
