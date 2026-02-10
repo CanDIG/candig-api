@@ -785,6 +785,9 @@ async def get_treatment_agents(person_id: int):
     Get all drug exposures that link to the mapped episode type and mapped drug exposure type
 
     Currently Cancer Drug Treatment (concept id 32941) episodes and EHR Order (concept id 32833) or EHR prescribed (32838) drug types
+
+    If no concept mapping for the drug, attempts to parse the drug ontology from the drug_source_value.
+    This is needed currently because we only map RxNorm to concepts currently.
     """
     tx_map = settings.MAPPING_JSON['medical_actions']['action']['treatment']
 
@@ -798,7 +801,8 @@ async def get_treatment_agents(person_id: int):
             drug_exposure.dose_unit_source_value as dose_intervals_quantity_unit,
             drug_exposure.quantity as dose_intervals_quantity_value,
             drug_exposure.route_concept_id as route_concept_id,
-            drug_exposure.drug_type_concept_id as drug_type_concept_id  
+            drug_exposure.drug_type_concept_id as drug_type_concept_id,
+            drug_exposure.{tx_map['agent']['source_value_field']} as drug_source_value
         FROM {settings.CDM_SCHEMA}.episode episode
         INNER JOIN {settings.CDM_SCHEMA}.episode_event episode_event
             ON episode.episode_id = episode_event.episode_id
@@ -827,7 +831,14 @@ async def get_treatment_agents(person_id: int):
             # Convert rows to list of treatment agent objects
             treatment_agents = []
             for row in rows:
-                agent = ontology_map.get(row.drug_concept_id)
+                if row.drug_concept_id == 0 and "|" in row.drug_source_value:
+                        split_drug = row.drug_source_value.split("|")
+                        agent = {
+                                "id": ":".join(split_drug[:2]),
+                                "label": split_drug[2]
+                            }
+                else:
+                    agent = ontology_map.get(row.drug_concept_id)
                 if agent:
                     if row.drug_type_concept_id == 32838:
                         treatment_agent = {
@@ -917,11 +928,14 @@ async def get_procedures(person_id: int):
     Get procedure_occurrence and site information grouped by episodes with mapped episode type via episode events.
 
     Currently maps to Cancer Surgery (concept id 32939) episodes and Procedure sites (concept id 4181646)
+
+    If procedure_concept_id unmapped, attempt to parse procedure_source_value and use instead
     """
     procedure_map = settings.MAPPING_JSON['medical_actions']['action']['procedure']
     raw_sql = text(f"""
         SELECT DISTINCT
             procedure_occurrence.procedure_concept_id,
+            procedure_occurrence.procedure_source_value,
             procedure_occurrence.procedure_date as performed,
             observation.value_as_concept_id as body_site_concept_id
         FROM {settings.CDM_SCHEMA}.episode episode
@@ -954,7 +968,12 @@ async def get_procedures(person_id: int):
             # Convert rows to list of procedure objects
             procedures = []
             for row in rows:
-                code = ontology_map.get(row.procedure_concept_id)
+                if row.procedure_concept_id == 0 and "|" in row.procedure_source_value:
+                    split_procedure = row.procedure_source_value.split("|")
+                    code = {"id": ":".join(split_procedure[:2]),
+                            "label": split_procedure[2]}
+                else:
+                    code = ontology_map.get(row.procedure_concept_id)
                 body_site = ontology_map.get(row.body_site_concept_id)
                 performed = get_timestamp(row.performed)
                 if code:

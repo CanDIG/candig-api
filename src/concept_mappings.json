@@ -7,6 +7,7 @@
                     "grouping_omop_object": "episode",
                     "grouping_concept_id": 32941,
                     "filtering_field": "drug_type_concept_id",
+                    "source_value_field": "drug_source_value",
                     "concept_ids": [
                         32833,
                         32838
@@ -34,7 +35,8 @@
                 "code": {
                     "omop_object": "procedure_occurrence",
                     "grouping_object": "episode",
-                    "grouping_concept_id": "32939"
+                    "grouping_concept_id": "32939",
+                    "source_value_field": "procedure_source_value"
                 },
                 "body_site": {
                     "omop_object": "observation",
