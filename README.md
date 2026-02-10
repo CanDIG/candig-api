@@ -8,15 +8,11 @@ Implemeted using connextion and SQLAlchemy.
 
 ## API schemas
 
-There are three OpenAPI schemas, both under development:
+There are three OpenAPI schemas:
 
 * [schema.yml](schema.yml) - implements basic CRUD operations on clinical data objects (Datasets and Persons)
 * [beacon-schema.yml](beacon-schema.yml) - implements a [GA4GH Beacon v2](https://www.ga4gh.org/product/beacon-api/) API for data discovery currently supporting clinical data querying and eventually will include genomic querying. 
 * [authz-schema.yml](authz-schema.yml) - implements authorization related endpoints such as user management and dataset authorizations
-
-## Under construction
-
-Following sections to be updated when we are ready to integrate into a full CanDIG stack. 
 
 ## Acknowledgements
 
