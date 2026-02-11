@@ -833,6 +833,8 @@ async def get_treatment_agents(person_id: int):
             for row in rows:
                 if row.drug_concept_id == 0 and "|" in row.drug_source_value:
                         split_drug = row.drug_source_value.split("|")
+                        if split_drug[0] == "NCI Thesaurus":
+                            split_drug[0] = "NCIT"
                         agent = {
                                 "id": ":".join(split_drug[:2]),
                                 "label": split_drug[2]
@@ -929,10 +931,11 @@ async def get_procedures(person_id: int):
 
     Currently maps to Cancer Surgery (concept id 32939) episodes and Procedure sites (concept id 4181646)
 
-    If procedure_concept_id unmapped, attempt to parse procedure_source_value and use instead
+    If procedure_concept_id unmapped, attempt to parse procedure_source_value and use instead or uses concept_map as last resort for those with no mappings
     """
     procedure_map = settings.MAPPING_JSON['medical_actions']['action']['procedure']
-    raw_sql = text(f"""
+    # get surgery procedures:
+    surgery_raw_sql = text(f"""
         SELECT DISTINCT
             procedure_occurrence.procedure_concept_id,
             procedure_occurrence.procedure_source_value,
@@ -952,22 +955,33 @@ async def get_procedures(person_id: int):
         WHERE episode.person_id = :person_id
             AND episode.episode_concept_id = {procedure_map['code']['grouping_concept_id']}
     """)
+    # get other procedures that don't map to treatment/radiation
+    others_raw_sql = text(f"""
+                          SELECT DISTINCT
+                            procedure_occurrence.procedure_concept_id,
+                            procedure_occurrence.procedure_source_value,
+                            procedure_occurrence.procedure_date as performed
+                          FROM {settings.CDM_SCHEMA}.{procedure_map['code']['omop_object']} procedure_occurrence
+                          WHERE {procedure_map['code']['omop_object']}.person_id = :person_id
+                          AND {procedure_map['code']['omop_object']}.procedure_concept_id
+                          IN({",".join(map(str, list(procedure_map['code']['concept_ids'])))}) 
+                          OR procedure_source_value='{list(procedure_map['code']['concept_map'].keys())[0]}'""")
 
     async for session in get_db_session():
         try:
-            result = await session.execute(raw_sql, {"person_id": person_id})
-            rows = result.fetchall()
+            surgery_result = await session.execute(surgery_raw_sql, {"person_id": person_id})
+            surgery_rows = surgery_result.fetchall()
 
             # Batch fetch ontologies for both procedure and body_site
             concept_ids = []
-            for row in rows:
+            for row in surgery_rows:
                 concept_ids.extend([row.procedure_concept_id, row.body_site_concept_id])
             
             ontology_map = await get_ontologies(concept_ids)
 
             # Convert rows to list of procedure objects
             procedures = []
-            for row in rows:
+            for row in surgery_rows:
                 if row.procedure_concept_id == 0 and "|" in row.procedure_source_value:
                     split_procedure = row.procedure_source_value.split("|")
                     code = {"id": ":".join(split_procedure[:2]),
@@ -980,6 +994,27 @@ async def get_procedures(person_id: int):
                     procedure = {
                         "code": code,
                         "body_site": body_site,
+                        "performed": performed
+                    }
+                    procedures.append(procedure)
+            
+            others_result = await session.execute(others_raw_sql, {"person_id": person_id})
+            other_rows = others_result.fetchall()
+
+            concept_ids = []
+            for row in other_rows:
+                concept_ids.extend([row.procedure_concept_id])
+            
+            ontology_map = await get_ontologies(concept_ids)
+            for row in other_rows:
+                if row.procedure_concept_id == 0 and row.procedure_source_value in procedure_map['code']['concept_map'].keys():
+                    code = procedure_map['code']['concept_map'][row.procedure_source_value]
+                else:
+                    code = ontology_map.get(row.procedure_concept_id)
+                performed = get_timestamp(row.performed)
+                if code:
+                    procedure = {
+                        "code": code,
                         "performed": performed
                     }
                     procedures.append(procedure)

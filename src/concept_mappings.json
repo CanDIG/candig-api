@@ -36,7 +36,18 @@
                     "omop_object": "procedure_occurrence",
                     "grouping_object": "episode",
                     "grouping_concept_id": "32939",
-                    "source_value_field": "procedure_source_value"
+                    "source_value_field": "procedure_source_value",
+                    "concept_ids": [
+                        40313626,
+                        4117979,
+                        37154552
+                    ],
+                    "concept_map": {
+                        "Targeted molecular therapy": {
+                            "id": "NCIT:C76243",
+                            "label": "Targeted Molecular Therapy"
+                        }
+                    }
                 },
                 "body_site": {
                     "omop_object": "observation",
@@ -240,6 +251,10 @@
             "concept_value_field": "value_as_concept_id",
             "grouping_omop_object": "specimen",
             "grouping_field": "observation_event_id"
+        },
+        "sampled_tissue": {
+            "source_value": "specimen"
+
         },
         "measurements": [
             {   
