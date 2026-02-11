@@ -1134,6 +1134,21 @@ async def get_measurements(person_id: int):
                     SELECT descendant_concept_id FROM {settings.CDM_SCHEMA}.concept_ancestor
                     WHERE ancestor_concept_id IN ({','.join([str(x) for x in mapping['ancestor_ids']])})))
             """)
+        
+        elif mapping['omop_object'] == "procedure_occurrence":
+            raw_sql = text(f"""
+                SELECT DISTINCT
+                    {mapping['omop_object']}.{mapping['concept_value_field']} as measurement_value_concept_id,
+                    {mapping['omop_object']}.{mapping['concept_value_field']} as measurement_value,
+                    {mapping['omop_object']}.{mapping['filtering_field']} as measurement_type_concept_id,
+                    {mapping['omop_object']}.{mapping['date_field']} as measurement_date,
+                    {mapping['omop_object']}.{mapping['concept_value_field']} as measurement_unit_concept_id
+                FROM {settings.CDM_SCHEMA}.{mapping['omop_object']}
+                WHERE {mapping['omop_object']}.person_id = :person_id
+                    AND ({mapping['filtering_field']} IN (
+                    SELECT descendant_concept_id FROM {settings.CDM_SCHEMA}.concept_ancestor
+                    WHERE ancestor_concept_id IN ({','.join([str(x) for x in mapping['ancestor_ids']])})))
+            """)
 
         async for session in get_db_session():
             try:
@@ -1141,9 +1156,11 @@ async def get_measurements(person_id: int):
                 rows = result.fetchall()
 
                 # Batch fetch ontologies
-                concept_ids = ([row.measurement_value_concept_id for row in rows] + 
-                                [row.measurement_type_concept_id for row in rows] + 
-                                [row.measurement_unit_concept_id for row in rows] + [4129922])
+                concept_ids = list(set((
+                    [row.measurement_value_concept_id for row in rows] + 
+                    [row.measurement_type_concept_id for row in rows] + 
+                    [row.measurement_unit_concept_id for row in rows] +
+                    [4129922])))
                 ontology_map = await get_ontologies(concept_ids)
 
                 for row in rows:

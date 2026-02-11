@@ -252,10 +252,6 @@
             "grouping_omop_object": "specimen",
             "grouping_field": "observation_event_id"
         },
-        "sampled_tissue": {
-            "source_value": "specimen"
-
-        },
         "measurements": [
             {   
                 "omop_object": "observation",
@@ -279,7 +275,12 @@
                 43054909,
                 4151768,
                 4117444,
-                3375793
+                3375793,
+                45773156,
+                4161179,
+                4244984,
+                4077124,
+                1074673
             ],
             "date_field": "observation_date",
             "unit_field": "unit_concept_id"
@@ -298,6 +299,13 @@
             "concept_ids": [
                 734306
             ]
+        },
+        {
+            "omop_object": "procedure_occurrence",
+            "filtering_field": "procedure_concept_id",
+            "date_field": "procedure_date",
+            "concept_value_field": "modifier_concept_id",
+            "ancestor_ids": [1242725]
         }
     ]
 }   
