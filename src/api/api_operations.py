@@ -54,7 +54,7 @@ async def upload_file(file):
                         "message": f"User {get_user_id(request)} does not have permission to ingest '{ds_id}'",
                     }, 403
         except Exception as e:
-            ProblemException(status=500, title="Uploaded File in Unexpected Format", detail=str(e))
+            raise ProblemException(status=500, title="Uploaded File in Unexpected Format", detail=str(e))
 
         # Generate a unique ID for this job
         queue_id = secrets.token_hex(8)
@@ -94,6 +94,10 @@ async def upload_file(file):
             "url": f"/v1/datasets/upload/status/{queue_id}",
         }, 202
 
+    except ProblemException:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise
     except Exception as e:
         # Cleanup the temp file if something went wrong
         if temp_path and os.path.exists(temp_path):
