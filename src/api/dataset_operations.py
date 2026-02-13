@@ -768,7 +768,7 @@ async def delete_by_id(id: str):
 
             # delete the authorization as well
             authz_response, status_code = remove_dataset(id)
-            if authz_response != 200:
+            if status_code != 200:
                 return authz_response, status_code
 
             return {
