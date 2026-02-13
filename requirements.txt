@@ -8,3 +8,4 @@ pydantic~=2.12.5
 aiosql~=15.0
 candigv2-logging@git+https://github.com/CanDIG/candigv2-logging.git@v1.0.1  # CanDIG logging wrapper
 candigv2-authx@git+https://github.com/CanDIG/candigv2-authx.git@v2.8.7
+phenopackets

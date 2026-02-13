@@ -1821,7 +1821,7 @@ components:
             type: string
         date_of_birth:
           type: string
-          format: date
+          format: datetime
           description: >
             The date or age at which the individual was born.
         time_at_last_encounter:
@@ -1897,7 +1897,7 @@ components:
       description: >
         A quantitative or qualitative measurement obtained from an individual or biosample.
       type: object
-      required: [assay, measurement_value]
+      required: [assay, value]
       properties:
         description:
           type: string
@@ -1906,7 +1906,7 @@ components:
           $ref: '#/components/schemas/OntologyClass'
           description: >
             The assay or test used to generate the measurement.
-        measurement_value:
+        value:
           $ref: '#/components/schemas/Value'
           description: >
             The measured value, either quantitative or categorical.
@@ -2161,39 +2161,111 @@ components:
       description: >
         This element describes medications, procedures, other actions taken for clinical management. The element is a list of options.
       type: object
-      required: 
-        - action
-      properties:
-        action:
-          description: >
-            One of a list of medical actions. REQUIRED.
-          oneOf:
-            - $ref: '#/components/schemas/Procedure'
-            - $ref: '#/components/schemas/Treatment'
-            - $ref: '#/components/schemas/RadiationTherapy'
-            - $ref: '#/components/schemas/TherapeuticRegimen'
-        treatment_target:
-          $ref: '#/components/schemas/OntologyClass'
-          description: >
-            The condition or disease that this treatment was intended to address
-        treatment_intent:
-          $ref: '#/components/schemas/OntologyClass'
-          description: >
-            Whether the intention of the treatment was curative, palliative…
-        response_to_treatment:
-          $ref: '#/components/schemas/OntologyClass'
-          description: >
-            How the patient responded to the treatment
-        adverse_events:
-          type: array
-          items: 
-            $ref: '#/components/schemas/OntologyClass'
-          description: >
-            Any adverse effects experienced by the patient attributed to the treatment
-        treatment_termination_reason:
-          $ref: '#/components/schemas/OntologyClass'
-          description: >
-            The reason that the treatment was stopped.
+      oneOf:
+        - required: [procedure]
+          properties:
+            procedure:
+              $ref: '#/components/schemas/Procedure'
+            treatment_target:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                The condition or disease that this treatment was intended to address
+            treatment_intent:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                Whether the intention of the treatment was curative, palliative…
+            response_to_treatment:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                How the patient responded to the treatment
+            adverse_events:
+              type: array
+              items: 
+                $ref: '#/components/schemas/OntologyClass'
+              description: >
+                Any adverse effects experienced by the patient attributed to the treatment
+            treatment_termination_reason:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                The reason that the treatment was stopped.
+        - required: [treatment]
+          properties:
+            treatment:
+              $ref: '#/components/schemas/Treatment'
+            treatment_target:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                The condition or disease that this treatment was intended to address
+            treatment_intent:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                Whether the intention of the treatment was curative, palliative…
+            response_to_treatment:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                How the patient responded to the treatment
+            adverse_events:
+              type: array
+              items: 
+                $ref: '#/components/schemas/OntologyClass'
+              description: >
+                Any adverse effects experienced by the patient attributed to the treatment
+            treatment_termination_reason:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                The reason that the treatment was stopped.
+        - required: [radiation_therapy]
+          properties:
+            radiation_therapy:
+              $ref: '#/components/schemas/RadiationTherapy'
+            treatment_target:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                The condition or disease that this treatment was intended to address
+            treatment_intent:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                Whether the intention of the treatment was curative, palliative…
+            response_to_treatment:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                How the patient responded to the treatment
+            adverse_events:
+              type: array
+              items: 
+                $ref: '#/components/schemas/OntologyClass'
+              description: >
+                Any adverse effects experienced by the patient attributed to the treatment
+            treatment_termination_reason:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                The reason that the treatment was stopped.
+        - required: [therapeutic_regimen]
+          properties:
+            therapeutic_regimen:
+              $ref: '#/components/schemas/TherapeuticRegimen'
+            treatment_target:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                The condition or disease that this treatment was intended to address
+            treatment_intent:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                Whether the intention of the treatment was curative, palliative…
+            response_to_treatment:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                How the patient responded to the treatment
+            adverse_events:
+              type: array
+              items: 
+                $ref: '#/components/schemas/OntologyClass'
+              description: >
+                Any adverse effects experienced by the patient attributed to the treatment
+            treatment_termination_reason:
+              $ref: '#/components/schemas/OntologyClass'
+              description: >
+                The reason that the treatment was stopped.
     
     Treatment:
       type: object
@@ -2538,9 +2610,16 @@ components:
     Value:
       description: >
         A value that may be quantitative or represented by an ontology term.
+      type: object
       oneOf:
-        - $ref: '#/components/schemas/Quantity'
-        - $ref: '#/components/schemas/OntologyClass'
+        - required: [quantity]
+          properties:
+            quantity:
+              $ref: '#/components/schemas/Quantity'
+        - required: [ontology_class]
+          properties:
+            ontology_class:
+              $ref: '#/components/schemas/OntologyClass'
 
     Quantity:
       description: >
