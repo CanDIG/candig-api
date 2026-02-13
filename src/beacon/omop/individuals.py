@@ -482,7 +482,7 @@ def create_dynamic_filter(filters):
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
             # For the final bit of the query, we use AND between categories and OR within a category
-            query_treatment += "and" if query_exposure == "" else "or"
+            query_treatment += "and" if query_treatment == "" else "or"
             query_treatment += f"""
                 exists (
                     select 1
