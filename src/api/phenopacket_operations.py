@@ -58,9 +58,6 @@ async def get_by_id(dataset_id: str, id: int):
     )
     
     phenopacket_as_dict=json.loads(MessageToJson(phenopacket, preserving_proto_field_name=True, indent=0))
-    ##TODO this is just for testing, remove when schema fixed
-    with open("phenopacket.json", 'w+') as f:
-        json.dump(phenopacket_as_dict, f, indent=4)
 
     return phenopacket_as_dict
 
