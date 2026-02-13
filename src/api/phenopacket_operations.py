@@ -10,6 +10,10 @@ from src.api.auth import is_action_allowed
 from ..config import settings  # Import settings
 from ..database.db_operations import get_db_session
 
+from google.protobuf.json_format import MessageToJson
+from phenopackets import *
+import json
+
 logger = CanDIGLogger(__file__)
 
 
@@ -29,31 +33,33 @@ async def get_by_id(dataset_id: str, id: int):
     person_id = id
     (
         (subject, _),
-        (biosamples, _),
         (diseases, _),
         medical_actions,
+        (biosamples, _),
         measurements,
     ) = await asyncio.gather(
         get_subject(person_id),
-        get_biosamples(person_id),
         get_diseases(person_id),
         get_medical_actions(person_id),
+        get_biosamples(person_id),
         get_measurements(person_id),
     )
 
     meta_data = get_meta_data()
 
-    phenopacket = {
-        "id": str(person_id),
-        "subject": subject,
-        "measurements": measurements,
-        "biosamples": biosamples,
-        "diseases": diseases,
-        "medical_actions": medical_actions,
-        "metaData": meta_data,
-    }
+    phenopacket = Phenopacket(
+        id=str(person_id),
+        subject=subject,
+        diseases=diseases,
+        medical_actions=medical_actions,
+        biosamples=biosamples,
+        measurements=measurements,
+        meta_data=meta_data
+    )
+    
+    phenopacket_as_dict=json.loads(MessageToJson(phenopacket, preserving_proto_field_name=True, indent=0))
 
-    return remove_empty_values(phenopacket)
+    return phenopacket_as_dict
 
 
 async def get_medical_actions(person_id: int):
@@ -97,39 +103,45 @@ async def get_medical_actions(person_id: int):
         try:
             this_intent = treatment_intents[episode]
         except KeyError as e:
-            this_intent = {'id': 'SNOMED:408094002', 'label': 'No value'}
+            this_intent = OntologyClass(
+                id='SNOMED:408094002',
+                label='No value'
+                )
         try:
             this_response = response_to_treatments[episode]
         except KeyError as e:
-            this_response = {'id': 'SNOMED:408094002', 'label': 'No value'}
+            this_response = OntologyClass(
+                id='SNOMED:408094002',
+                label='No value'
+                )
         # Combine treatment agents with responses
         for agent in treatment_agents:
-            medical_action = {
-                "action": agent,
-                "treatment_target": treatment_target,
-                "treatment_intent": this_intent,
-                "response_to_treatment": this_response,
-            }
+            medical_action = MedicalAction(
+                treatment=agent,
+                treatment_target=treatment_target,
+                treatment_intent=this_intent,
+                response_to_treatment=this_response
+            )
             medical_actions.append(medical_action)
 
         # Combine procedures with responses
         for procedure in procedures:
-            medical_action = {
-                "action": procedure,
-                "treatment_target": treatment_target,
-                "treatment_intent": this_intent,
-                "response_to_treatment": this_response,
-            }
+            medical_action = MedicalAction(
+                procedure=procedure,
+                treatment_target=treatment_target,
+                treatment_intent=this_intent,
+                response_to_treatment=this_response
+            )
             medical_actions.append(medical_action)
 
         # Combine radiation therapies with responses
         for radiation in radiation_therapies:
-            medical_action = {
-                "action": radiation,
-                "treatment_target": treatment_target,
-                "treatment_intent": this_intent,
-                "response_to_treatment": this_response,
-            }
+            medical_action = MedicalAction(
+                radiation_therapy=radiation,
+                treatment_target=treatment_target,
+                treatment_intent=this_intent,
+                response_to_treatment=this_response
+            )
             medical_actions.append(medical_action)
 
     return medical_actions if medical_actions else None
@@ -164,13 +176,15 @@ async def get_concept_by_id_or_ancestor(person_id: int, omop_object: str, filter
             ontology_map = await get_ontologies(found_concept_ids)
 
             # Convert rows to list of OntologyClass objects
-            measurements = [
-                ontology_map.get(row.concept_id) for row in rows
-            ]
+            measurements = [OntologyClass(id=ontology_map.get(row.concept_id)['id'],
+                                          label=ontology_map.get(row.concept_id)['label']) 
+                            for row in rows]
 
             # Filter out None values if conversion failed
             return [m for m in measurements if m is not None]
 
+        except TypeError as e:
+            print(e)
         except Exception as e:
             logger.error(f"Database Error in get_concept_by_id_or_ancestor: {str(e)}")
             return []
@@ -241,15 +255,17 @@ async def get_diseases(person_id: int):
 
             diseases = []
             for row in rows:
-                disease = {
-                    "term": ontology_map.get(row.term),
-                    "onset": get_timestamp(row.onset),
-                    "resolution": get_timestamp(row.resolution),
-                    "disease_stage": disease_stages,
-                    "clinical_tnm_finding": clinical_tnm_finding_list,
-                    "primary_site": ontology_map.get(row.primary_site_concept_id),
-                    "laterality": laterality,
-                }
+                disease = Disease(
+                            term = OntologyClass(label = ontology_map.get(row.term)['label'],
+                                                 id = ontology_map.get(row.term)['id']),
+                            onset = TimeElement(timestamp=get_timestamp(row.onset)),
+                            resolution = TimeElement(timestamp=get_timestamp(row.resolution)),
+                            disease_stage = disease_stages,
+                            clinical_tnm_finding = clinical_tnm_finding_list,
+                            primary_site = OntologyClass(id = ontology_map.get(row.primary_site_concept_id)['id'],
+                                                         label = ontology_map.get(row.primary_site_concept_id)['label']),
+                            laterality = laterality
+                            )
                 diseases.append(disease)
 
             return diseases, 200
@@ -302,10 +318,10 @@ async def get_measurement_concepts(person_id: int, measurement_concept_ids: list
             concepts = []
             for row in rows:
                 if row.vocabulary_id and row.concept_code and row.concept_name:
-                    ontology = {
-                        "id": f"{row.vocabulary_id}:{row.concept_code}",
-                        "label": row.concept_name,
-                    }
+                    ontology = OntologyClass(
+                        id = f"{row.vocabulary_id}:{row.concept_code}",
+                        label = row.concept_name,
+                    )
                     concepts.append(ontology)
 
             return concepts
@@ -354,11 +370,13 @@ async def get_biosamples_measurements(person_id: int) -> dict:
                         type_value = ontology_map.get(row.measurement_type_concept_id)
                         date_value = row.date
                         if measurement_value:
-                            measurement = {
-                                "assay": type_value,
-                                "measurement_value": measurement_value,
-                                "time_observed": get_timestamp(date_value)
-                            }
+                            measurement = Measurement(
+                                assay=OntologyClass(id=type_value['id'],
+                                                    label=type_value['label']),
+                                value=Value(ontology_class=OntologyClass(id=measurement_value['id'],
+                                                                        label=measurement_value['label'])),
+                                time_observed=TimeElement(timestamp=get_timestamp(date_value))
+                            )
                             try:
                                 biosample_measurements[row.group_id].append(measurement)
                             except KeyError as e:
@@ -438,25 +456,27 @@ async def get_biosamples(person_id: int):
 
             biosamples = []
             for row in rows:
-                biosample = {
-                    "id": str(row.id),
-                    "individual_id": str(person_id),
-                    "sampled_tissue": ontology_map.get(row.sampled_tissue),
-                    "taxonomy": {
-                        "id": "SNOMED:337915000",
-                        "label": "Homo sapiens (organism)",
-                    },
-                    "time_of_collection": get_timestamp(row.time_of_collection),
-                    "histological_diagnosis": ontology_map.get(
-                        row.histological_diagnosis
-                    ),
-                    "tumor_grade": ontology_map.get(row.tumor_grade),
-                    "pathological_tnm_finding": pathological_tnm_finding,
-                    "sample_processing": ontology_map.get(row.sample_processing),
-                    "sample_storage": ontology_map.get(row.sample_storage),
-                }
+                biosample = Biosample(
+                    id=str(row.id),
+                    individual_id=str(person_id),
+                    sampled_tissue=OntologyClass(id=ontology_map.get(row.sampled_tissue)['id'],
+                                                 label=ontology_map.get(row.sampled_tissue)['label']),
+                    taxonomy=OntologyClass(id="SNOMED:337915000",
+                                           label="Homo sapiens (organism)"),
+                    time_of_collection=TimeElement(timestamp=get_timestamp(row.time_of_collection)),
+                    histological_diagnosis=OntologyClass(id=ontology_map.get(row.histological_diagnosis)['id'],
+                                                         label=ontology_map.get(row.histological_diagnosis)['label']),
+                    tumor_grade=OntologyClass(id=ontology_map.get(row.tumor_grade)['id'],
+                                              label=ontology_map.get(row.tumor_grade)['label']),
+                    pathological_tnm_finding=pathological_tnm_finding,
+                    sample_processing=OntologyClass(id=ontology_map.get(row.sample_processing)['id'],
+                                                    label=ontology_map.get(row.sample_processing)['label']),
+                    sample_storage=OntologyClass(id=ontology_map.get(row.sample_storage)['id'],
+                                                 label=ontology_map.get(row.sample_storage)['label'])                                                   
+                )
+                
                 if row.id in biosamples_measurements.keys():
-                    biosample['measurements'] = biosamples_measurements[row.id]
+                    biosample.measurements.extend(biosamples_measurements[row.id])
 
                 biosamples.append(biosample)
 
@@ -529,27 +549,28 @@ async def get_subject(id: int):
                 [row.gender_concept_id, row.cause_of_death_concept_id]
             )
 
-            subject = {
-                "id": str(row.id),
-                "alternate_ids": [row.alternate_ids],
-                "date_of_birth": get_birth_timestamp(
+            subject = Individual(
+                id=str(row.id),
+                alternate_ids= [row.alternate_ids],
+                date_of_birth= get_birth_timestamp(
                     row.year_of_birth, row.month_of_birth, row.day_of_birth
                 ),
-                "sex": get_sex_status(row.sex_concept_id),
-                "gender": ontology_map.get(row.gender_concept_id),
-                "taxonomy": {
-                    "id": "SNOMED:337915000",
-                    "label": "Homo sapiens (organism)",
-                },
-                "vital_status": {
-                    "status": get_death_status(row.time_of_death),
-                    "time_of_death": get_timestamp(row.time_of_death),
-                    "cause_of_death": ontology_map.get(row.cause_of_death_concept_id),
-                    "survival_time_in_days": get_survival_time(
+                sex = get_sex_status(row.sex_concept_id),
+                gender = ontology_map.get(row.gender_concept_id),
+                taxonomy = OntologyClass(
+                    id = "SNOMED:337915000",
+                    label = "Homo sapiens (organism)"
+                ),
+                vital_status = VitalStatus(
+                    status = get_death_status(row.time_of_death),
+                    time_of_death = TimeElement(timestamp=get_timestamp(row.time_of_death)),
+                    cause_of_death = OntologyClass(id=ontology_map.get(row.cause_of_death_concept_id)['id'],
+                                                   label=ontology_map.get(row.cause_of_death_concept_id)['label']),
+                    survival_time_in_days = get_survival_time(
                         row.disease_first_occurrence_date, row.time_of_death
                     ),
-                },
-            }
+                ),
+            )
 
             return subject, 200
 
@@ -580,7 +601,7 @@ def get_birth_timestamp(year, month, day):
     day = day if day else 1
     
     # Format as YYYY-MM-DD
-    return f"{year:04d}-{month:02d}-{day:02d}"
+    return datetime(year,month,day,0,0)
 
 
 def get_sex_status(gender_concept_id):
@@ -610,12 +631,11 @@ def get_timestamp(datetime_value):
     if isinstance(datetime_value, datetime):
         if datetime_value.date() == date(1800, 1, 1):
             return None
-        return {"iso8601timestamp": datetime_value.isoformat()}
+        return datetime.combine(datetime_value, datetime.min.time())
     elif isinstance(datetime_value, date):
         if datetime_value == date(1800, 1, 1):
             return None
-        return {"iso8601timestamp": datetime_value.isoformat()}
-
+        return datetime.combine(datetime_value, datetime.min.time())
     return None
 
 
@@ -722,9 +742,15 @@ async def get_medical_action_by_field(person_id: int, field: str) -> dict:
             for row in rows:
                 medical_action_ontology = ontology_map.get(row.medical_action_concept_id)
                 if medical_action_ontology:
-                    medical_action[row.episode_id] = medical_action_ontology
+                    medical_action[row.episode_id] = OntologyClass(
+                        id=medical_action_ontology['id'],
+                        label=medical_action_ontology['label']
+                    )
                 else:
-                    medical_action[row.episode_id] = {'id': 'SNOMED:408094002', 'label': 'No value'}
+                    medical_action[row.episode_id] = OntologyClass(
+                        id='SNOMED:408094002',
+                        label='No value'
+                    )
 
             # Filter out None values if conversion failed
             return medical_action
@@ -767,9 +793,9 @@ async def get_treatment_targets(person_id: int):
             ontology_map = await get_ontologies(concept_ids)
 
             # Convert rows to list of OntologyClass objects
-            targets = [
-                ontology_map.get(row.treatment_target_concept_id) for row in rows
-            ]
+            targets = [OntologyClass(id=ontology_map.get(row.treatment_target_concept_id)['id'],
+                                     label=ontology_map.get(row.treatment_target_concept_id)['label']) 
+                                     for row in rows]
 
             # Filter out None values if conversion failed
             return [t for t in targets if t is not None]
@@ -835,12 +861,13 @@ async def get_treatment_agents(person_id: int):
                         split_drug = row.drug_source_value.split("|")
                         if split_drug[0] == "NCI Thesaurus":
                             split_drug[0] = "NCIT"
-                        agent = {
-                                "id": ":".join(split_drug[:2]),
-                                "label": split_drug[2]
-                            }
+                        agent = OntologyClass(
+                            id=":".join(split_drug[:2]),
+                            label=split_drug[2]
+                        )
                 else:
-                    agent = ontology_map.get(row.drug_concept_id)
+                    agent = OntologyClass(id=ontology_map.get(row.drug_concept_id)['id'],
+                                          label=ontology_map.get(row.drug_concept_id)['label'])
                 if agent:
                     if row.drug_type_concept_id == 32838:
                         treatment_agent = {
@@ -855,35 +882,41 @@ async def get_treatment_agents(person_id: int):
                     
                     # Add route_of_administration
                     if row.route_concept_id is not None:
-                        route = ontology_map.get(row.route_concept_id)
+                        route = OntologyClass(
+                            id=ontology_map.get(row.route_concept_id)['id'],
+                            label=ontology_map.get(row.route_concept_id)['label']
+                        )
                         if route:
                             treatment_agent["route_of_administration"] = route
                         else:
-                            treatment_agent["route_of_administration"] = {
-                                "id": "SNOMED:261665006",
-                                "label": "Unknown"
-                            }
+                            treatment_agent["route_of_administration"] = OntologyClass(
+                                id="SNOMED:261665006",
+                                label="Unknown"
+                            )
                     else:
-                        treatment_agent["route_of_administration"] = {
-                            "id": "SNOMED:261665006",
-                            "label": "Unknown"
-                        }
+                        treatment_agent["route_of_administration"] = OntologyClass(
+                                id="SNOMED:261665006",
+                                label="Unknown"
+                            )
                     
                     # If drug exposure is from 'EHR Order' drug type, include cumulative dose
                     if row.drug_type_concept_id in tx_map['cumulative_dose']['concept_ids'] and row.quantity_value:
                         if row.quantity_unit in tx_map['cumulative_dose']['unit']['concept_map'].keys():
-                            treatment_agent["cumulative_dose"] = {
-                                    "value": row.quantity_value,
-                                    "unit": ontology_map[tx_map['cumulative_dose']['unit']['concept_map'][row.quantity_unit]]
-                            }
+                            treatment_agent["cumulative_dose"] = Quantity(
+                                value=row.quantity_value,
+                                unit=OntologyClass(id=ontology_map[tx_map['cumulative_dose']['unit']['concept_map'][row.quantity_unit]]['id'],
+                                                   label=ontology_map[tx_map['cumulative_dose']['unit']['concept_map'][row.quantity_unit]]['label'])
+                            )
                         elif row.quantity_value:
-                            treatment_agent["cumulative_dose"] = {
-                                    "value": row.quantity_value,
-                                    "unit": {
-                                        "id": "SNOMED:261665006",
-                                        "label": "Unknown"
-                                    }
-                            }
+                            treatment_agent["cumulative_dose"] = Quantity(
+                                value=row.quantity_value,
+                                unit=OntologyClass(id="SNOMED:261665006",
+                                                   label="Unknown")
+                            )
+                        else:
+                            treatment_agent["cumulative_dose"] = None
+                    else:
+                        treatment_agent["cumulative_dose"] = None
                     
                     # Add dose_intervals if we have the necessary data
                     # if row.dose_intervals_start or row.dose_intervals_end or row.dose_intervals_quantity_value:
@@ -913,13 +946,19 @@ async def get_treatment_agents(person_id: int):
                     #     if dose_intervals:
                     #         treatment_agent["dose_intervals"] = dose_intervals
                     
-                    treatment_agents.append(treatment_agent)
+                    treatment = Treatment(
+                        agent=treatment_agent['agent'],
+                        route_of_administration=treatment_agent['route_of_administration'],
+                        drug_type=treatment_agent['drug_type'],
+                        cumulative_dose=treatment_agent['cumulative_dose']
+                    )
+                    treatment_agents.append(treatment)
 
             return treatment_agents
 
 
         except Exception as e:
-            logger.error(f"Database Error in get_drug_exposure: {str(e)}")
+            logger.error(f"Database Error in get_treatment_agents: {str(e)}")
             return []
 
     return []
@@ -963,9 +1002,9 @@ async def get_procedures(person_id: int):
                             procedure_occurrence.procedure_date as performed
                           FROM {settings.CDM_SCHEMA}.{procedure_map['code']['omop_object']} procedure_occurrence
                           WHERE {procedure_map['code']['omop_object']}.person_id = :person_id
-                          AND {procedure_map['code']['omop_object']}.procedure_concept_id
+                          AND ({procedure_map['code']['omop_object']}.procedure_concept_id
                           IN({",".join(map(str, list(procedure_map['code']['concept_ids'])))}) 
-                          OR procedure_source_value='{list(procedure_map['code']['concept_map'].keys())[0]}'""")
+                          OR procedure_source_value='{list(procedure_map['code']['concept_map'].keys())[0]}')""")
 
     async for session in get_db_session():
         try:
@@ -984,18 +1023,20 @@ async def get_procedures(person_id: int):
             for row in surgery_rows:
                 if row.procedure_concept_id == 0 and "|" in row.procedure_source_value:
                     split_procedure = row.procedure_source_value.split("|")
-                    code = {"id": ":".join(split_procedure[:2]),
-                            "label": split_procedure[2]}
+                    code = OntologyClass(id=":".join(split_procedure[:2]),
+                                         label=split_procedure[2])
                 else:
-                    code = ontology_map.get(row.procedure_concept_id)
-                body_site = ontology_map.get(row.body_site_concept_id)
+                    code = OntologyClass(id=ontology_map.get(row.procedure_concept_id)['id'],
+                                         label=ontology_map.get(row.procedure_concept_id)['label'])
+                body_site = OntologyClass(id=ontology_map.get(row.body_site_concept_id)['id'],
+                                          label=ontology_map.get(row.body_site_concept_id)['label'])
                 performed = get_timestamp(row.performed)
                 if code:
-                    procedure = {
-                        "code": code,
-                        "body_site": body_site,
-                        "performed": performed
-                    }
+                    procedure = Procedure(
+                        code=code,
+                        body_site=body_site,
+                        performed=TimeElement(timestamp=performed)
+                    )
                     procedures.append(procedure)
             
             others_result = await session.execute(others_raw_sql, {"person_id": person_id})
@@ -1008,15 +1049,17 @@ async def get_procedures(person_id: int):
             ontology_map = await get_ontologies(concept_ids)
             for row in other_rows:
                 if row.procedure_concept_id == 0 and row.procedure_source_value in procedure_map['code']['concept_map'].keys():
-                    code = procedure_map['code']['concept_map'][row.procedure_source_value]
+                    code = OntologyClass(id=procedure_map['code']['concept_map'][row.procedure_source_value]['id'],
+                                         label=procedure_map['code']['concept_map'][row.procedure_source_value]['label'])
                 else:
-                    code = ontology_map.get(row.procedure_concept_id)
+                    code = OntologyClass(id=ontology_map.get(row.procedure_concept_id)['id'],
+                                         label=ontology_map.get(row.procedure_concept_id)['label'])
                 performed = get_timestamp(row.performed)
                 if code:
-                    procedure = {
-                        "code": code,
-                        "performed": performed
-                    }
+                    procedure = Procedure(
+                        code=code,
+                        performed=TimeElement(timestamp=performed)
+                    )
                     procedures.append(procedure)
 
             return procedures
@@ -1076,17 +1119,19 @@ async def get_radiation_therapies(person_id: int):
             # Convert rows to list of radiation therapy objects
             radiation_therapies = []
             for row in rows:
-                modality = ontology_map.get(row.modality_concept_id)
-                body_site = ontology_map.get(row.body_site_concept_id)
+                modality = OntologyClass(id=ontology_map.get(row.modality_concept_id)['id'],
+                                         label=ontology_map.get(row.modality_concept_id)['label'])
+                body_site = OntologyClass(id=ontology_map.get(row.body_site_concept_id)['id'],
+                                          label=ontology_map.get(row.body_site_concept_id)['label'])
                 
                 # Only include radiation therapy if ALL required fields are present
                 if modality and body_site and row.dosage is not None and row.fractions is not None:
-                    therapy = {
-                        "modality": modality,
-                        "body_site": body_site,
-                        "dosage": int(row.dosage),
-                        "fractions": int(row.fractions),
-                    }
+                    therapy = RadiationTherapy(
+                        modality=modality,
+                        body_site=body_site,
+                        dosage=int(row.dosage),
+                        fractions=int(row.fractions)
+                    )
                     radiation_therapies.append(therapy)
 
             return radiation_therapies
@@ -1145,9 +1190,10 @@ async def get_measurements(person_id: int):
                     {mapping['omop_object']}.{mapping['concept_value_field']} as measurement_unit_concept_id
                 FROM {settings.CDM_SCHEMA}.{mapping['omop_object']}
                 WHERE {mapping['omop_object']}.person_id = :person_id
-                    AND ({mapping['filtering_field']} IN (
-                    SELECT descendant_concept_id FROM {settings.CDM_SCHEMA}.concept_ancestor
-                    WHERE ancestor_concept_id IN ({','.join([str(x) for x in mapping['ancestor_ids']])})))
+                    AND ({mapping['filtering_field']} 
+                    IN (SELECT descendant_concept_id FROM {settings.CDM_SCHEMA}.concept_ancestor
+                    WHERE ancestor_concept_id IN({','.join([str(x) for x in mapping['ancestor_ids']])})) 
+                    OR {mapping['filtering_field']} IN({','.join([str(x) for x in mapping['concept_ids']])}))
             """)
 
         async for session in get_db_session():
@@ -1169,11 +1215,13 @@ async def get_measurements(person_id: int):
                         type_value = ontology_map.get(row.measurement_type_concept_id)
                         date_value = row.measurement_date
                         if measurement_value:
-                            measurement = {
-                                "assay": type_value,
-                                "measurement_value": measurement_value,
-                                "time_observed": get_timestamp(date_value)
-                            }
+                            measurement = Measurement(
+                                assay=OntologyClass(id=type_value['id'],
+                                                    label=type_value['label']),
+                                value=Value(ontology_class=OntologyClass(id=measurement_value['id'],
+                                                                         label=measurement_value['label'])),
+                                time_observed=TimeElement(timestamp=get_timestamp(date_value))
+                            )
                             measurements.append(measurement)
                     elif row.measurement_value:
                         type_value = ontology_map.get(row.measurement_type_concept_id)
@@ -1182,14 +1230,14 @@ async def get_measurements(person_id: int):
                             unit_value = ontology_map.get(4129922)
                         measurement_value = row.measurement_value
                         if measurement_value:
-                            measurement = {
-                                "assay": type_value,
-                                "measurement_value": {
-                                    "unit": unit_value,
-                                    "value": measurement_value
-                                },
-                                "time_observed": get_timestamp(row.measurement_date)
-                            }
+                            measurement = Measurement(
+                                assay=OntologyClass(id=type_value['id'],
+                                                    label=type_value['label']),
+                                value=Value(quantity=Quantity(unit=OntologyClass(id=unit_value['id'],
+                                                                                 label=unit_value['label']),
+                                                              value=measurement_value)),
+                                time_observed=TimeElement(timestamp=get_timestamp(date_value))
+                            )
                             measurements.append(measurement)
 
             except Exception as e:
@@ -1199,118 +1247,117 @@ async def get_measurements(person_id: int):
 
 
 def get_meta_data():
-    return {
-        "created": datetime.now(timezone.utc).isoformat(),
-        "created_by": "DHDP",
-        "submitted_by": "DHDP",
-        "phenopacket_schema_version": "2.0.0",
-        "resources": [
-            {
-                "id": "SNOMED",
-                "name": "Systemized Nomenclature of Medicine",
-                "namespace_prefix": "SNOMED",
-                "url": "https://bioportal.bioontology.org/ontologies/SNOMEDCT",
-                "version": "2025-02-01 SNOMED CT International Edition; 2025-03-01 SNOMED CT US Edition; 2025-04-09 SNOMED CT UK Edition",
-                "iri_prefix": "http://purl.bioontology.org/ontology/SNOMEDCT/",
-            },
-            {
-                "id": "ICD10",
-                "name": "International Statistical Classification of Diseases and Related Health Problems 10th Revision",
-                "namespace_prefix": "ICD10",
-                "url": "https://bioportal.bioontology.org/ontologies/ICD10",
-                "version": "2021 Release",
-                "iri_prefix": "http://purl.bioontology.org/ontology/ICD10/",
-            },
-            {
-                "id": "ICD10PCS",
-                "name": "International Classification of Diseases, 10th Revision, Procedure Coding System",
-                "namespace_prefix": "ICD10PCS",
-                "url": "https://bioportal.bioontology.org/ontologies/ICD10PCS",
-                "version": "ICD10PCS 2026",
-                "iri_prefix": "http://purl.bioontology.org/ontology/ICD10PCS/",
-            },
-            {
-                "id": "ICD9CM",
-                "name": "International Classification of Diseases, Ninth Revision, Clinical Modification",
-                "namespace_prefix": "ICD9CM",
-                "url": "https://bioportal.bioontology.org/ontologies/ICD9CM",
-                "version": "ICD9CM v32 master descriptions",
-                "iri_prefix": "http://purl.bioontology.org/ontology/ICD9CM/",
-            },
-            {
-                "id": "ICD9Proc",
-                "name": "International Classification of Diseases, Ninth Revision, Procedure Codes",
-                "namespace_prefix": "Not Applicable",
-                "url": "Not Applicable",
-                "version": "ICD9CM v32 master descriptions",
-                "iri_prefix": "Not Applicable",
-            },
-            {
-                "id": "ICDO3",
-                "name": "International Classification of Diseases for Oncology, 3rd Edition",
-                "namespace_prefix": "ICDO",
-                "url": "http://purl.obolibrary.org/obo/icdo.owl",
-                "version": "ICDO3 SEER Site/Histology Released 06/2020",
-                "iri_prefix": "http://purl.obolibrary.org/obo/ICDO_",
-            },
-            {
-                "id": "LOINC",
-                "name": "Logical Observation Identifiers Names and Codes",
-                "namespace_prefix": "LP",
-                "url": "https://bioportal.bioontology.org/ontologies/LOINC?p=summary",
-                "version": "LOINC 2.80",
-                "iri_prefix": "http://purl.bioontology.org/ontology/LNC/LP",
-            },
-            {
-                "id": "NAACCR",
-                "name": "North American Association of Central Cancer Registries",
-                "namespace_prefix": "NAACCR",
-                "url": "https://apps.naaccr.org/data-dictionary/data-dictionary",
-                "version": "NAACCR v18",
-                "iri_prefix": "https://apps.naaccr.org/data-dictionary/data-dictionary/version=26/data-item-view/item-number=",
-            },
-            {
-                "id": "NCIt",
-                "name": "National Cancer Institute Thesaurus",
-                "namespace_prefix": "Thesaurus",
-                "url": "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl",
-                "version": "NCIt 20220509",
-                "iri_prefix": "http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#",
-            },
-            {
-                "id": "RxNorm",
-                "name": "RxNorm",
-                "namespace_prefix": "rxnorm",
-                "url": "http://purl.bioontology.org/ontology/RXNORM/",
-                "version": "RxNorm 20250602",
-                "iri_prefix": "http://purl.bioontology.org/ontology/RXNORM/",
-            },
-            {
-                "id": "PubChem",
-                "name": "PubChem",
-                "namespace_prefix": "PubChem",
-                "url": "https://pubchem.ncbi.nlm.nih.gov/",
-                "version": "PubChem 2026",
-                "iri_prefix": "N/A",
-            },
-            {
-                "id": "UMLS",
-                "name": "Unified Medical Language System UMLS",
-                "namespace_prefix": "UMLS",
-                "url": "https://www.nlm.nih.gov/research/umls/index.html",
-                "version": "UMLS 2026",
-                "iri_prefix": "N/A",
-            },
-            {
-                "id": "UCUM",
-                "name": "Unified Code for Units of Measure",
-                "namespace_prefix": "Not Applicable",
-                "url": "https://ucum.org/ucum",
-                "version": "Version 1.8.2",
-                "iri_prefix": "Not Applicable",
-            },
-        ],
-    }
+    return MetaData(
+        created=datetime.now(timezone.utc),
+        created_by="DHDP",
+        submitted_by="DHDP",
+        phenopacket_schema_version="2.0.0",
+        resources=[
+            Resource(
+                id="SNOMED",
+                name="Systemized Nomenclature of Medicine",
+                namespace_prefix="SNOMED",
+                url="https://bioportal.bioontology.org/ontologies/SNOMEDCT",
+                version="2025-02-01 SNOMED CT International Edition; 2025-03-01 SNOMED CT US Edition; 2025-04-09 SNOMED CT UK Edition",
+                iri_prefix="http://purl.bioontology.org/ontology/SNOMEDCT/",
+            ),
+            Resource(
+                id="ICD10",
+                name="International Statistical Classification of Diseases and Related Health Problems 10th Revision",
+                namespace_prefix="ICD10",
+                url="https://bioportal.bioontology.org/ontologies/ICD10",
+                version="2021 Release",
+                iri_prefix="http://purl.bioontology.org/ontology/ICD10/",
+            ),
+            Resource(
+                id="ICD10PCS",
+                name="International Classification of Diseases, 10th Revision, Procedure Coding System",
+                namespace_prefix="ICD10PCS",
+                url="https://bioportal.bioontology.org/ontologies/ICD10PCS",
+                version="ICD10PCS 2026",
+                iri_prefix="http://purl.bioontology.org/ontology/ICD10PCS/",
+            ),
+            Resource(
+                id="ICD9CM",
+                name="International Classification of Diseases, Ninth Revision, Clinical Modification",
+                namespace_prefix="ICD9CM",
+                url="https://bioportal.bioontology.org/ontologies/ICD9CM",
+                version="ICD9CM v32 master descriptions",
+                iri_prefix="http://purl.bioontology.org/ontology/ICD9CM/",
+            ),
+            Resource(
+                id="ICD9Proc",
+                name="International Classification of Diseases, Ninth Revision, Procedure Codes",
+                namespace_prefix="Not Applicable",
+                url="Not Applicable",
+                version="ICD9CM v32 master descriptions",
+                iri_prefix="Not Applicable",
+            ),
+            Resource(
+                id="ICDO3",
+                name="International Classification of Diseases for Oncology, 3rd Edition",
+                namespace_prefix="ICDO",
+                url="http://purl.obolibrary.org/obo/icdo.owl",
+                version="ICDO3 SEER Site/Histology Released 06/2020",
+                iri_prefix="http://purl.obolibrary.org/obo/ICDO_",
+            ),
+            Resource(
+                id="LOINC",
+                name="Logical Observation Identifiers Names and Codes",
+                namespace_prefix="LP",
+                url="https://bioportal.bioontology.org/ontologies/LOINC?p=summary",
+                version="LOINC 2.80",
+                iri_prefix="http://purl.bioontology.org/ontology/LNC/LP",
+            ),
+            Resource(
+                id="NAACCR",
+                name="North American Association of Central Cancer Registries",
+                namespace_prefix="NAACCR",
+                url="https://apps.naaccr.org/data-dictionary/data-dictionary",
+                version="NAACCR v18",
+                iri_prefix="https://apps.naaccr.org/data-dictionary/data-dictionary/version=26/data-item-view/item-number=",
+            ),
+            Resource(
+                id="NCIt",
+                name="National Cancer Institute Thesaurus",
+                namespace_prefix="Thesaurus",
+                url="http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl",
+                version="NCIt 20220509",
+                iri_prefix="http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#",
+            ),
+            Resource(
+                 id="RxNorm",
+                name="RxNorm",
+                namespace_prefix="rxnorm",
+                url="http://purl.bioontology.org/ontology/RXNORM/",
+                version="RxNorm 20250602",
+                iri_prefix="http://purl.bioontology.org/ontology/RXNORM/",
+            ),
+            Resource(
+                id="PubChem",
+                name="PubChem",
+                namespace_prefix="PubChem",
+                url="https://pubchem.ncbi.nlm.nih.gov/",
+                version="PubChem 2026",
+                iri_prefix="N/A",),
+            Resource(
+                id="UMLS",
+                name="Unified Medical Language System UMLS",
+                namespace_prefix="UMLS",
+                url="https://www.nlm.nih.gov/research/umls/index.html",
+                version="UMLS 2026",
+                iri_prefix="N/A",
+            ),
+            Resource(
+                id="UCUM",
+                name="Unified Code for Units of Measure",
+                namespace_prefix="Not Applicable",
+                url="https://ucum.org/ucum",
+                version="Version 1.8.2",
+                iri_prefix="Not Applicable",
+            )
+        ]
+    )
 
 
 def remove_empty_values(obj):
