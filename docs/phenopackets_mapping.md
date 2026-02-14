@@ -786,156 +786,155 @@ WHERE e.person_id = <your_test_id> AND e.episode_concept_id = 32941;
 - **Example:** `"PubChem|472634117|Ipilimumab"` → `{ "id": "PubChem:472634117", "label": "Ipilimumab" }`
 
 #### 4.5.2. route_of_administration
-- **OMOP Source:** drug_exposure.route_concept_id
+- **OMOP Source:** `drug_exposure.route_concept_id`
 
-- **Logic:** Map concept to Ontology Term. Defaults to "Unknown" (SNOMED:261665006) if missing.
+- **Logic:** Map concept to Ontology Term. Defaults to `"Unknown" (SNOMED:261665006)` if missing.
 
 **SQL Check:**
 
-
-
+```sql
 SELECT route_concept_id 
 FROM omop.drug_exposure 
 WHERE person_id = <your_test_id>;
-- **Example:** NULL → { "id": "SNOMED:261665006", "label": "Unknown" }
+```
+- **Example:** `NULL` → `{ "id": "SNOMED:261665006", "label": "Unknown" }`
 
-4.5.3. drug_type
-- **OMOP Source:** drug_exposure.drug_type_concept_id
+#### 4.5.3. drug_type
+- **OMOP Source:** `drug_exposure.drug_type_concept_id`
+
+- **Logic:**
+  - If `drug_type_concept_id` == `32838` (EHR prescription) → "PRESCRIPTION"
+
+  - Else → `"UNKNOWN_DRUG_TYPE"`
+
+- **Example:** `32838` → `"PRESCRIPTION"`
+
+#### 4.5.4. cumulative_dose
+- **OMOP Source:** `drug_exposure.quantity`
 
 - **Logic:**
 
-If drug_type_concept_id == 32838 (EHR prescription) → "PRESCRIPTION"
+  - Only populated if `drug_type_concept_id` IN `[32833]` (EHR order).
 
-Else → "UNKNOWN_DRUG_TYPE"
+  - **Value:** `quantity`.
 
-- **Example:** 32838 → "PRESCRIPTION"
-
-4.5.4. cumulative_dose
-- **OMOP Source:** drug_exposure.quantity
-
-- **Logic:**
-
-Only populated if drug_type_concept_id IN [32833](EHR order).
-
-Value: quantity.
-
-Unit: Mapped from dose_unit_source_value (e.g., "mg" → Ontology).
+  - **Unit:** Mapped from `dose_unit_source_value` (e.g., "mg" → Ontology) based on mapping in `src/concept_mappings.json`.
 
 **SQL Check:**
 
-
-
+```sql
 SELECT quantity, dose_unit_source_value
 FROM omop.drug_exposure
 WHERE person_id = <your_test_id> AND drug_type_concept_id = 32833;
-- **Example:** 55.7 "mg/m2" → 4223319 →{ "value": 55.7, "unit": { "id": "SNOMED:404216004", "label": "mg/m2" } }
+```
+- **Example:** `55.7` `"mg/m2"` → `4223319` →`{ "value": 55.7, "unit": { "id": "SNOMED:404216004", "label": "mg/m2" } }`
 
-4.6. Action Type: Radiation Therapy
-Block: medical_actions.radiation_therapy
+### 4.6. Action Type: Radiation Therapy
+**Block:** `medical_actions.radiation_therapy`
 
-4.6.1. modality
-- **OMOP Source:** episode.episode_object_concept_id
+#### 4.6.1. modality
+- **OMOP Source:** `episode.episode_object_concept_id`
 
 - **Logic:**
 
-  - **Linkage:** Find episode where episode_concept_id == 32940 (Cancer Radiotherapy).
+  - **Linkage:** Find `episode` where `episode_concept_id` == `32940` (Cancer Radiotherapy).
 
-  - **Transformation:** Map episode_object_concept_id to Ontology Term.
+  - **Transformation:** Map `episode_object_concept_id` to Ontology Term.
 
 **SQL Check:**
 
-
-
+```sql
 SELECT episode_object_concept_id
 FROM omop.episode
 WHERE person_id = <your_test_id> AND episode_concept_id = 32940;
-- **Example:** 607996 → { "id": "SNOMED:1156506007", "label": "External beam radiation therapy using photons" }
+```
+- **Example:** `607996` → `{ "id": "SNOMED:1156506007", "label": "External beam radiation therapy using photons" }`
 
-4.6.2. body_site
-- **OMOP Source:** observation.value_as_concept_id
+#### 4.6.2. body_site
+- **OMOP Source:** `observation.value_as_concept_id`
 
 - **Logic:**
 
-  - **Linkage:** Join observation ON observation_event_id == episode_id.
+  - **Linkage:** Join `observation` ON `observation_event_id` == `episode_id`.
 
-  - **Filter:** observation_concept_id IN [4181646].
+  - **Filter:** `observation_concept_id` IN `[4181646]`.
 
-  - **Transformation:** Map value_as_concept_id to Ontology Term.
+  - **Transformation:** Map `value_as_concept_id` to Ontology Term.
 
 **SQL Check:**
 
-
-
+```sql
 SELECT obs.value_as_concept_id
 FROM omop.episode e
 JOIN omop.observation obs ON obs.observation_event_id = e.episode_id
 WHERE e.person_id = <your_test_id> AND e.episode_concept_id = 32940;
-- **Example:** 36717353 → { "id": "SNOMED:722738000", "label": "Structure of bone of left femur" }
+```
+- **Example:** `36717353` → `{ "id": "SNOMED:722738000", "label": "Structure of bone of left femur" }`
 
-4.6.3. dosage
-- **OMOP Source:** measurement.value_as_number
+#### 4.6.3. dosage
+- **OMOP Source:** `measurement.value_as_number`
 
 - **Logic:**
 
-  - **Linkage:** Query measurement table for person_id.
+  - **Linkage:** Query `measurement` table for `person_id`.
 
-  - **Filter:** measurement_concept_id IN [40483776] (Total radiation dose delivered).
+  - **Filter:** `measurement_concept_id` IN `[40483776]` (Total radiation dose delivered).
 
   - **Transformation:** Cast to integer.
 
 **SQL Check:**
 
-
-
+```sql
 SELECT value_as_number
 FROM omop.measurement
 WHERE person_id = <your_test_id> AND measurement_concept_id = 40483776;
-- **Example:** 60 → 60
+```
+- **Example:** `60` → `60`
 
-4.6.4. fractions
-- **OMOP Source:** measurement.value_as_number
+#### 4.6.4. fractions
+- **OMOP Source:** `measurement.value_as_number`
 
 - **Logic:**
 
-  - **Linkage:** Query measurement table for person_id.
+  - **Linkage:** Query `measurement` table for `person_id`.
 
-  - **Filter:** measurement_concept_id IN [4037631] (Number of fractions).
+  - **Filter:** `measurement_concept_id` IN `[4037631]` (Number of fractions).
 
   - **Transformation:** Cast to integer.
 
 **SQL Check:**
 
-
-
+```sql
 SELECT value_as_number
 FROM omop.measurement
 WHERE person_id = <your_test_id> AND measurement_concept_id = 4037631;
-- **Example:** 25 → 25
+```
+- **Example:** `25` → `25`
 
-5. Measurements
-**Phenopacket Block:** measurements (List)
-OMOP Source Tables: measurement and observation
-Overview: This section aggregates various lab results and vital signs. The mapping logic differs depending on whether the source is the measurement or observation table, as defined in the configuration.
+## 5. Measurements
+**Phenopacket Block:** `measurements` (List)
+**OMOP Source Tables:** `measurement`, `observation` & `procedure_occurrence`
+**Overview:** This section aggregates various lab results and vital signs. The mapping logic differs depending on whether the source is the `measurement`, `observation` or `procedure_occurrence` table, as defined in the `src/concept_mappings.json` configuration.
 
-5.1. assay
+### 5.1. assay
 - **OMOP Source:**
 
-If Source is observation: observation.observation_concept_id (via filtering_field).
+  - If Source is `observation`: `observation.observation_concept_id` (via filtering_field).
 
-If Source is measurement: measurement.measurement_concept_id (via filtering_field).
+  - If Source is `measurement`: `measurement.measurement_concept_id` (via filtering_field).
+  - If Source is `procedure_occurrence`: `procedure_occurrence.modifier_concept_id` or `procedure_occurrence.procedure_concept_id`
 
 - **Logic:**
 
-- **Grouping:** Each row in the source table creates one measurement object.
+  - **Grouping:** Each row in the source table creates one `measurement` object.
 
-  - **Filter:** Records are filtered by specific concept IDs (e.g., [4203711, 43054909...]) or by ancestor concepts (e.g., descendants of 4326835).
+  - **Filter:** Records are filtered by specific concept IDs (e.g., `[4203711, 43054909...]`) or by ancestor concepts (e.g., descendants of `4326835`).
 
   - **Transformation:** Map the concept ID to an Ontology Term.
 
 **SQL Check:**
 
-
-
+```sql
 -- For Observation-based measurements
 SELECT observation_concept_id 
 FROM omop.observation 
@@ -950,115 +949,116 @@ WHERE person_id = <your_test_id>
     FROM omop.concept_ancestor
     WHERE ancestor_concept_id IN (4326835)
   );
-- **Example:** 4203711 → { "id": "SNOMED:308273005", "label": "Follow-up status" }
+```
+- **Example:** `4203711` → `{ "id": "SNOMED:308273005", "label": "Follow-up status" }`
+- **Example:** `4272032` → `{ "id": "SNOMED:63476009", "label": "Prostate specific antigen measurement" }`
 
-4272032 → { "id": "SNOMED:63476009", "label": "Prostate specific antigen measurement" }
-
-5.2. measurement_value (Quantity)
+### 5.2. measurement_value (Quantity)
 - **OMOP Source:**
 
-If Source is observation: observation.value_as_number.
+  - If Source is observation: `observation.value_as_number`.
 
-If Source is measurement: measurement.value_as_number.
+  - If Source is measurement: `measurement.value_as_number`.
 
 - **Logic:**
 
-Used if the record has a numerical value.
+  - Used if the record has a numerical value.
 
-Value: Direct copy of the number.
+  - Value: Direct copy of the number.
 
-Unit: Mapped from unit_concept_id. Defaults to "No value"/Unknown (concept 4129922) if missing.
+  - Unit: Mapped from `unit_concept_id`. Defaults to "No value"/Unknown (concept 4129922) if missing.
 
 **SQL Check:**
 
-
-
+```sql
 SELECT value_as_number, unit_concept_id 
 FROM omop.measurement 
 WHERE person_id = <your_test_id>;
-- **Example:** 8.5, 4122379 → { "value": 8.5, "unit": { "id": "SNOMED:258673006", "label": "mm" } }
+```
+- **Example:** `8.5`, `4122379` → `{ "value": 8.5, "unit": { "id": "SNOMED:258673006", "label": "mm" } }`
 
-5.3. measurement_value (Ontology)
+### 5.3. measurement_value (Ontology)
 - **OMOP Source:**
 
-If Source is observation: observation.value_as_concept_id.
-
-If Source is measurement: measurement.value_as_concept_id.
+  - If Source is `observation`: `observation.value_as_concept_id`.
+  - If Source is `measurement`: `measurement.value_as_concept_id`.
+  - If Source is `procedure_occurrence` one of: `procedure_occurrence.procedure_concept_id`, `procedure_occurrence.modifier_concept_id`.
 
 - **Logic:**
 
-Used if the record has a concept value (categorical).
+  - Used if the record has a concept value (categorical).
 
   - **Transformation:** Map value_as_concept_id to Ontology Term.
 
 **SQL Check:**
 
-
-
+```sql
 SELECT value_as_concept_id 
 FROM omop.observation 
 WHERE person_id = <your_test_id>;
-- **Example:** 4272032 → { "id": "SNOMED:63476009", "label": "Prostate specific antigen measurement" }
+```
+- **Example:** `36309453` → ` {"id": "LOINC:LA28369-9", "label": "Partial response"}`
 
-5.4. time_observed
+### 5.4. time_observed
 - **OMOP Source:**
 
-If Source is observation: observation.observation_date.
+  - If Source is `observation`: `observation.observation_date`.
 
-If Source is measurement: measurement.measurement_date.
+  - If Source is `measurement`: `measurement.measurement_date`.
 
 - **Logic:** Convert date to ISO8601 timestamp object.
 
 **SQL Check:**
 
-
-
+```sql
 SELECT measurement_date 
 FROM omop.measurement 
 WHERE person_id = <your_test_id>;
-- **Example:** 2021-11-15 → { "iso8601timestamp": "2021-11-15" }
+```
+- **Example:** `2021-11-15` → `{ "timestamp": "2021-11-15" }`
 
-6. MetaData
-**Phenopacket Block:** metaData
-Source: Static Configuration & System Time
+---
 
-6.1. created
-Source: System Time
+## 6. MetaData
+**Phenopacket Block:** `metaData`
+**Source:** Static Configuration & System Time
+
+### 6.1. created
+**Source:** System Time
 
 - **Logic:** Current timestamp in UTC ISO8601 format.
 
 - **Example:** "2023-10-27T10:00:00+00:00"
 
-6.2. created_by
-Source: Static
+### 6.2. created_by
+**Source:** Static
 
 - **Logic:** Hardcoded string.
 
 - **Example:** "DHDP"
 
-6.3. submitted_by
-Source: Static
+### 6.3. submitted_by
+**Source:** Static
 
 - **Logic:** Hardcoded string.
 
 - **Example:** "DHDP"
 
-6.4. phenopacket_schema_version
-Source: Static
+### 6.4. phenopacket_schema_version
+**Source: Static**
 
 - **Logic:** Hardcoded string.
 
 - **Example:** "2.0.0"
 
-6.5. resources
-Source: Static Configuration (get_meta_data function)
+### 6.5. resources
+**Source:** Static Configuration (get_meta_data function)
 
 - **Logic:** List of ontology definitions used in the phenopacket (SNOMED, ICD10, LOINC, etc.), including version, URL, and namespace prefix.
 
 - **Example:**
 
-
-
+```json
 "resources": [
             {
                 "id": "SNOMED",
@@ -1149,3 +1149,4 @@ Source: Static Configuration (get_meta_data function)
                 "iri_prefix": "Not Applicable",
             },
         ]
+```
