@@ -141,6 +141,7 @@ WHERE person_id = <your_test_id>;
 SELECT death_date 
 FROM omop.death 
 WHERE person_id = <your_test_id>;
+```
 - **Example:** `2023-05-20` → { "timestamp": "2023-05-20" }
 
 ### 1.7.3. cause_of_death
@@ -748,7 +749,7 @@ JOIN omop.episode_event ee ON e.episode_id = ee.episode_id
 JOIN omop.procedure_occurrence po ON ee.event_id = po.procedure_occurrence_id
 WHERE e.person_id = <your_test_id> AND e.episode_concept_id = 32939;
 ```
-- **Example:** `2020-02-20` → `{ "timestamp": "2020-02-20" }```
+- **Example:** `2020-02-20` → `{ "timestamp": "2020-02-20" }`
 
 ### 4.5. Action Type: Treatment (Drug)
 **Block:** medical_actions.treatment
@@ -912,8 +913,11 @@ WHERE person_id = <your_test_id> AND measurement_concept_id = 4037631;
 - **Example:** `25` → `25`
 
 ## 5. Measurements
+
 **Phenopacket Block:** `measurements` (List)
+
 **OMOP Source Tables:** `measurement`, `observation` & `procedure_occurrence`
+
 **Overview:** This section aggregates various lab results and vital signs. The mapping logic differs depending on whether the source is the `measurement`, `observation` or `procedure_occurrence` table, as defined in the `src/concept_mappings.json` configuration.
 
 ### 5.1. assay
