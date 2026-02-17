@@ -359,9 +359,10 @@ def create_dynamic_filter(filters):
                     list_concept_id.append(f'{safe_var_name} = :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
-            # This can be a function to no repeat always the same -> filter[0]
+            # For the final bit of the query, we use AND between categories and OR within a category
+            query_condition += "and" if query_condition == "" else "or"
             query_condition += f"""
-                and exists (
+                exists (
                     select 1
                     from omop.condition_occurrence co
                     where p.person_id = co.person_id
@@ -392,8 +393,10 @@ def create_dynamic_filter(filters):
                     list_concept_id.append(f'{safe_var_name} = :concept{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
+            # For the final bit of the query, we use AND between categories and OR within a category
+            query_measurement += "and" if query_measurement == "" else "or"
             query_measurement += f"""
-                and exists (
+                exists (
                     select 1
                     from omop.measurement co
                     where p.person_id = co.person_id
@@ -419,8 +422,10 @@ def create_dynamic_filter(filters):
                     list_concept_id.append(f'{safe_var_name} = :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
+            # For the final bit of the query, we use AND between categories and OR within a category
+            query_procedure += "and" if query_procedure == "" else "or"
             query_procedure += f"""
-                and exists (
+                exists (
                     select 1
                     from omop.procedure_occurrence co
                     where p.person_id = co.person_id
@@ -446,8 +451,10 @@ def create_dynamic_filter(filters):
                     list_concept_id.append(f'{safe_var_name} = :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
+            # For the final bit of the query, we use AND between categories and OR within a category
+            query_exposure += "and" if query_exposure == "" else "or"
             query_exposure += f"""
-                and exists (
+                exists (
                     select 1
                     from omop.observation co
                     where p.person_id = co.person_id
@@ -473,8 +480,10 @@ def create_dynamic_filter(filters):
                     list_concept_id.append(f'{safe_var_name} = :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
+            # For the final bit of the query, we use AND between categories and OR within a category
+            query_treatment += "and" if query_treatment == "" else "or"
             query_treatment += f"""
-                and exists (
+                exists (
                     select 1
                     from omop.drug_exposure co
                     where p.person_id = co.person_id
@@ -497,7 +506,7 @@ def create_dynamic_filter(filters):
     query_treatment += ')'* n_open_treatment
 
     if list_person:
-        base_filter['demographic_filters'] += ' and ( ' + " and ".join(list_person) + ' ) '
+        base_filter['demographic_filters'] += ' and ( ' + " or ".join(list_person) + ' ) '
 
     base_filter['condition_filters'] += query_condition
     base_filter['measurement_filters'] += query_measurement
