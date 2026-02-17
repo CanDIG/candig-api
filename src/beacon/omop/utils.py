@@ -1,15 +1,11 @@
-import asyncio
-from typing import Dict, Optional
+from typing import Dict
 
-#from pymongo.cursor import Cursor
-#from pymongo.collection import Collection
 from sqlalchemy import text
 from ...beacon.omop import engine
-from ...beacon.request.model import RequestParams
 import aiosql
 import itertools
 
-from candigv2_logging.logging import CanDIGLogger, initialize
+from candigv2_logging.logging import CanDIGLogger
 
 logger = CanDIGLogger(__file__)
 
@@ -59,27 +55,12 @@ async def search_ontologies(dictValues):
 
                     dictVariableValue[variable] = {'id':id, 'label':label}
     return dictValues
-        
-        
+
+# Run a query to the server with the given filters
 async def basic_query(query: str, filters: dict = {}):
     async with engine.connect() as conn:
         records = await conn.execute(text(query), filters)
         return records
-
-
-def query_id(query: dict, document_id) -> dict:
-    query["id"] = document_id
-    return query
-
-
-def query_ids(query: dict, ids) -> dict:
-    query["id"] = ids
-    return query
-
-
-def query_property(query: dict, property_id: str, value: str, property_map: Dict[str, str]) -> dict:
-    query[property_map[property_id]] = value
-    return query
 
 
 # Helper function for mongo_filter_to_sql: join e.g. ["$and"]["X", "Y", "Z"] -> "X AND Y AND Z"
@@ -160,48 +141,3 @@ async def get_documents(listVariables: list, query: str, skip: int, limit: int):
         recordsFinal = records.fetchmany(limit) # format_query(listVariables, records)
         # Switch the SQLAlchemy result to a dict for the response
         return [record._asdict() for record in recordsFinal]
-
-def get_cross_query(ids: dict, cross_type: str, collection_id: str):
-    id_list=[]
-    dict_in={}
-    id_dict={}
-    if cross_type == 'biosampleId' or cross_type=='id':
-        list_item=ids[cross_type]
-        logger.debug(str(list_item))
-        id_list.append(str(list_item))
-        dict_in["$in"]=id_list
-        logger.debug(id_list)
-        id_dict[collection_id]=dict_in
-        query = id_dict
-    elif cross_type == 'individualIds' or cross_type=='biosampleIds':
-        list_individualIds=ids[cross_type]
-        dict_in["$in"]=list_individualIds
-        logger.debug(list_individualIds)
-        id_dict[collection_id]=dict_in
-        query = id_dict
-    else:
-        for k, v in ids.items():
-            for item in v:
-                id_list.append(item[cross_type])
-        dict_in["$in"]=id_list
-        id_dict[collection_id]=dict_in
-        query = id_dict
-
-
-    logger.debug(query)
-    return query
-
-def get_cross_query_variants(ids: dict, cross_type: str, collection_id: str):
-    id_list=[]
-    dict_in={}
-    id_dict={}
-    for k, v in ids.items():
-        for item in v:
-            id_list.append(item[cross_type])
-    dict_in["$in"]=id_list
-    id_dict[collection_id]=dict_in
-    query = id_dict
-
-
-    logger.debug(query)
-    return query
