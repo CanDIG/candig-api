@@ -16,6 +16,28 @@ import json
 
 logger = CanDIGLogger(__file__)
 
+from google.protobuf.timestamp_pb2 import Timestamp
+
+def get_phenopacket_timestamp(datetime_value):
+    """
+    Convert OMOP datetime or date to Phenopacket TimeElement with Timestamp.
+    """
+    if datetime_value is None:
+        return None
+    
+    # Convert to datetime if it's a date
+    if isinstance(datetime_value, date) and not isinstance(datetime_value, datetime):
+        dt = datetime.combine(datetime_value, datetime.min.time())
+    else:
+        dt = datetime_value
+    
+    if dt.date() == date(1800, 1, 1):
+        return None
+    
+    # Create protobuf Timestamp
+    timestamp = Timestamp()
+    timestamp.FromDatetime(dt)
+    return TimeElement(timestamp=timestamp)
 
 async def get_by_id(dataset_id: str, id: int):
     """
@@ -255,8 +277,8 @@ async def get_diseases(person_id: int):
             for row in rows:
                 disease = Disease(
                             term = ontology_map.get(row.term),
-                            onset = get_timestamp(row.onset),
-                            resolution = get_timestamp(row.resolution),
+                            onset = get_phenopacket_timestamp(row.onset),
+                            resolution = get_phenopacket_timestamp(row.resolution),
                             disease_stage = disease_stages,
                             clinical_tnm_finding = clinical_tnm_finding_list,
                             primary_site = ontology_map.get(row.primary_site_concept_id),
@@ -369,7 +391,7 @@ async def get_biosamples_measurements(person_id: int) -> dict:
                             measurement = Measurement(
                                 assay=type_value['label'],
                                 value=Value(ontology_class=measurement_value),
-                                time_observed=get_timestamp(date_value)
+                                time_observed=get_phenopacket_timestamp(date_value)
                             )
                             try:
                                 biosample_measurements[row.group_id].append(measurement)
@@ -456,7 +478,7 @@ async def get_biosamples(person_id: int):
                     sampled_tissue=ontology_map.get(row.sampled_tissue),
                     taxonomy=OntologyClass(id="SNOMED:337915000",
                                            label="Homo sapiens (organism)"),
-                    time_of_collection=get_timestamp(row.time_of_collection),
+                    time_of_collection=get_phenopacket_timestamp(row.time_of_collection),
                     histological_diagnosis=ontology_map.get(row.histological_diagnosis),
                     tumor_grade=ontology_map.get(row.tumor_grade),
                     pathological_tnm_finding=pathological_tnm_finding,
@@ -552,7 +574,7 @@ async def get_subject(id: int):
                 ),
                 vital_status = VitalStatus(
                     status = get_death_status(row.time_of_death),
-                    time_of_death = get_timestamp(row.time_of_death),
+                    time_of_death = get_phenopacket_timestamp(row.time_of_death),
                     cause_of_death = ontology_map.get(row.cause_of_death_concept_id),
                     survival_time_in_days = get_survival_time(
                         row.disease_first_occurrence_date, row.time_of_death
@@ -581,6 +603,9 @@ async def get_subject(id: int):
 
 
 def get_birth_timestamp(year, month, day):
+    """
+    Convert birth year/month/day to protobuf Timestamp.
+    """
     if not year or year == 1800:
         return None
     
@@ -588,8 +613,11 @@ def get_birth_timestamp(year, month, day):
     month = month if month else 1
     day = day if day else 1
     
-    # Format as YYYY-MM-DD
-    return datetime(year,month,day,0,0)
+    # Create datetime and convert to protobuf Timestamp
+    birth_datetime = datetime(year, month, day, 0, 0)
+    timestamp = Timestamp()
+    timestamp.FromDatetime(birth_datetime)
+    return timestamp
 
 
 def get_sex_status(gender_concept_id):
@@ -610,22 +638,6 @@ def get_death_status(death_date):
     if death_date:
         return "DECEASED"
     return "ALIVE"
-
-
-def get_timestamp(datetime_value):
-    """
-    Convert OMOP datetime to Phenopacket Timestamp format.
-    """
-    if isinstance(datetime_value, datetime):
-        if datetime_value.date() == date(1800, 1, 1):
-            return None
-        return TimeElement(timestemp=datetime.combine(datetime_value, datetime.min.time()))
-    elif isinstance(datetime_value, date):
-        if datetime_value == date(1800, 1, 1):
-            return None
-        return TimeElement(timestamp=datetime.combine(datetime_value, datetime.min.time()))
-    return None
-
 
 def get_survival_time(disease_first_occurrence_date, death_date):
     """
@@ -1014,7 +1026,7 @@ async def get_procedures(person_id: int):
                 else:
                     code = ontology_map.get(row.procedure_concept_id)
                 body_site = ontology_map.get(row.body_site_concept_id)
-                performed = get_timestamp(row.performed)
+                performed = get_phenopacket_timestamp(row.performed)
                 if code:
                     procedure = Procedure(
                         code=code,
@@ -1037,7 +1049,7 @@ async def get_procedures(person_id: int):
                                          label=procedure_map['code']['concept_map'][row.procedure_source_value]['label'])
                 else:
                     code = ontology_map.get(row.procedure_concept_id)
-                performed = get_timestamp(row.performed)
+                performed = get_phenopacket_timestamp(row.performed)
                 if code:
                     procedure = Procedure(
                         code=code,
@@ -1199,7 +1211,7 @@ async def get_measurements(person_id: int):
                             measurement = Measurement(
                                 assay=type_value,
                                 value=Value(ontology_class=measurement_value),
-                                time_observed=get_timestamp(date_value),
+                                time_observed=get_phenopacket_timestamp(date_value),
                             )
                             measurements.append(measurement)
                     elif row.measurement_value:
@@ -1213,7 +1225,7 @@ async def get_measurements(person_id: int):
                                 assay=type_value,
                                 value=Value(quantity=Quantity(unit=unit_value,
                                                               value=measurement_value)),
-                                time_observed=get_timestamp(date_value)
+                                time_observed=get_phenopacket_timestamp(date_value)
                             )
                             measurements.append(measurement)
 
@@ -1224,8 +1236,11 @@ async def get_measurements(person_id: int):
 
 
 def get_meta_data():
+    # Create protobuf Timestamp for current time
+    created_timestamp = Timestamp()
+    created_timestamp.FromDatetime(datetime.now(timezone.utc))
     return MetaData(
-        created=datetime.now(timezone.utc),
+        created=created_timestamp,
         created_by="DHDP",
         submitted_by="DHDP",
         phenopacket_schema_version="2.0.0",
