@@ -1146,6 +1146,7 @@ async def get_measurements(person_id: int):
     """
     measurements = []
     for mapping in settings.MAPPING_JSON['measurements']:
+        raw_sql = None
         if mapping['omop_object'] == "observation":
             raw_sql = text(f"""
                 SELECT DISTINCT
@@ -1190,6 +1191,9 @@ async def get_measurements(person_id: int):
                     WHERE ancestor_concept_id IN({','.join([str(x) for x in mapping['ancestor_ids']])})) 
                     OR {mapping['filtering_field']} IN({','.join([str(x) for x in mapping['concept_ids']])}))
             """)
+        else:
+            logger.warning(f"Unsupported omop_object type: {mapping.get('omop_object')}")
+            continue
 
         async for session in get_db_session():
             try:
