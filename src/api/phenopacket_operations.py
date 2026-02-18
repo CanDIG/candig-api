@@ -1397,7 +1397,7 @@ def get_meta_data():
             Resource(
                 id="NCIt",
                 name="National Cancer Institute Thesaurus",
-                namespace_prefix="Thesaurus",
+                namespace_prefix="NCIt",
                 url="http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl",
                 version="NCIt 20220509",
                 iri_prefix="http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl#",
