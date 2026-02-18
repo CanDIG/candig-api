@@ -910,7 +910,7 @@ async def get_treatment_agents(person_id: int):
                 if row.drug_concept_id == 0 and "|" in row.drug_source_value:
                     split_drug = row.drug_source_value.split("|")
                     if split_drug[0] == "NCI Thesaurus":
-                        split_drug[0] = "NCIT"
+                        split_drug[0] = "NCIt"
                     agent = OntologyClass(
                         id=":".join(split_drug[:2]), label=split_drug[2]
                     )
@@ -1395,7 +1395,7 @@ def get_meta_data():
                 iri_prefix="https://apps.naaccr.org/data-dictionary/data-dictionary/version=26/data-item-view/item-number=",
             ),
             Resource(
-                id="NCIT",
+                id="NCIt",
                 name="National Cancer Institute Thesaurus",
                 namespace_prefix="Thesaurus",
                 url="http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl",
