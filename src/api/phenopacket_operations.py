@@ -1,20 +1,35 @@
 import asyncio
-from google.protobuf.timestamp_pb2 import Timestamp
+import json
 from datetime import date, datetime, timezone
 
 from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
+from google.protobuf.json_format import MessageToJson
+from google.protobuf.timestamp_pb2 import Timestamp
+from phenopackets import (
+    Biosample,
+    Disease,
+    Individual,
+    Measurement,
+    MedicalAction,
+    MetaData,
+    OntologyClass,
+    Phenopacket,
+    Procedure,
+    Quantity,
+    RadiationTherapy,
+    Resource,
+    TimeElement,
+    Treatment,
+    Value,
+    VitalStatus,
+)
 from sqlalchemy import text
 
 from src.api.auth import is_action_allowed
 
 from ..config import settings  # Import settings
 from ..database.db_operations import get_db_session
-
-from google.protobuf.json_format import MessageToJson
-from phenopackets import Phenopacket, TimeElement, OntologyClass, MedicalAction, Disease, Measurement, Value, Biosample, VitalStatus, Individual, Quantity, Treatment, Procedure, RadiationTherapy, Resource, MetaData
-
-import json
 
 logger = CanDIGLogger(__file__)
 
