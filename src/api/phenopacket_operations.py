@@ -389,7 +389,7 @@ async def get_biosamples_measurements(person_id: int) -> dict:
                         date_value = row.date
                         if measurement_value:
                             measurement = Measurement(
-                                assay=type_value['label'],
+                                assay=type_value,
                                 value=Value(ontology_class=measurement_value),
                                 time_observed=get_phenopacket_timestamp(date_value)
                             )
