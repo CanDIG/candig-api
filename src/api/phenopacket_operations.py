@@ -1220,6 +1220,7 @@ async def get_measurements(person_id: int):
                         if not unit_value:
                             unit_value = ontology_map.get(4129922)
                         measurement_value = row.measurement_value
+                        date_value = row.measurement_date
                         if measurement_value:
                             measurement = Measurement(
                                 assay=type_value,
