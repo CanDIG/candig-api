@@ -1365,7 +1365,7 @@ def get_meta_data():
             Resource(
                 id="ICD9Proc",
                 name="International Classification of Diseases, Ninth Revision, Procedure Codes",
-                namespace_prefix="Not Applicable",
+                namespace_prefix="ICD9Proc",
                 url="Not Applicable",
                 version="ICD9CM v32 master descriptions",
                 iri_prefix="Not Applicable",
@@ -1429,7 +1429,7 @@ def get_meta_data():
             Resource(
                 id="UCUM",
                 name="Unified Code for Units of Measure",
-                namespace_prefix="Not Applicable",
+                namespace_prefix="UCUM",
                 url="https://ucum.org/ucum",
                 version="Version 1.8.2",
                 iri_prefix="Not Applicable",
