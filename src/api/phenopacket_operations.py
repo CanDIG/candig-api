@@ -1,4 +1,5 @@
 import asyncio
+from google.protobuf.timestamp_pb2 import Timestamp
 from datetime import date, datetime, timezone
 
 from candigv2_logging.logging import CanDIGLogger
@@ -11,12 +12,13 @@ from ..config import settings  # Import settings
 from ..database.db_operations import get_db_session
 
 from google.protobuf.json_format import MessageToJson
-from phenopackets import *
+from phenopackets import Phenopacket, TimeElement, OntologyClass, MedicalAction, Disease, Measurement, Value, Biosample, VitalStatus, Individual, Quantity, Treatment, Procedure, RadiationTherapy, Resource, MetaData
+
 import json
 
 logger = CanDIGLogger(__file__)
 
-from google.protobuf.timestamp_pb2 import Timestamp
+
 
 def get_phenopacket_timestamp(datetime_value):
     """
