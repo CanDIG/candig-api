@@ -1395,7 +1395,7 @@ def get_meta_data():
                 iri_prefix="https://apps.naaccr.org/data-dictionary/data-dictionary/version=26/data-item-view/item-number=",
             ),
             Resource(
-                id="NCIt",
+                id="NCIT",
                 name="National Cancer Institute Thesaurus",
                 namespace_prefix="Thesaurus",
                 url="http://ncicb.nci.nih.gov/xml/owl/EVS/Thesaurus.owl",
