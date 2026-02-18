@@ -7,6 +7,7 @@
                     "grouping_omop_object": "episode",
                     "grouping_concept_id": 32941,
                     "filtering_field": "drug_type_concept_id",
+                    "source_value_field": "drug_source_value",
                     "concept_ids": [
                         32833,
                         32838
@@ -34,7 +35,19 @@
                 "code": {
                     "omop_object": "procedure_occurrence",
                     "grouping_object": "episode",
-                    "grouping_concept_id": "32939"
+                    "grouping_concept_id": "32939",
+                    "source_value_field": "procedure_source_value",
+                    "concept_ids": [
+                        40313626,
+                        4117979,
+                        37154552
+                    ],
+                    "concept_map": {
+                        "Targeted molecular therapy": {
+                            "id": "NCIT:C76243",
+                            "label": "Targeted Molecular Therapy"
+                        }
+                    }
                 },
                 "body_site": {
                     "omop_object": "observation",
@@ -239,14 +252,17 @@
             "grouping_omop_object": "specimen",
             "grouping_field": "observation_event_id"
         },
-        "measurements": {
-            "omop_object": "measurement",
-            "filtering_field": "measurement_concept_id",
-            "number_value_field": "value_as_number",
-            "concept_value_field": "value_as_concept_id",
-            "unit_field": "unit_concept_id",
-            "ancestor_ids": [4139794]
-        }
+        "measurements": [
+            {   
+                "omop_object": "observation",
+                "concept_ids": [4298494],
+                "filtering_field": "observation_concept_id",
+                "concept_value_field": "value_as_concept_id",
+                "grouping_omop_object": "specimen",
+                "grouping_field": "observation_event_id",
+                "date_field": "observation_date"
+            }
+        ]
     },
     "measurements": [
         {
@@ -257,9 +273,15 @@
             "concept_ids": [
                 4203711,
                 43054909,
+                37172639,
                 4151768,
                 4117444,
-                3375793
+                3375793,
+                45773156,
+                4161179,
+                4244984,
+                4077124,
+                1074673
             ],
             "date_field": "observation_date",
             "unit_field": "unit_concept_id"
@@ -271,7 +293,29 @@
             "number_value_field": "value_as_number",
             "unit_field": "unit_concept_id",
             "date_field": "measurement_date",
-            "ancestor_ids": [4326835]
+            "ancestor_ids": [
+                4326835,
+                4139794
+            ],
+            "concept_ids": [
+                734306
+            ]
+        },
+        {
+            "omop_object": "procedure_occurrence",
+            "filtering_field": "procedure_concept_id",
+            "date_field": "procedure_date",
+            "concept_value_field": "modifier_concept_id",
+            "ancestor_ids": [1242725],
+            "concept_ids": [1000000]
+        },
+        {
+            "omop_object": "procedure_occurrence",
+            "filtering_field": "procedure_concept_id",
+            "date_field": "procedure_date",
+            "concept_value_field": "procedure_concept_id",
+            "ancestor_ids": [4216752],
+            "concept_ids": [4273629, 4061650, 4295112]
         }
     ]
 }   
