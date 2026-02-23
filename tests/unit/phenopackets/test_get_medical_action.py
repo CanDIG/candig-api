@@ -5,11 +5,6 @@ import pytest
 
 from src.api.phenopacket_operations import get_medical_actions
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
 def make_mock_session(mock_rows):
     mock_session = AsyncMock()
     mock_result = MagicMock()
