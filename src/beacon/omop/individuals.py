@@ -269,16 +269,6 @@ def map_domains(domain_id):
     }
     return dictMapping[domain_id]
 
-async def search_descendants(concept_id):
-    async with engine.connect() as conn:
-        get_descendants = individual_queries.sql_get_descendants.sql.replace("%(concept_id)s", ":concept_id")
-        records = (await conn.execute(text(get_descendants), {"concept_id": concept_id})).fetchall()
-
-    l_descendants = set()
-    for descendant in records:
-        l_descendants.add(descendant[0])
-    return l_descendants
-
 def safe_operator(operator):
     # We only support a small subset of operators (see beacon-schema.yml:components/schemas/AlphanumericFilter/properties/operator)
     # - '='
@@ -729,9 +719,6 @@ async def checkFilters(filtersDict, offset, limit):
                                                     "vocabulary_id": vocabulary_id,
                                                     "concept_code": concept_code
                                                 })
-                    #records = individual_queries.sql_get_concept_domain(engine,
-                    #                                                    vocabulary_id=vocabulary_id,
-                    #                                                    concept_code=concept_code)
                     # Check if records is empty
                     if records.rowcount <= 0:
                         return [], 0, get_basic_discovery_response(), {}
@@ -742,11 +729,6 @@ async def checkFilters(filtersDict, offset, limit):
                     listConcept_id.add(original_concept_id)
                     # Look in which domains the concept_id belongs
                     tableMap = map_domains(domain_id)
-                    # if includeDescendantTerms:
-                    #     # Import descendants of the concept_id
-                    #     concept_ids = await search_descendants(original_concept_id)
-                    #     # Concept_id and descendants in same set()
-                    #     listConcept_id = listConcept_id.union(concept_ids)
                 dictTableMap.append([tableMap, listConcept_id, operator, value, includeDescendantTerms])
     # logger.info(dictTableMap)
     base_filter, filters_dict = create_dynamic_filter(dictTableMap)
