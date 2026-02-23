@@ -327,6 +327,7 @@ def create_dynamic_filter(filters):
     for filter in filters:
         # Default type of filter is ontology
         filterType = 'Ontology'
+        include_descendents = filter[4]
         if filter[2]:       # If filter has an operator (operator!=None) it is an Alphanumeric filter
             filterType = 'Alphanumeric'
         if "person" in filter[0]:
@@ -357,6 +358,8 @@ def create_dynamic_filter(filters):
                 else:
                     filters_dict[f'value{i}'] = concept_id
                     list_concept_id.append(f'{safe_var_name} = :value{i}')
+                    if include_descendents:
+                        list_concept_id.append(f'ancestor_concept_id = :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
             # For the final bit of the query, we use AND between categories and OR within a category
@@ -365,15 +368,16 @@ def create_dynamic_filter(filters):
                 exists (
                     select 1
                     from omop.condition_occurrence co
+                    left join omop.concept_ancestor as ca on ca.descendant_concept_id = co.{safe_var_name}
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
         if 'measurement' in filter[0]:
             n_open_measurement += 1
             variable_name = filter[0]['measurement']
+            safe_var_name = safe_column_name(variable_name)
             list_concept_id = []
             for concept_id in filter[1]:
-                safe_var_name = safe_column_name(variable_name)
                 if variable_name == 'Age':
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
@@ -388,9 +392,13 @@ def create_dynamic_filter(filters):
                     filters_dict[f'value{i}'] = filter[3]
                     filters_dict[f'concept{i}'] = str(concept_id)
                     list_concept_id.append(f'{safe_var_name} = :concept{i} and value_as_number {operator} :value{i}')
+                    if include_descendents:
+                        list_concept_id.append(f'ancestor_concept_id {operator} :value{i}')
                 else:
                     filters_dict[f'concept{i}'] = str(concept_id)
                     list_concept_id.append(f'{safe_var_name} = :concept{i}')
+                    if include_descendents:
+                        list_concept_id.append(f'ancestor_concept_id {operator} :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
             # For the final bit of the query, we use AND between categories and OR within a category
@@ -399,15 +407,16 @@ def create_dynamic_filter(filters):
                 exists (
                     select 1
                     from omop.measurement co
+                    left join omop.concept_ancestor as ca on ca.descendant_concept_id = co.{safe_var_name}
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
         if 'procedure_occurrence' in filter[0]:
             n_open_procedure += 1
             variable_name = filter[0]['procedure_occurrence']
+            safe_var_name = safe_column_name(variable_name)
             list_concept_id = []
             for concept_id in filter[1]:
-                safe_var_name = safe_column_name(variable_name)
                 if variable_name == 'Age':
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
@@ -420,6 +429,8 @@ def create_dynamic_filter(filters):
                 else:
                     filters_dict[f'value{i}'] = concept_id
                     list_concept_id.append(f'{safe_var_name} = :value{i}')
+                    if include_descendents:
+                        list_concept_id.append(f'ancestor_concept_id = :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
             # For the final bit of the query, we use AND between categories and OR within a category
@@ -428,15 +439,16 @@ def create_dynamic_filter(filters):
                 exists (
                     select 1
                     from omop.procedure_occurrence co
+                    left join omop.concept_ancestor as ca on ca.descendant_concept_id = co.{safe_var_name}
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
         if 'observation' in filter[0]:
             n_open_exposure += 1
             variable_name = filter[0]['observation']
+            safe_var_name = safe_column_name(variable_name)
             list_concept_id = []
             for concept_id in filter[1]:
-                safe_var_name = safe_column_name(variable_name)
                 if variable_name == 'Age':
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
@@ -449,6 +461,8 @@ def create_dynamic_filter(filters):
                 else:
                     filters_dict[f'value{i}'] = concept_id
                     list_concept_id.append(f'{safe_var_name} = :value{i}')
+                    if include_descendents:
+                        list_concept_id.append(f'ancestor_concept_id = :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
             # For the final bit of the query, we use AND between categories and OR within a category
@@ -457,15 +471,16 @@ def create_dynamic_filter(filters):
                 exists (
                     select 1
                     from omop.observation co
+                    left join omop.concept_ancestor as ca on ca.descendant_concept_id = co.{safe_var_name}
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
         if 'drug_exposure' in filter[0]:
             n_open_treatment += 1
             variable_name = filter[0]['drug_exposure']
+            safe_var_name = safe_column_name(variable_name)
             list_concept_id = []
             for concept_id in filter[1]:
-                safe_var_name = safe_column_name(variable_name)
                 if variable_name == 'Age':
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
@@ -478,6 +493,8 @@ def create_dynamic_filter(filters):
                 else:
                     filters_dict[f'value{i}'] = concept_id
                     list_concept_id.append(f'{safe_var_name} = :value{i}')
+                    if include_descendents:
+                        list_concept_id.append(f'ancestor_concept_id = :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
             # For the final bit of the query, we use AND between categories and OR within a category
@@ -486,6 +503,7 @@ def create_dynamic_filter(filters):
                 exists (
                     select 1
                     from omop.drug_exposure co
+                    left join omop.concept_ancestor as ca on ca.descendant_concept_id = co.{safe_var_name}
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
@@ -685,7 +703,7 @@ async def checkFilters(filtersDict, offset, limit):
                             elif "treatments" in scope:
                                 filterId = 'ageAtTreatment'
                         tableMap = mapBeaconScopeToOMOP(filterId)
-                        dictTableMap.append([tableMap, listConcept_id, operator, value])
+                        dictTableMap.append([tableMap, listConcept_id, operator, value, includeDescendantTerms])
                         continue
 
             else: # If GET
@@ -724,12 +742,12 @@ async def checkFilters(filtersDict, offset, limit):
                     listConcept_id.add(original_concept_id)
                     # Look in which domains the concept_id belongs
                     tableMap = map_domains(domain_id)
-                    if includeDescendantTerms:
-                        # Import descendants of the concept_id
-                        concept_ids = await search_descendants(original_concept_id)
-                        # Concept_id and descendants in same set()
-                        listConcept_id = listConcept_id.union(concept_ids)
-                dictTableMap.append([tableMap, listConcept_id, operator, value])
+                    # if includeDescendantTerms:
+                    #     # Import descendants of the concept_id
+                    #     concept_ids = await search_descendants(original_concept_id)
+                    #     # Concept_id and descendants in same set()
+                    #     listConcept_id = listConcept_id.union(concept_ids)
+                dictTableMap.append([tableMap, listConcept_id, operator, value, includeDescendantTerms])
     # logger.info(dictTableMap)
     base_filter, filters_dict = create_dynamic_filter(dictTableMap)
     query_count = super_query_count(base_filter)
