@@ -5,11 +5,6 @@ import pytest
 
 from src.api.phenopacket_operations import get_measurements
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
 def make_mock_session(mock_rows):
     mock_session = AsyncMock()
     mock_result = MagicMock()
@@ -50,12 +45,6 @@ MINIMAL_MAPPING = [
         "ancestor_ids": [],
     }
 ]
-
-
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
-
 
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
