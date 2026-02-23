@@ -1,13 +1,14 @@
-import pytest
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.api.phenopacket_operations import get_measurements
+import pytest
 
+from src.api.phenopacket_operations import get_measurements
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_mock_session(mock_rows):
     mock_session = AsyncMock()
@@ -54,7 +55,6 @@ MINIMAL_MAPPING = [
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
-
 
 
 @pytest.mark.asyncio
@@ -178,8 +178,6 @@ async def test_get_measurements_numeric_value_fallback_unit(
     assert result[0].value.quantity.unit == fallback_unit
 
 
-
-
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
@@ -259,4 +257,3 @@ async def test_get_measurements_multiple_mappings_aggregates_results(
 
     assert result is not None
     assert len(result) == 2
-
