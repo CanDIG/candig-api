@@ -26,18 +26,19 @@ def make_mock_row(overrides=None):
     row = MagicMock()
     row.id = 1
     row.alternate_ids = "DONOR_001"
-    row.sex_concept_id = 8507           
-    row.year_of_birth = 1990         
+    row.sex_concept_id = 8507
+    row.year_of_birth = 1990
     row.month_of_birth = 3
     row.day_of_birth = 10
-    row.gender_concept_id = 123456    
-    row.time_of_death = None        
-    row.cause_of_death_concept_id = None 
-    row.disease_first_occurrence_date = None 
+    row.gender_concept_id = 123456
+    row.time_of_death = None
+    row.cause_of_death_concept_id = None
+    row.disease_first_occurrence_date = None
     if overrides:
         for k, v in overrides.items():
             setattr(row, k, v)
     return row
+
 
 # ---------------------------------------------------------------------------
 # 1.3  date_of_birth
@@ -46,38 +47,61 @@ def make_mock_row(overrides=None):
 DATE_OF_BIRTH_CASES = [
     pytest.param(
         {},  # defaults: 1990-03-10
-        1990, 3, 10, False,
+        1990,
+        3,
+        10,
+        False,
         id="full date 1990-03-10",
     ),
     pytest.param(
         {"year_of_birth": 1990, "month_of_birth": None, "day_of_birth": None},
-        1990, 1, 1, False,
+        1990,
+        1,
+        1,
+        False,
         id="NULL month and day default to 01",
     ),
     pytest.param(
         {"year_of_birth": 1990, "month_of_birth": 11, "day_of_birth": None},
-        1990, 11, 1, False,
+        1990,
+        11,
+        1,
+        False,
         id="NULL day defaults to 01",
     ),
     pytest.param(
         {"year_of_birth": None, "month_of_birth": 3, "day_of_birth": 10},
-        None, None, None, True,
+        None,
+        None,
+        None,
+        True,
         id="NULL year -> date_of_birth must be unset",
     ),
     pytest.param(
         {"year_of_birth": 1800, "month_of_birth": 1, "day_of_birth": 1},
-        None, None, None, True,
+        None,
+        None,
+        None,
+        True,
         id="year=1800 (OMOP sentinel) -> date_of_birth must be unset",
     ),
 ]
 
+
 @pytest.mark.asyncio
-@pytest.mark.parametrize("overrides,exp_year,exp_month,exp_day,expect_unset", DATE_OF_BIRTH_CASES)
+@pytest.mark.parametrize(
+    "overrides,exp_year,exp_month,exp_day,expect_unset", DATE_OF_BIRTH_CASES
+)
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
 async def test_date_of_birth(
-    mock_get_ontologies, mock_get_db_session,
-    overrides, exp_year, exp_month, exp_day, expect_unset,
+    mock_get_ontologies,
+    mock_get_db_session,
+    overrides,
+    exp_year,
+    exp_month,
+    exp_day,
+    expect_unset,
 ):
     from google.protobuf.timestamp_pb2 import Timestamp
 
@@ -90,17 +114,17 @@ async def test_date_of_birth(
     assert status_code == 200
 
     if expect_unset:
-        assert (
-            subject.date_of_birth is None or subject.date_of_birth.seconds == 0
-        ), "date_of_birth must be unset"
+        assert subject.date_of_birth is None or subject.date_of_birth.seconds == 0, (
+            "date_of_birth must be unset"
+        )
     else:
         assert isinstance(subject.date_of_birth, Timestamp), (
             "date_of_birth must be a Timestamp"
         )
         dob = subject.date_of_birth.ToDatetime()
-        assert dob.year  == exp_year,  f"expected year  {exp_year}  got {dob.year}"
+        assert dob.year == exp_year, f"expected year  {exp_year}  got {dob.year}"
         assert dob.month == exp_month, f"expected month {exp_month} got {dob.month}"
-        assert dob.day   == exp_day,   f"expected day   {exp_day}   got {dob.day}"
+        assert dob.day == exp_day, f"expected day   {exp_day}   got {dob.day}"
 
 
 # ---------------------------------------------------------------------------
@@ -135,13 +159,16 @@ SEX_CONCEPT_ID_CASES = [
     ),
 ]
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("overrides,exp_sex", SEX_CONCEPT_ID_CASES)
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
 async def test_sex_concept_id(
-    mock_get_ontologies, mock_get_db_session,
-    overrides, exp_sex,
+    mock_get_ontologies,
+    mock_get_db_session,
+    overrides,
+    exp_sex,
 ):
     mock_get_ontologies.return_value = {}
     row = make_mock_row(overrides)
@@ -155,6 +182,7 @@ async def test_sex_concept_id(
         f"OMOP sex_concept_id={overrides.get('sex_concept_id')} "
         f"must map to sex enum value {exp_sex}"
     )
+
 
 # ---------------------------------------------------------------------------
 # 1.7.1  vital_status.status
@@ -173,13 +201,16 @@ VITAL_STATUS_CASES = [
     ),
 ]
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("overrides,exp_status", VITAL_STATUS_CASES)
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
 async def test_vital_status_status(
-    mock_get_ontologies, mock_get_db_session,
-    overrides, exp_status,
+    mock_get_ontologies,
+    mock_get_db_session,
+    overrides,
+    exp_status,
 ):
     """
     When time_of_death is NULL -> UNKNOWN_STATUS.
@@ -261,13 +292,16 @@ SURVIVAL_TIME_CASES = [
     ),
 ]
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("overrides,exp_days", SURVIVAL_TIME_CASES)
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
 async def test_survival_time_in_days(
-    mock_get_ontologies, mock_get_db_session,
-    overrides, exp_days,
+    mock_get_ontologies,
+    mock_get_db_session,
+    overrides,
+    exp_days,
 ):
     """
     survival_time_in_days = time_of_death - disease_first_occurrence_date.
