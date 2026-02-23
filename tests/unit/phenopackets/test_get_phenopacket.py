@@ -1,5 +1,5 @@
-from unittest.mock import AsyncMock, patch
 from typing import Any, cast
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from google.protobuf.timestamp_pb2 import Timestamp
