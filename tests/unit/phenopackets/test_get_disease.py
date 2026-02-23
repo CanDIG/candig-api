@@ -41,11 +41,11 @@ def make_ontology_map(concept_ids):
 
     ontology_map = {}
     labels = {
-        45590880: ("ICD10", "C23",    "Malignant neoplasm of gallbladder"),
-        44497844: ("ICDO3", "C50",    "Breast"),
-        4164336:  ("LOINC", "LA3608-2", "Tis"),
-        4164182:  ("LOINC", "LA4368-2", "N0"),
-        4164466:  ("LOINC", "LA3608-3", "M0"),
+        45590880: ("ICD10", "C23", "Malignant neoplasm of gallbladder"),
+        44497844: ("ICDO3", "C50", "Breast"),
+        4164336: ("LOINC", "LA3608-2", "Tis"),
+        4164182: ("LOINC", "LA4368-2", "N0"),
+        4164466: ("LOINC", "LA3608-3", "M0"),
         35918306: ("Cancer Modifier", "OMOP4999911", "Left"),
         37163866: ("LOINC", "LA3668-6", "Stage B"),
     }
@@ -55,15 +55,22 @@ def make_ontology_map(concept_ids):
             ontology_map[cid] = OntologyClass(id=f"{vocab}:{code}", label=label)
     return ontology_map
 
+
 # ---------------------------------------------------------------------------
 # 3.1  term  – condition_concept_id -> OntologyClass
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_concept_by_id_or_ancestor", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_concept_by_id_or_ancestor",
+    new_callable=AsyncMock,
+)
 async def test_disease_term_mapped(
     mock_get_ancestor, mock_get_measurement, mock_get_ontologies, mock_get_db_session
 ):
@@ -82,6 +89,7 @@ async def test_disease_term_mapped(
     assert diseases[0].term.id == "ICD10:C23"
     assert diseases[0].term.label == "Malignant neoplasm of gallbladder"
 
+
 # ---------------------------------------------------------------------------
 # 3.2  onset – condition_start_date -> timestamp
 # ---------------------------------------------------------------------------
@@ -99,15 +107,25 @@ ONSET_CASES = [
     ),
 ]
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("overrides,exp_date", ONSET_CASES)
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_concept_by_id_or_ancestor", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_concept_by_id_or_ancestor",
+    new_callable=AsyncMock,
+)
 async def test_disease_onset(
-    mock_get_ancestor, mock_get_measurement, mock_get_ontologies, mock_get_db_session,
-    overrides, exp_date,
+    mock_get_ancestor,
+    mock_get_measurement,
+    mock_get_ontologies,
+    mock_get_db_session,
+    overrides,
+    exp_date,
 ):
     mock_get_ancestor.return_value = []
     mock_get_measurement.return_value = []
@@ -122,7 +140,9 @@ async def test_disease_onset(
     assert len(diseases) == 1
 
     if exp_date is None:
-        assert not diseases[0].onset.HasField("timestamp") if diseases[0].onset else True
+        assert (
+            not diseases[0].onset.HasField("timestamp") if diseases[0].onset else True
+        )
     else:
         onset_dt = diseases[0].onset.timestamp.ToDatetime()
         assert (onset_dt.year, onset_dt.month, onset_dt.day) == exp_date
@@ -145,15 +165,25 @@ RESOLUTION_CASES = [
     ),
 ]
 
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("overrides,exp_date", RESOLUTION_CASES)
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_concept_by_id_or_ancestor", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_concept_by_id_or_ancestor",
+    new_callable=AsyncMock,
+)
 async def test_disease_resolution(
-    mock_get_ancestor, mock_get_measurement, mock_get_ontologies, mock_get_db_session,
-    overrides, exp_date,
+    mock_get_ancestor,
+    mock_get_measurement,
+    mock_get_ontologies,
+    mock_get_db_session,
+    overrides,
+    exp_date,
 ):
     mock_get_ancestor.return_value = []
     mock_get_measurement.return_value = []
@@ -168,7 +198,11 @@ async def test_disease_resolution(
     assert len(diseases) == 1
 
     if exp_date is None:
-        assert not diseases[0].resolution.HasField("timestamp") if diseases[0].resolution else True
+        assert (
+            not diseases[0].resolution.HasField("timestamp")
+            if diseases[0].resolution
+            else True
+        )
     else:
         res_dt = diseases[0].resolution.timestamp.ToDatetime()
         assert (res_dt.year, res_dt.month, res_dt.day) == exp_date
@@ -178,11 +212,17 @@ async def test_disease_resolution(
 # 3.4  primary_site – observation.value_as_concept_id -> OntologyClass
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_concept_by_id_or_ancestor", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_concept_by_id_or_ancestor",
+    new_callable=AsyncMock,
+)
 async def test_primary_site_mapped(
     mock_get_ancestor, mock_get_measurement, mock_get_ontologies, mock_get_db_session
 ):
@@ -200,15 +240,22 @@ async def test_primary_site_mapped(
     assert diseases[0].primary_site.id == "ICDO3:C50"
     assert diseases[0].primary_site.label == "Breast"
 
+
 # ---------------------------------------------------------------------------
 # 3.5  disease_stage
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_concept_by_id_or_ancestor", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_concept_by_id_or_ancestor",
+    new_callable=AsyncMock,
+)
 async def test_disease_stage_populated(
     mock_get_ancestor, mock_get_measurement, mock_get_ontologies, mock_get_db_session
 ):
@@ -230,16 +277,21 @@ async def test_disease_stage_populated(
     assert diseases[0].disease_stage[0].id == "LOINC:LA3668-6"
 
 
-
 # ---------------------------------------------------------------------------
 # 3.6  clinical_tnm_finding
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_concept_by_id_or_ancestor", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_concept_by_id_or_ancestor",
+    new_callable=AsyncMock,
+)
 async def test_clinical_tnm_finding_populated(
     mock_get_ancestor, mock_get_measurement, mock_get_ontologies, mock_get_db_session
 ):
@@ -270,11 +322,17 @@ async def test_clinical_tnm_finding_populated(
 # 3.7  laterality
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_concept_by_id_or_ancestor", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_concept_by_id_or_ancestor",
+    new_callable=AsyncMock,
+)
 async def test_laterality_populated(
     mock_get_ancestor, mock_get_measurement, mock_get_ontologies, mock_get_db_session
 ):
@@ -301,11 +359,17 @@ async def test_laterality_populated(
 # Multiple diseases for one person
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_concept_by_id_or_ancestor", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_concept_by_id_or_ancestor",
+    new_callable=AsyncMock,
+)
 async def test_multiple_diseases(
     mock_get_ancestor, mock_get_measurement, mock_get_ontologies, mock_get_db_session
 ):
@@ -316,15 +380,19 @@ async def test_multiple_diseases(
     mock_get_measurement.return_value = []
 
     row1 = make_mock_disease_row()
-    row2 = make_mock_disease_row({
-        "term": 45590881,
-        "onset": date(2021, 3, 15),
-        "resolution": None,
-        "primary_site_concept_id": None,
-    })
+    row2 = make_mock_disease_row(
+        {
+            "term": 45590881,
+            "onset": date(2021, 3, 15),
+            "resolution": None,
+            "primary_site_concept_id": None,
+        }
+    )
 
     ontology_map = make_ontology_map([45590880, 44497844])
-    ontology_map[45590881] = OntologyClass(id="ICD10:C50", label="Malignant neoplasm of breast")
+    ontology_map[45590881] = OntologyClass(
+        id="ICD10:C50", label="Malignant neoplasm of breast"
+    )
     mock_get_ontologies.return_value = ontology_map
 
     mock_get_db_session.return_value = make_mock_session([row1, row2])
