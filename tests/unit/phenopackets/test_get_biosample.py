@@ -35,10 +35,16 @@ def make_mock_biosample_row(overrides=None):
     return row
 
 
-SAMPLED_TISSUE_ONTOLOGY = OntologyClass(id="SNOMED:C57.8", label="Overlapping lesion of female genital organs")
-HISTOLOGICAL_DIAGNOSIS_ONTOLOGY = OntologyClass(id="ICDO3:9726/3", label="Primary cutaneous gamma-delta T-cell lymphoma")
+SAMPLED_TISSUE_ONTOLOGY = OntologyClass(
+    id="SNOMED:C57.8", label="Overlapping lesion of female genital organs"
+)
+HISTOLOGICAL_DIAGNOSIS_ONTOLOGY = OntologyClass(
+    id="ICDO3:9726/3", label="Primary cutaneous gamma-delta T-cell lymphoma"
+)
 TUMOR_GRADE_ONTOLOGY = OntologyClass(id="SNOMED:1228845001", label="GX (AJCC)")
-SAMPLE_PROCESSING_ONTOLOGY = OntologyClass(id="SNOMED:441652008", label="Formalin-fixed paraffin-embedded tissue specimen")
+SAMPLE_PROCESSING_ONTOLOGY = OntologyClass(
+    id="SNOMED:441652008", label="Formalin-fixed paraffin-embedded tissue specimen"
+)
 SAMPLE_STORAGE_ONTOLOGY = OntologyClass(id="SNOMED:74964007", label="Other")
 
 DEFAULT_ONTOLOGY_MAP = {
@@ -50,16 +56,20 @@ DEFAULT_ONTOLOGY_MAP = {
 }
 
 
-
 # ---------------------------------------------------------------------------
 # 2.3  sampled_tissue
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock
+)
 async def test_sampled_tissue_mapped(
     mock_get_bm, mock_get_mc, mock_get_ontologies, mock_get_db_session
 ):
@@ -74,7 +84,10 @@ async def test_sampled_tissue_mapped(
 
     assert status == 200
     assert biosamples[0].sampled_tissue.id == "SNOMED:C57.8"
-    assert biosamples[0].sampled_tissue.label == "Overlapping lesion of female genital organs"
+    assert (
+        biosamples[0].sampled_tissue.label
+        == "Overlapping lesion of female genital organs"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -104,11 +117,19 @@ TIME_OF_COLLECTION_CASES = [
 @pytest.mark.parametrize("overrides,expect_set", TIME_OF_COLLECTION_CASES)
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock
+)
 async def test_time_of_collection(
-    mock_get_bm, mock_get_mc, mock_get_ontologies, mock_get_db_session,
-    overrides, expect_set,
+    mock_get_bm,
+    mock_get_mc,
+    mock_get_ontologies,
+    mock_get_db_session,
+    overrides,
+    expect_set,
 ):
     mock_get_mc.return_value = []
     mock_get_bm.return_value = {}
@@ -134,11 +155,16 @@ async def test_time_of_collection(
 # 2.6  histological_diagnosis
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock
+)
 async def test_histological_diagnosis_mapped(
     mock_get_bm, mock_get_mc, mock_get_ontologies, mock_get_db_session
 ):
@@ -152,17 +178,26 @@ async def test_histological_diagnosis_mapped(
 
     assert status == 200
     assert biosamples[0].histological_diagnosis.id == "ICDO3:9726/3"
-    assert biosamples[0].histological_diagnosis.label == "Primary cutaneous gamma-delta T-cell lymphoma"
+    assert (
+        biosamples[0].histological_diagnosis.label
+        == "Primary cutaneous gamma-delta T-cell lymphoma"
+    )
+
 
 # ---------------------------------------------------------------------------
 # 2.7  tumor_grade
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock
+)
 async def test_tumor_grade_mapped(
     mock_get_bm, mock_get_mc, mock_get_ontologies, mock_get_db_session
 ):
@@ -183,11 +218,16 @@ async def test_tumor_grade_mapped(
 # 2.8  pathological_tnm_finding
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock
+)
 async def test_pathological_tnm_finding_populated(
     mock_get_bm, mock_get_mc, mock_get_ontologies, mock_get_db_session
 ):
@@ -214,11 +254,16 @@ async def test_pathological_tnm_finding_populated(
 # 2.9  sample_processing
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock
+)
 async def test_sample_processing_mapped(
     mock_get_bm, mock_get_mc, mock_get_ontologies, mock_get_db_session
 ):
@@ -232,18 +277,26 @@ async def test_sample_processing_mapped(
 
     assert status == 200
     assert biosamples[0].sample_processing.id == "SNOMED:441652008"
-    assert biosamples[0].sample_processing.label == "Formalin-fixed paraffin-embedded tissue specimen"
+    assert (
+        biosamples[0].sample_processing.label
+        == "Formalin-fixed paraffin-embedded tissue specimen"
+    )
 
 
 # ---------------------------------------------------------------------------
 # 2.10  sample_storage
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock
+)
 async def test_sample_storage_mapped(
     mock_get_bm, mock_get_mc, mock_get_ontologies, mock_get_db_session
 ):
@@ -259,24 +312,34 @@ async def test_sample_storage_mapped(
     assert biosamples[0].sample_storage.id == "SNOMED:74964007"
     assert biosamples[0].sample_storage.label == "Other"
 
+
 # ---------------------------------------------------------------------------
 # 2.11  measurements (biosample-level)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock
+)
 async def test_biosample_measurements_attached(
     mock_get_bm, mock_get_mc, mock_get_ontologies, mock_get_db_session
 ):
     """Measurements linked to specimen_id should be attached to the biosample."""
-    from phenopackets import Measurement, OntologyClass as OC
+    from phenopackets import Measurement
+    from phenopackets import OntologyClass as OC
 
     specimen_id = 88
     real_measurement = Measurement(
-        assay=OC(id="LOINC:85319-2", label="HER2 [Presence] in Breast cancer specimen by Immune stain")
+        assay=OC(
+            id="LOINC:85319-2",
+            label="HER2 [Presence] in Breast cancer specimen by Immune stain",
+        )
     )
     mock_get_mc.return_value = []
     mock_get_bm.return_value = {specimen_id: [real_measurement]}
@@ -294,13 +357,18 @@ async def test_biosample_measurements_attached(
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock
+)
 async def test_biosample_multiple_measurements_attached(
     mock_get_bm, mock_get_mc, mock_get_ontologies, mock_get_db_session
 ):
     """Multiple measurements linked to specimen_id should all be attached."""
-    from phenopackets import Measurement, OntologyClass as OC
+    from phenopackets import Measurement
+    from phenopackets import OntologyClass as OC
 
     specimen_id = 88
     measurements = [
@@ -322,13 +390,18 @@ async def test_biosample_multiple_measurements_attached(
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock
+)
 async def test_biosample_measurements_not_attached_for_other_specimen(
     mock_get_bm, mock_get_mc, mock_get_ontologies, mock_get_db_session
 ):
     """Measurements for a different specimen_id must not attach to this biosample."""
-    from phenopackets import Measurement, OntologyClass as OC
+    from phenopackets import Measurement
+    from phenopackets import OntologyClass as OC
 
     real_measurement = Measurement(assay=OC(id="LOINC:85319-2", label="HER2"))
     mock_get_mc.return_value = []
@@ -346,13 +419,18 @@ async def test_biosample_measurements_not_attached_for_other_specimen(
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock
+)
 async def test_biosample_measurements_correct_specimen_among_multiple(
     mock_get_bm, mock_get_mc, mock_get_ontologies, mock_get_db_session
 ):
     """Only measurements matching the specimen_id should be attached to each biosample."""
-    from phenopackets import Measurement, OntologyClass as OC
+    from phenopackets import Measurement
+    from phenopackets import OntologyClass as OC
 
     m1 = Measurement(assay=OC(id="LOINC:111-1", label="Test 1"))
     m2 = Measurement(assay=OC(id="LOINC:222-2", label="Test 2"))
@@ -380,11 +458,16 @@ async def test_biosample_measurements_correct_specimen_among_multiple(
 # multiple specimens -> multiple biosamples
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock)
-@patch("src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock)
+@patch(
+    "src.api.phenopacket_operations.get_measurement_concepts", new_callable=AsyncMock
+)
+@patch(
+    "src.api.phenopacket_operations.get_biosamples_measurements", new_callable=AsyncMock
+)
 async def test_multiple_specimens_returns_multiple_biosamples(
     mock_get_bm, mock_get_mc, mock_get_ontologies, mock_get_db_session
 ):
