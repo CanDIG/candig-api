@@ -451,6 +451,7 @@ async def get_biosamples(person_id: int):
     raw_sql = text(f"""
         SELECT 
             specimen.specimen_id as id,
+            specimen.specimen_source_id as source_id,
             specimen.anatomic_site_concept_id as sampled_tissue,
             specimen.specimen_date as time_of_collection,
             hist_obs.value_as_concept_id as histological_diagnosis,
@@ -503,7 +504,7 @@ async def get_biosamples(person_id: int):
             biosamples = []
             for row in rows:
                 biosample = Biosample(
-                    id=str(row.id),
+                    id=str(row.source_id) if row.source_id else str(row.id),
                     individual_id=str(person_id),
                     sampled_tissue=ontology_map.get(row.sampled_tissue),
                     taxonomy=OntologyClass(
