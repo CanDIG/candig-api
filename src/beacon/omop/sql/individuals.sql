@@ -131,13 +131,6 @@ FROM omop.person as p,
     omop.drug_exposure as c
 WHERE p.person_id = :person_id and p.person_id = c.person_id;
 
-
--- name: sql_get_descendants
--- Get descendants from concept_id
-SELECT descendant_concept_id
-FROM omop.concept_ancestor 
-WHERE ancestor_concept_id = :concept_id
-
 -- name: sql_get_concept_domain
 -- Get OMOP concept_id and domain of the concept
 SELECT concept_id, domain_id
