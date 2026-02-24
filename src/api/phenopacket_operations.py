@@ -1240,7 +1240,8 @@ async def get_measurements(person_id: int):
                 WHERE {mapping["omop_object"]}.person_id = :person_id
                     AND ({mapping["filtering_field"]} IN (
                     SELECT descendant_concept_id FROM {settings.CDM_SCHEMA}.concept_ancestor
-                    WHERE ancestor_concept_id IN ({",".join([str(x) for x in mapping["ancestor_ids"]])})))
+                    WHERE ancestor_concept_id IN ({",".join([str(x) for x in mapping["ancestor_ids"]])}))
+                    OR {mapping["filtering_field"]} IN ({",".join([str(x) for x in mapping["concept_ids"]])}))
             """)
 
         elif mapping["omop_object"] == "procedure_occurrence":
