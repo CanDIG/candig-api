@@ -1,4 +1,5 @@
-from typing import Optional
+from typing import Optional, AnyStr
+import uuid
 
 from ...beacon import conf
 from ...beacon.omop.schemas import DefaultSchemas
@@ -34,12 +35,12 @@ def build_response_summary(exists, num_total_results):
         }
 
 
-def build_response(data, num_total_results, qparams, func):
+def build_response(data, num_total_results, qparams, func, setType):
     """"Fills the `response` part with the correct format in `results`"""
 
     response = {
-        'id': 'cdm', # TODO: Set the name of the dataset/cohort
-        'setType': 'dataset', # TODO: Set the type of collection
+        'id': uuid.uuid4(),
+        'setType': setType,
         'exists': num_total_results > 0,
         'resultsCount': num_total_results,
         'results': data,
@@ -59,7 +60,8 @@ def build_beacon_resultset_response(data,
                                     qparams: RequestParams,
                                     func_response_type,
                                     entity_schema: DefaultSchemas,
-                                    discovery_data: dict):
+                                    discovery_data: dict,
+                                    dataset_type: AnyStr):
     """"
     Transform data into the Beacon response format.
     """
@@ -69,7 +71,7 @@ def build_beacon_resultset_response(data,
         'responseSummary': build_response_summary(num_total_results > 0, num_total_results),
         # TODO: 'extendedInfo': build_extended_info(),
         'response': {
-            'resultSets': [build_response(data, num_total_results, qparams, func_response_type)]
+            'resultSets': [build_response(data, num_total_results, qparams, func_response_type, dataset_type)]
         },
         'info': discovery_data,
         'beaconHandovers': conf.beacon_handovers,
