@@ -1220,7 +1220,8 @@ async def get_measurements(person_id: int):
                     {mapping["omop_object"]}.{mapping["number_value_field"]} as measurement_value,
                     {mapping["omop_object"]}.{mapping["filtering_field"]} as measurement_type_concept_id,
                     {mapping["omop_object"]}.{mapping["date_field"]} as measurement_date,
-                    {mapping["omop_object"]}.{mapping["unit_field"]} as measurement_unit_concept_id
+                    {mapping["omop_object"]}.{mapping["unit_field"]} as measurement_unit_concept_id,
+                    {mapping["omop_object"]}.qualifier_concept_id
                 FROM {settings.CDM_SCHEMA}.{mapping["omop_object"]}
                 WHERE {mapping["omop_object"]}.person_id = :person_id
                     AND {mapping["omop_object"]}.{mapping["filtering_field"]} 
@@ -1239,7 +1240,8 @@ async def get_measurements(person_id: int):
                 WHERE {mapping["omop_object"]}.person_id = :person_id
                     AND ({mapping["filtering_field"]} IN (
                     SELECT descendant_concept_id FROM {settings.CDM_SCHEMA}.concept_ancestor
-                    WHERE ancestor_concept_id IN ({",".join([str(x) for x in mapping["ancestor_ids"]])})))
+                    WHERE ancestor_concept_id IN ({",".join([str(x) for x in mapping["ancestor_ids"]])}))
+                    OR {mapping["filtering_field"]} IN({",".join([str(x) for x in mapping["concept_ids"]])}))
             """)
 
         elif mapping["omop_object"] == "procedure_occurrence":
