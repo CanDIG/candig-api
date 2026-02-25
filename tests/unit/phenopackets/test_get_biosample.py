@@ -23,6 +23,7 @@ def make_mock_biosample_row(overrides=None):
     """Build a default mock specimen row."""
     row = MagicMock()
     row.id = 88
+    row.source_id = None
     row.sampled_tissue = 44497885
     row.time_of_collection = date(2023, 2, 15)
     row.histological_diagnosis = 44498902
