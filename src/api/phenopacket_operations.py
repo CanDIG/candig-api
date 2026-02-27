@@ -1180,20 +1180,13 @@ async def get_radiation_therapies(person_id: int):
                 modality = ontology_map.get(row.modality_concept_id)
                 body_site = ontology_map.get(row.body_site_concept_id)
 
-                # Only include radiation therapy if ALL required fields are present
-                if (
-                    modality
-                    and body_site
-                    and row.dosage is not None
-                    and row.fractions is not None
-                ):
-                    therapy = RadiationTherapy(
-                        modality=modality,
-                        body_site=body_site,
-                        dosage=int(row.dosage),
-                        fractions=int(row.fractions),
-                    )
-                    radiation_therapies.append(therapy)
+                therapy = RadiationTherapy(
+                    modality=modality,
+                    body_site=body_site,
+                    dosage= int(row.dosage) if row.dosage else -99,
+                    fractions=int(row.fractions) if row.fractions else -99,
+                )
+                radiation_therapies.append(therapy)
 
             return radiation_therapies
 
