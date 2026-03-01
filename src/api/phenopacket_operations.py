@@ -133,9 +133,6 @@ async def get_medical_actions(person_id: int):
 
     medical_actions = []
 
-    # Use first target for now since we can't figure out the link
-    treatment_target = treatment_targets[0] if treatment_targets else None
-
     episodes = list(
         set(list(response_to_treatments.keys()) + list(treatment_intents.keys()))
     )
@@ -154,6 +151,10 @@ async def get_medical_actions(person_id: int):
             this_response = response_to_treatments[episode]
         except KeyError as e:
             this_response = OntologyClass(id="SNOMED:408094002", label="No value")
+        try:
+            this_target = treatment_targets[episode]
+        except KeyError as e:
+            this_target = OntologyClass(id="SNOMED:408094002", label="No value")
         # Combine treatment agents with responses
         drug_events = await get_episode_events_by_event_field(episode, 798885)
         for event in drug_events:
@@ -162,7 +163,7 @@ async def get_medical_actions(person_id: int):
                 for agent in event_agents:
                     medical_action = MedicalAction(
                         treatment=agent,
-                        treatment_target=treatment_target,
+                        treatment_target=this_target,
                         treatment_intent=this_intent,
                         response_to_treatment=this_response,
                     )
@@ -173,7 +174,7 @@ async def get_medical_actions(person_id: int):
             for procedure in procedures[episode]:
                 medical_action = MedicalAction(
                     procedure=procedure,
-                    treatment_target=treatment_target,
+                    treatment_target=this_target,
                     treatment_intent=this_intent,
                     response_to_treatment=this_response,
                 )
@@ -183,7 +184,7 @@ async def get_medical_actions(person_id: int):
         for radiation in radiation_therapies:
             medical_action = MedicalAction(
                 radiation_therapy=radiation,
-                treatment_target=treatment_target,
+                treatment_target=this_target,
                 treatment_intent=this_intent,
                 response_to_treatment=this_response,
             )
@@ -838,13 +839,16 @@ async def get_treatment_targets(person_id: int):
 
     raw_sql = text(f"""
         SELECT DISTINCT
-            condition_occurrence.condition_concept_id as treatment_target_concept_id
+            condition_occurrence.condition_concept_id as treatment_target_concept_id,
+            other_event.episode_id as episode_id
         FROM {settings.CDM_SCHEMA}.episode episode
         INNER JOIN {settings.CDM_SCHEMA}.episode_event episode_event
             ON episode.episode_id = episode_event.episode_id
             AND episode_event.episode_event_field_concept_id = 1147127
         INNER JOIN {settings.CDM_SCHEMA}.condition_occurrence condition_occurrence
             ON episode_event.event_id = condition_occurrence.condition_occurrence_id
+        INNER JOIN {settings.CDM_SCHEMA}.episode_event as other_event
+        ON condition_occurrence_id=other_event.event_id
         WHERE episode.person_id = :person_id
             AND episode.episode_concept_id = {ma_map["treatment_target"]["grouping_concept_id"]}
     """)
@@ -859,12 +863,12 @@ async def get_treatment_targets(person_id: int):
             ontology_map = await get_ontologies(concept_ids)
 
             # Convert rows to list of OntologyClass objects
-            targets = [
+            targets = {row.episode_id:
                 ontology_map.get(row.treatment_target_concept_id) for row in rows
-            ]
+            }
 
             # Filter out None values if conversion failed
-            return [t for t in targets if t is not None]
+            return {k:v for k,v in targets.items() if v is not None}
 
         except Exception as e:
             logger.error(f"Database Error in get_treatment_targets: {str(e)}")
