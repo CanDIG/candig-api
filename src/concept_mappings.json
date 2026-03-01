@@ -313,14 +313,6 @@
             "concept_value_field": "modifier_concept_id",
             "ancestor_ids": [1242725],
             "concept_ids": [1000000]
-        },
-        {
-            "omop_object": "procedure_occurrence",
-            "filtering_field": "procedure_concept_id",
-            "date_field": "procedure_date",
-            "concept_value_field": "procedure_concept_id",
-            "ancestor_ids": [4216752],
-            "concept_ids": [4273629, 4061650, 4295112]
         }
     ]
 }   
