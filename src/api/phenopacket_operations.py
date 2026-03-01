@@ -140,8 +140,11 @@ async def get_medical_actions(person_id: int):
         set(list(response_to_treatments.keys()) + list(treatment_intents.keys()))
     )
 
+    # Get drug exposure events linked to each episode
+
     # Create combinations of each treatment type with each response
     for episode in episodes:
+        
         # get intent and response linked to the episode, return No value if not in dict
         try:
             this_intent = treatment_intents[episode]
@@ -152,24 +155,29 @@ async def get_medical_actions(person_id: int):
         except KeyError as e:
             this_response = OntologyClass(id="SNOMED:408094002", label="No value")
         # Combine treatment agents with responses
-        for agent in treatment_agents:
-            medical_action = MedicalAction(
-                treatment=agent,
-                treatment_target=treatment_target,
-                treatment_intent=this_intent,
-                response_to_treatment=this_response,
-            )
-            medical_actions.append(medical_action)
+        drug_events = await get_episode_events_by_event_field(episode, 798885)
+        for event in drug_events:
+            if event in treatment_agents.keys():
+                event_agents=treatment_agents[event]
+                for agent in event_agents:
+                    medical_action = MedicalAction(
+                        treatment=agent,
+                        treatment_target=treatment_target,
+                        treatment_intent=this_intent,
+                        response_to_treatment=this_response,
+                    )
+                    medical_actions.append(medical_action)
 
         # Combine procedures with responses
-        for procedure in procedures:
-            medical_action = MedicalAction(
-                procedure=procedure,
-                treatment_target=treatment_target,
-                treatment_intent=this_intent,
-                response_to_treatment=this_response,
-            )
-            medical_actions.append(medical_action)
+        if episode in procedures.keys():
+            for procedure in procedures[episode]:
+                medical_action = MedicalAction(
+                    procedure=procedure,
+                    treatment_target=treatment_target,
+                    treatment_intent=this_intent,
+                    response_to_treatment=this_response,
+                )
+                medical_actions.append(medical_action)
 
         # Combine radiation therapies with responses
         for radiation in radiation_therapies:
@@ -698,6 +706,24 @@ def get_survival_time(disease_first_occurrence_date, death_date):
     return delta.days
 
 
+async def get_episode_events_by_event_field(episode_id, episode_event_field_concept_id):
+    """get a list of events linked to the given episode by a specific event type"""
+    raw_sql = text(f"""
+            SELECT 
+                episode_event.event_id as event_id
+            FROM {settings.CDM_SCHEMA}.episode_event episode_event
+            WHERE episode_event.episode_id = {episode_id} 
+            AND episode_event.episode_event_field_concept_id = {episode_event_field_concept_id}
+        """)
+    async for session in get_db_session():
+        try:
+            result = await session.execute(raw_sql)
+            rows = result.fetchall()
+            return [row.event_id for row in rows]
+        except Exception as e:
+            logger.error(f"Error in get_episode_events_by_event_field: {str(e)}")
+        
+
 async def get_ontologies(concept_ids: list):
     if not concept_ids:
         return {}
@@ -869,7 +895,8 @@ async def get_treatment_agents(person_id: int):
             drug_exposure.quantity as dose_intervals_quantity_value,
             drug_exposure.route_concept_id as route_concept_id,
             drug_exposure.drug_type_concept_id as drug_type_concept_id,
-            drug_exposure.{tx_map["agent"]["source_value_field"]} as drug_source_value
+            drug_exposure.{tx_map["agent"]["source_value_field"]} as drug_source_value,
+            episode.episode_id as sys_therapy_episode_id
         FROM {settings.CDM_SCHEMA}.episode episode
         INNER JOIN {settings.CDM_SCHEMA}.episode_event episode_event
             ON episode.episode_id = episode_event.episode_id
@@ -905,7 +932,7 @@ async def get_treatment_agents(person_id: int):
             ontology_map = await get_ontologies(concept_ids)
 
             # Convert rows to list of treatment agent objects
-            treatment_agents = []
+            treatment_agents = {}
             for row in rows:
                 if row.drug_concept_id == 0 and "|" in row.drug_source_value:
                     split_drug = row.drug_source_value.split("|")
@@ -939,7 +966,6 @@ async def get_treatment_agents(person_id: int):
                             id="SNOMED:261665006", label="Unknown"
                         )
 
-                    # If drug exposure is from 'EHR Order' drug type, include cumulative dose
                     if (
                         row.drug_type_concept_id
                         in tx_map["cumulative_dose"]["concept_ids"]
@@ -1004,7 +1030,10 @@ async def get_treatment_agents(person_id: int):
                         drug_type=treatment_agent["drug_type"],
                         cumulative_dose=treatment_agent["cumulative_dose"],
                     )
-                    treatment_agents.append(treatment)
+                    try:
+                        treatment_agents[row.sys_therapy_episode_id].append(treatment)
+                    except KeyError:
+                        treatment_agents[row.sys_therapy_episode_id] = [treatment]
 
             return treatment_agents
 
@@ -1030,7 +1059,8 @@ async def get_procedures(person_id: int):
             procedure_occurrence.procedure_concept_id,
             procedure_occurrence.procedure_source_value,
             procedure_occurrence.procedure_date as performed,
-            observation.value_as_concept_id as body_site_concept_id
+            observation.value_as_concept_id as body_site_concept_id,
+            episode.episode_id as episode_id
         FROM {settings.CDM_SCHEMA}.episode episode
         INNER JOIN {settings.CDM_SCHEMA}.episode_event episode_event
             ON episode.episode_id = episode_event.episode_id
@@ -1050,8 +1080,14 @@ async def get_procedures(person_id: int):
                           SELECT DISTINCT
                             procedure_occurrence.procedure_concept_id,
                             procedure_occurrence.procedure_source_value,
-                            procedure_occurrence.procedure_date as performed
-                          FROM {settings.CDM_SCHEMA}.{procedure_map["code"]["omop_object"]} procedure_occurrence
+                            procedure_occurrence.procedure_date as performed,
+                            episode.episode_id as episode_id
+                          FROM {settings.CDM_SCHEMA}.episode episode
+                          INNER JOIN {settings.CDM_SCHEMA}.episode_event episode_event
+                            ON episode.episode_id = episode_event.episode_id
+                            AND episode_event.episode_event_field_concept_id = 1147082
+                          INNER JOIN {settings.CDM_SCHEMA}.procedure_occurrence procedure_occurrence
+                            ON episode_event.event_id = procedure_occurrence.procedure_occurrence_id
                           WHERE {procedure_map["code"]["omop_object"]}.person_id = :person_id
                           AND ({procedure_map["code"]["omop_object"]}.procedure_concept_id
                           IN({",".join(map(str, list(procedure_map["code"]["concept_ids"])))}) 
@@ -1072,7 +1108,7 @@ async def get_procedures(person_id: int):
             ontology_map = await get_ontologies(concept_ids)
 
             # Convert rows to list of procedure objects
-            procedures = []
+            procedures = {}
             for row in surgery_rows:
                 if row.procedure_concept_id == 0 and "|" in row.procedure_source_value:
                     split_procedure = row.procedure_source_value.split("|")
@@ -1087,7 +1123,10 @@ async def get_procedures(person_id: int):
                     procedure = Procedure(
                         code=code, body_site=body_site, performed=performed
                     )
-                    procedures.append(procedure)
+                    try:
+                        procedures[row.episode_id].append(procedure)
+                    except KeyError:
+                        procedures[row.episode_id] = [procedure]
 
             others_result = await session.execute(
                 others_raw_sql, {"person_id": person_id}
@@ -1118,7 +1157,10 @@ async def get_procedures(person_id: int):
                 performed = get_phenopacket_timestamp(row.performed)
                 if code:
                     procedure = Procedure(code=code, performed=performed)
-                    procedures.append(procedure)
+                    try:
+                        procedures[row.episode_id].append(procedure)
+                    except KeyError:
+                        procedures[row.episode_id] = [procedure]
 
             return procedures
 

@@ -15,7 +15,7 @@
                 },
                 "cumulative_dose": {
                     "concept_ids": [
-                        32833
+                        32833, 32838
                     ],
                     "unit": {
                         "concept_map": {
