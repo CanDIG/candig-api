@@ -596,18 +596,18 @@ WHERE person_id = <your_test_id>
 
 ## 4. Medical Actions
 **Phenopacket Block:** `medical_actions` (List)
-**OMOP Source:** Aggregation of `procedure_occurrence`, `drug_exposure`, and `episode` data.
+**OMOP Source:** Aggregation of `condition_occurrence`, `procedure_occurrence`, `drug_exposure`, and `episode` data.
 **Overview:** This section aggregates various parts.
 
 > [!Note] 
-> The current logic creates a combination of every Treatment/Procedure/Radiation found for the patient against every "Treatment Episode" (defined by Intent/Response observations).
+> The current logic uses episodes to ensure data from different objects are grouped correctly.
 
 ### 4.1. treatment_target
 - **OMOP Source:** `condition_occurrence.condition_concept_id`
 
 - **Logic:**
 
-  - **Grouping:** TODO - The code currently fetches all targets but hardcodes usage of only the first target found (`treatment_targets[0]`) for all medical actions.
+  - **Grouping:** Matches the `condition_occurrence` to its linked treatment `episode`s to match the target to the treatment
 
   - **Linkage:**
 
@@ -615,20 +615,23 @@ WHERE person_id = <your_test_id>
 
     - Join `episode_event` to `condition_occurrence`.
 
-  - **Transformation:** Map `condition_concept_id` to Ontology Term.
+    - Join `condition_occurrence` again to `episode_event` to get the linked treatment `episode`s
+
+  - **Transformation:** Map `condition_concept_id` to Ontology Term and return as dict with episodes as keys.
 
 **SQL Check:**
 
 ```sql
-SELECT co.condition_concept_id
+SELECT co.condition_concept_id, other_event.episode_id as episode_id
 FROM omop.episode e
 JOIN omop.episode_event ee ON e.episode_id = ee.episode_id 
   AND ee.episode_event_field_concept_id = 1147127
 JOIN omop.condition_occurrence co ON ee.event_id = co.condition_occurrence_id
+JOIN omop.episode_event as other_event ON condition_occurrence_id=other_event.event_id
 WHERE e.person_id = <your_test_id> 
   AND e.episode_concept_id = 32528;
 ```
-- **Example:** `45590880` → `{ "id": "ICD10:C23", "label": "Malignant neoplasm of gallbladder"}`
+- **Example:** `45590880` → `{46: {"id": "ICD10:C23", "label": "Malignant neoplasm of gallbladder"}, 47: {"id": "ICD10:C23", "label": "Malignant neoplasm of gallbladder"}}`
 
 ### 4.2. treatment_intent
 - **OMOP Source:** `observation.value_as_concept_id`
@@ -643,7 +646,7 @@ WHERE e.person_id = <your_test_id>
 
     - `observation_event_id` is the link to the Episode.
 
-  - **Transformation:** Map `value_as_concept_id` to Ontology Term. Defaults to "No value" if missing.
+  - **Transformation:** Map `value_as_concept_id` to Ontology Term. Defaults to "No value" if missing. Return as dict with treatment `episode` ids as keys.
 
 **SQL Check:**
 
@@ -653,7 +656,7 @@ FROM omop.observation
 WHERE person_id = <your_test_id> 
   AND observation_concept_id = 4133895;
 ```
-- **Example:** `40491905` → `{ "id": "SNOMED:447295008", "label": "Forensic intent" }`
+- **Example:** `40491905` → `{46: {"id": "SNOMED:447295008", "label": "Forensic intent" }, 47: "id": "SNOMED:360156006", "label": "Screening intent"}`
 
 ### 4.3. response_to_treatment
 - **OMOP Source:** `observation.value_as_concept_id`
@@ -668,7 +671,7 @@ WHERE person_id = <your_test_id>
 
     - `observation_event_id` is the link to the Episode.
 
-  - **Transformation:** Map `value_as_concept_id` to Ontology Term. Defaults to "No value" if missing.
+  - **Transformation:** Map `value_as_concept_id` to Ontology Term. Defaults to "No value" if missing. Return as dict with treatment `episode` ids as keys.
 
 **SQL Check:**
 
@@ -678,7 +681,7 @@ FROM omop.observation
 WHERE person_id = <your_test_id> 
   AND observation_concept_id = 4082405;
 ```
-- **Example:** `36310520` → `{ "id": "LOINC:LA4566-1", "label": "No Evidence of this Cancer" }`
+- **Example:** `36310520` → `{46: {"id": "LOINC:LA4566-1", "label": "No Evidence of this Cancer"}, 47: {"id": "LOINC:LA28369-9", "label": "Partial response"}}`
 
 ---
 
@@ -699,6 +702,7 @@ WHERE person_id = <your_test_id>
   - **Transformation:** 
     - Map `procedure_concept_id` to Ontology Term.
     - If `procedure_concept_id` == `0`, parse `procedure_source_id` to Ontology Term
+    - Return as dict with `episode` ids as keys
 
 **SQL Check:**
 
@@ -712,8 +716,8 @@ JOIN omop.procedure_occurrence po ON ee.event_id = po.procedure_occurrence_id
 WHERE e.person_id = <your_test_id> 
   AND e.episode_concept_id = 32939;
 ```
-- **Example:** `4281521` → `{ "id": "SNOMED:66398006", "label": "Excision of breast with excision of regional lymph nodes" }`
-- **Example:** `UMLS|C0005558|Biopsy` → `{id: "UMLS:C0005558", "Biopsy"}`
+- **Example:** `4281521` → `{46: "id": "SNOMED:66398006", "label": "Excision of breast with excision of regional lymph nodes" }}`
+- **Example:** `UMLS|C0005558|Biopsy` → `{47: {"id": "UMLS:C0005558", "Biopsy"}}`
 
 #### 4.4.2. body_site
 - **OMOP Source:** `observation.value_as_concept_id`

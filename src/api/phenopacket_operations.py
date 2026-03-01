@@ -782,9 +782,9 @@ async def get_medical_action_by_field(person_id: int, field: str) -> dict:
     """
     Get medical action information based on field mapping grouped by episode ids
 
-    Return is a dict with episode ids as keys and field mapping as an ontology
-    {episode_id_1: {id: "ontology_curie", label: "ontology label"},
-     episode_id_2: {id: "ontology_curie", label: "ontology label"}}
+    Return is a dict with episode ids as keys and field mapping as OntologyTerm objects
+    {episode_id_1: OntologyTerm(id: "ontology_curie", label: "ontology label"),
+     episode_id_2: OntologyTerm(id: "ontology_curie", label: "ontology label")}
     """
     ma_map = settings.MAPPING_JSON["medical_actions"][field]
     raw_sql = text(f"""
