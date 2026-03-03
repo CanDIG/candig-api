@@ -213,7 +213,7 @@ async def get_concept_by_id_or_ancestor(
                 m.{filtering_field} IN (
                 SELECT descendant_concept_id FROM {settings.CDM_SCHEMA}.concept_ancestor
                 WHERE ancestor_concept_id IN ({",".join([str(x) for x in ancestor_concept_ids])})) 
-                OR m.value_as_concept_id IN ({",".join([str(x) for x in concept_ids])})
+                OR m.{filtering_field} IN ({",".join([str(x) for x in concept_ids])})
             )
     """)
 
