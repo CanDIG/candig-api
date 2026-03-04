@@ -245,11 +245,15 @@ async def get_diseases(person_id: int):
     """
     To populate the diseases object in Phenopackets:
 
-    Get term, onset, resolution, primary_site for a person by joining their 'Disease First Occurrence'
+    Get term, onset, resolution, primary_site, laterality for a person by joining their 'Disease First Occurrence'
     episode (concept_id=32528) with its linked condition_occurrence tables via the episode_event table,
-    join with 'Primary site Cancer' (concept_id=3011717) observation to get the primary site.
+    join with 'Primary site Cancer' (concept_id=3011717) observation to get the primary site, 
+    join laterality with the condition_occurrence via the measurement_event_id
 
-    Then look up clinical_tnm stages, laterality and disease_stages.
+    Then look up clinical_tnm stages, and disease_stages.
+
+    Look up comorbidity condition_occurrences by all condition_occurrences not found in previous query,
+    map term, onset and laterality only
 
     Combine all retrieved information into disease object(s)
 
@@ -262,7 +266,9 @@ async def get_diseases(person_id: int):
         condition_occurrence.condition_concept_id as term,
         condition_occurrence.condition_start_date as onset,
         condition_occurrence.condition_end_date as resolution,
-        primary_site_obs.value_as_concept_id as primary_site_concept_id
+        primary_site_obs.value_as_concept_id as primary_site_concept_id,
+        laterality_meas.value_as_concept_id as laterality_concept_id,
+        condition_occurrence.condition_occurrence_id as pdx_id
     FROM {settings.CDM_SCHEMA}.episode episode
     INNER JOIN {settings.CDM_SCHEMA}.episode_event episode_event
         ON episode.episode_id = episode_event.episode_id
@@ -270,20 +276,21 @@ async def get_diseases(person_id: int):
     INNER JOIN {settings.CDM_SCHEMA}.condition_occurrence condition_occurrence
         ON episode_event.event_id = condition_occurrence.condition_occurrence_id
     LEFT JOIN {settings.CDM_SCHEMA}.observation primary_site_obs
-        ON primary_site_obs.person_id = :person_id
+        ON primary_site_obs.observation_event_id = condition_occurrence.condition_occurrence_id
         AND primary_site_obs.observation_concept_id 
         IN({",".join(map(str, diseases_map["primary_site"]["concept_ids"]))})
+    LEFT JOIN {settings.CDM_SCHEMA}.measurement laterality_meas
+        ON laterality_meas.measurement_event_id=condition_occurrence.condition_occurrence_id
+        AND laterality_meas.measurement_concept_id IN({",".join(map(str, diseases_map["laterality"]["concept_ids"]))})
     WHERE episode.person_id = :person_id
         AND episode.episode_concept_id = {diseases_map["term"]["grouping_concept_id"]}
     """)
 
-    (clinical_tnm_finding_list, laterality_list, disease_stages) = await asyncio.gather(
+    (clinical_tnm_finding_list, disease_stages) = await asyncio.gather(
         # get ontologies for clinical tnm measurements [cT category, cM category, cN category]
         get_measurement_concepts(
             person_id, diseases_map["clinical_tnm_finding"]["concept_ids"]
         ),
-        # get ontologies for Laterality measurements
-        get_measurement_concepts(person_id, diseases_map["laterality"]["concept_ids"]),
         get_concept_by_id_or_ancestor(
             person_id,
             diseases_map["disease_stage"]["omop_object"],
@@ -294,9 +301,6 @@ async def get_diseases(person_id: int):
         ),
     )
 
-    # laterality should be a single object, not a list
-    laterality = laterality_list[0] if laterality_list else None
-
     async for session in get_db_session():
         try:
             result = await session.execute(raw_sql, {"person_id": person_id})
@@ -304,7 +308,7 @@ async def get_diseases(person_id: int):
 
             concept_ids = [row.term for row in rows] + [
                 row.primary_site_concept_id for row in rows
-            ]
+                ] + [row.laterality_concept_id for row in rows]
             ontology_map = await get_ontologies(concept_ids)
 
             diseases = []
@@ -316,10 +320,40 @@ async def get_diseases(person_id: int):
                     disease_stage=disease_stages,
                     clinical_tnm_finding=clinical_tnm_finding_list,
                     primary_site=ontology_map.get(row.primary_site_concept_id),
-                    laterality=laterality,
+                    laterality=ontology_map.get(row.laterality_concept_id),
                 )
                 diseases.append(disease)
+            pdx_ids = [row.pdx_id for row in rows]
+            comorbidities_raw_sql = text(f"""
+                SELECT 
+                    condition_occurrence.condition_concept_id as term,
+                    condition_occurrence.condition_start_date as onset,
+                    condition_occurrence.condition_end_date as resolution,
+                    laterality_meas.value_as_concept_id as laterality_concept_id
+                FROM {settings.CDM_SCHEMA}.condition_occurrence condition_occurrence
+                LEFT JOIN {settings.CDM_SCHEMA}.measurement as laterality_meas
+                ON laterality_meas.measurement_event_id=condition_occurrence.condition_occurrence_id
+                AND laterality_meas.measurement_concept_id IN({",".join(map(str, diseases_map["laterality"]["concept_ids"]))})
+                WHERE condition_occurrence.person_id = :person_id
+                    AND condition_occurrence.condition_occurrence_id NOT IN({",".join(map(str, pdx_ids))})
+                """)
+            result = await session.execute(comorbidities_raw_sql, 
+                                           {"person_id": person_id})
+            rows = result.fetchall()
 
+            concept_ids = [row.term for row in rows] + [
+                row.laterality_concept_id for row in rows
+            ]
+            ontology_map = await get_ontologies(concept_ids)
+
+            for row in rows:
+                disease = Disease(
+                    term=ontology_map.get(row.term),
+                    onset=get_phenopacket_timestamp(row.onset),
+                    resolution=get_phenopacket_timestamp(row.resolution),
+                    laterality=ontology_map.get(row.laterality_concept_id)
+                )
+                diseases.append(disease)
             return diseases, 200
 
         except Exception as e:
@@ -436,12 +470,10 @@ async def get_biosamples_measurements(person_id: int) -> dict:
                                 biosample_measurements[row.group_id].append(measurement)
                             except KeyError as e:
                                 biosample_measurements[row.group_id] = [measurement]
-                return biosample_measurements
-
             except Exception as e:
                 logger.error(f"Database Error in get_biosamples_measurements: {str(e)}")
                 return {}
-    return {}
+    return biosample_measurements
 
 
 async def get_biosamples(person_id: int):

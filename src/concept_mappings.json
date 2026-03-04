@@ -218,6 +218,15 @@
                 "grouping_omop_object": "specimen",
                 "grouping_field": "observation_event_id",
                 "date_field": "observation_date"
+            },
+            {   
+                "omop_object": "observation",
+                "concept_ids": [4160340],
+                "filtering_field": "observation_concept_id",
+                "concept_value_field": "qualifier_concept_id",
+                "grouping_omop_object": "specimen",
+                "grouping_field": "observation_event_id",
+                "date_field": "observation_date"
             }
         ]
     },
@@ -241,6 +250,19 @@
                 4077124,
                 1074673,
                 45763689
+            ],
+            "date_field": "observation_date",
+            "unit_field": "unit_concept_id"
+        },
+        {
+            "omop_object": "observation",
+            "filtering_field": "observation_concept_id",
+            "concept_value_field": "qualifier_concept_id",
+            "number_value_field": "value_as_number",
+            "concept_ids": [
+                4226407,
+                4295636,
+                4082405
             ],
             "date_field": "observation_date",
             "unit_field": "unit_concept_id"
