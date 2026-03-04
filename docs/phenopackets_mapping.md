@@ -413,15 +413,14 @@ Follows same mapping strategy as [Measurements](#5.-Measurements)
 
 ## 3. Diseases
 **Phenopacket Block:** `diseases` (List)
-**OMOP Source Table:** `episode` linked to `condition_occurrence`
-**Overview:** Each "Disease First Occurrence" `episode` creates a `disease` object.
+**OMOP Source Table:** `condition_occurrence`
+**Overview:** Each `condition_occurrence` creates a `disease` object. Condition occurrences that are linked to a 'Disease First Occurrence' `episode` can be populated with more metadata, whereas other condition occurrences have minimal metadata (comorbidities in mohccn model).
 
 ### 3.1. term
 - **OMOP Source:** `condition_occurrence.condition_concept_id`
 
 - **Logic:**
-
-  - **Grouping:** Grouped by `episode_id`.
+  - **Grouping:** Grouped by `episode_id`
 
   - **Linkage:**
 
@@ -432,17 +431,32 @@ Follows same mapping strategy as [Measurements](#5.-Measurements)
     - Join `condition_occurrence` ON `event_id` == `condition_occurrence_id`.
 
   - **Transformation:** Map `condition_concept_id` to Ontology Term.
+    
+    - **Linkage:**
+
+      - Find `condition_occurrence` where `condition_occurrence_id` not in  `condition_occurrence_id` already found above
+      
+      - **Transformation:** Map `condition_concept_id` to Ontology Term.
 
 **SQL Check:**
 
 ```sql
 SELECT co.condition_concept_id
+co.condition_occurrence_id
 FROM omop.episode e
 JOIN omop.episode_event ee ON e.episode_id = ee.episode_id 
   AND ee.episode_event_field_concept_id = 1147127
 JOIN omop.condition_occurrence co ON ee.event_id = co.condition_occurrence_id
 WHERE e.person_id = <your_test_id> 
   AND e.episode_concept_id = 32528;
+```
+- **Example:** `45590880` → `{ "id": "ICD10:C23", "label": "Malignant neoplasm of gallbladder" }`
+
+```sql
+SELECT co.condition_concept_id
+FROM omop.condition_occurrence co
+WHERE co.person_id = <your_test_id> 
+  AND co.condition_occurrence_id NOT IN(<condition_occurrence_ids from query above>)
 ```
 - **Example:** `45590880` → `{ "id": "ICD10:C23", "label": "Malignant neoplasm of gallbladder" }`
 
@@ -466,6 +480,13 @@ JOIN omop.condition_occurrence co ON ee.event_id = co.condition_occurrence_id
 WHERE e.person_id = <your_test_id> 
   AND e.episode_concept_id = 32528;
 ```
+
+```sql
+SELECT co.condition_start_date
+FROM omop.condition_occurrence co 
+WHERE e.person_id = <your_test_id> 
+  AND co.condition_occurrence_id NOT IN(<condition_occurrence_ids from query above>)
+```
 - **Example:** `2019-06-01` → `{ "timestamp": "2019-06-01" }`
 
 ### 3.3. resolution
@@ -488,6 +509,14 @@ JOIN omop.condition_occurrence co ON ee.event_id = co.condition_occurrence_id
 WHERE e.person_id = <your_test_id> 
   AND e.episode_concept_id = 32528;
 ```
+
+```sql
+SELECT co.condition_end_date
+FROM omop.condition_occurrence co 
+WHERE e.person_id = <your_test_id> 
+  AND co.condition_occurrence_id NOT IN(<condition_occurrence_ids from query above>)
+```
+
 - **Example:** `2020-01-01` → `{ "iso8601timestamp": "2020-01-01" }`
 
 ### 3.4. primary_site
@@ -495,7 +524,7 @@ WHERE e.person_id = <your_test_id>
 
 - **Logic:**
 
-  - **Grouping:** TODO - Current logic joins to the Person, not the specific disease episode. If a person has multiple primary sites, this may duplicate data.
+  - **Grouping:** Group to `condition_occurrence` through `observation_event_id`
 
   - **Linkage:** Join `observation` table on `person_id`.
 
@@ -507,7 +536,9 @@ WHERE e.person_id = <your_test_id>
 
 ```sql
 SELECT value_as_concept_id 
-FROM omop.observation 
+FROM omop.observation o
+JOIN condition_occurrence co
+ON o.observation_event_id = co.condition_occurrence_id
 WHERE person_id = <your_test_id> 
   AND observation_concept_id = 3011717;
 ```
@@ -574,9 +605,9 @@ WHERE person_id = <your_test_id>
 
 - **Logic:**
 
-- **Grouping:** TODO - Fetched at Person level. Attached to every disease object.
+- **Grouping:** Grouped by `condition_occurrence`.
 
-  - **Linkage:** Query measurement table for `person_id`.
+  - **Linkage:** Query measurement table for `person_id`, join to `condition_occurrence` by `measurement_event_id`
 
   - **Filter:** `measurement_concept_id` == `35918306` (Laterality).
 
@@ -585,8 +616,10 @@ WHERE person_id = <your_test_id>
 **SQL Check:**
 
 ```sql
-SELECT value_as_concept_id 
-FROM omop.measurement 
+SELECT m.value_as_concept_id 
+FROM omop.condition_occurrence as co
+JOIN omop.measurement as m
+ON co.condition_occurrence_id = m.measurement_event_id
 WHERE person_id = <your_test_id> 
   AND measurement_concept_id = 35918306;
 ```
