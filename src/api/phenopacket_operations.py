@@ -123,14 +123,6 @@ async def get_medical_actions(person_id: int):
         get_radiation_therapies(person_id),
     )
 
-    if not response_to_treatments:
-        if not (treatment_agents or procedures or radiation_therapies):
-            return None
-        return None
-
-    if not (treatment_agents or procedures or radiation_therapies):
-        return None
-
     medical_actions = []
 
     episodes = list(
@@ -492,6 +484,7 @@ async def get_biosamples(person_id: int):
     raw_sql = text(f"""
         SELECT 
             specimen.specimen_id as id,
+            specimen.specimen_source_id as source_id,
             specimen.anatomic_site_concept_id as sampled_tissue,
             specimen.specimen_date as time_of_collection,
             hist_obs.value_as_concept_id as histological_diagnosis,
@@ -544,7 +537,7 @@ async def get_biosamples(person_id: int):
             biosamples = []
             for row in rows:
                 biosample = Biosample(
-                    id=str(row.id),
+                    id=str(row.source_id) if row.source_id else str(row.id),
                     individual_id=str(person_id),
                     sampled_tissue=ontology_map.get(row.sampled_tissue),
                     taxonomy=OntologyClass(
@@ -710,7 +703,7 @@ def get_sex_status(gender_concept_id):
 def get_death_status(death_date):
     if death_date:
         return "DECEASED"
-    return "ALIVE"
+    return "UNKNOWN_STATUS"
 
 
 def get_survival_time(disease_first_occurrence_date, death_date):
@@ -1517,23 +1510,6 @@ def get_meta_data():
             ),
         ],
     )
-
-
-def remove_empty_values(obj):
-    """
-    If any value is None, remove it from the object
-    """
-    if isinstance(obj, dict):
-        cleaned = {k: remove_empty_values(v) for k, v in obj.items() if v is not None}
-        # Remove empty lists and empty dicts
-        return {k: v for k, v in cleaned.items() if v != [] and v != {}}
-    elif isinstance(obj, list):
-        cleaned = [remove_empty_values(item) for item in obj if item is not None]
-        # Filter out empty lists and empty dicts from the list
-        return [item for item in cleaned if item != [] and item != {}]
-    else:
-        return obj
-
 
 async def is_person_in_dataset(dataset_id: str, person_id: int):
     raw_sql = text(f"""

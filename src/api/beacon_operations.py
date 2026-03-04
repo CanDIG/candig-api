@@ -80,7 +80,7 @@ async def post(body: dict):
 
     # Format proper response
     if (granularity == Granularity.RECORD):
-        retval = build_beacon_resultset_response(records, count, params, lambda x, y: x, schema)
+        retval = build_beacon_resultset_response(records, count, params, lambda x, y: x, schema, {}, 'datasets')
     elif granularity == Granularity.COUNT:
         retval = build_beacon_count_response(records, count, params, lambda x, y: x, schema)
     else:
@@ -107,7 +107,7 @@ async def post_person(body: dict):
 
     # Format proper response
     if (granularity == Granularity.RECORD):
-        retval = build_beacon_resultset_response(records, count, params, lambda x, y: x, schema, discovery_data)
+        retval = build_beacon_resultset_response(records, count, params, lambda x, y: x, schema, discovery_data, 'individuals')
     elif granularity == Granularity.COUNT:
         retval = build_beacon_count_response(records, count, params, lambda x, y: x, schema, discovery_data)
     else:

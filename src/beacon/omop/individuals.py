@@ -11,7 +11,6 @@ from sqlalchemy import text, bindparam
 from ..conf import MAX_LIMIT
 
 import authx.auth
-from ...beacon.omop.biosamples import get_biosamples_with_person_id
 from pathlib import Path
 from candigv2_logging.logging import CanDIGLogger
 
@@ -270,16 +269,6 @@ def map_domains(domain_id):
     }
     return dictMapping[domain_id]
 
-async def search_descendants(concept_id):
-    async with engine.connect() as conn:
-        get_descendants = individual_queries.sql_get_descendants.sql.replace("%(concept_id)s", ":concept_id")
-        records = (await conn.execute(text(get_descendants), {"concept_id": concept_id})).fetchall()
-
-    l_descendants = set()
-    for descendant in records:
-        l_descendants.add(descendant[0])
-    return l_descendants
-
 def safe_operator(operator):
     # We only support a small subset of operators (see beacon-schema.yml:components/schemas/AlphanumericFilter/properties/operator)
     # - '='
@@ -328,6 +317,7 @@ def create_dynamic_filter(filters):
     for filter in filters:
         # Default type of filter is ontology
         filterType = 'Ontology'
+        include_descendents = filter[4]
         if filter[2]:       # If filter has an operator (operator!=None) it is an Alphanumeric filter
             filterType = 'Alphanumeric'
         if "person" in filter[0]:
@@ -358,22 +348,26 @@ def create_dynamic_filter(filters):
                 else:
                     filters_dict[f'value{i}'] = concept_id
                     list_concept_id.append(f'{safe_var_name} = :value{i}')
+                    if include_descendents:
+                        list_concept_id.append(f'ancestor_concept_id = :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
-            # This can be a function to no repeat always the same -> filter[0]
+            # For the final bit of the query, we use AND between categories and OR within a category
+            query_condition += "and" if query_condition == "" else "or"
             query_condition += f"""
-                and exists (
+                exists (
                     select 1
                     from omop.condition_occurrence co
+                    left join omop.concept_ancestor as ca on ca.descendant_concept_id = co.{safe_var_name}
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
         if 'measurement' in filter[0]:
             n_open_measurement += 1
             variable_name = filter[0]['measurement']
+            safe_var_name = safe_column_name(variable_name)
             list_concept_id = []
             for concept_id in filter[1]:
-                safe_var_name = safe_column_name(variable_name)
                 if variable_name == 'Age':
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
@@ -388,24 +382,31 @@ def create_dynamic_filter(filters):
                     filters_dict[f'value{i}'] = filter[3]
                     filters_dict[f'concept{i}'] = str(concept_id)
                     list_concept_id.append(f'{safe_var_name} = :concept{i} and value_as_number {operator} :value{i}')
+                    if include_descendents:
+                        list_concept_id.append(f'ancestor_concept_id {operator} :value{i}')
                 else:
                     filters_dict[f'concept{i}'] = str(concept_id)
                     list_concept_id.append(f'{safe_var_name} = :concept{i}')
+                    if include_descendents:
+                        list_concept_id.append(f'ancestor_concept_id {operator} :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
+            # For the final bit of the query, we use AND between categories and OR within a category
+            query_measurement += "and" if query_measurement == "" else "or"
             query_measurement += f"""
-                and exists (
+                exists (
                     select 1
                     from omop.measurement co
+                    left join omop.concept_ancestor as ca on ca.descendant_concept_id = co.{safe_var_name}
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
         if 'procedure_occurrence' in filter[0]:
             n_open_procedure += 1
             variable_name = filter[0]['procedure_occurrence']
+            safe_var_name = safe_column_name(variable_name)
             list_concept_id = []
             for concept_id in filter[1]:
-                safe_var_name = safe_column_name(variable_name)
                 if variable_name == 'Age':
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
@@ -418,21 +419,26 @@ def create_dynamic_filter(filters):
                 else:
                     filters_dict[f'value{i}'] = concept_id
                     list_concept_id.append(f'{safe_var_name} = :value{i}')
+                    if include_descendents:
+                        list_concept_id.append(f'ancestor_concept_id = :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
+            # For the final bit of the query, we use AND between categories and OR within a category
+            query_procedure += "and" if query_procedure == "" else "or"
             query_procedure += f"""
-                and exists (
+                exists (
                     select 1
                     from omop.procedure_occurrence co
+                    left join omop.concept_ancestor as ca on ca.descendant_concept_id = co.{safe_var_name}
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
         if 'observation' in filter[0]:
             n_open_exposure += 1
             variable_name = filter[0]['observation']
+            safe_var_name = safe_column_name(variable_name)
             list_concept_id = []
             for concept_id in filter[1]:
-                safe_var_name = safe_column_name(variable_name)
                 if variable_name == 'Age':
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
@@ -445,21 +451,26 @@ def create_dynamic_filter(filters):
                 else:
                     filters_dict[f'value{i}'] = concept_id
                     list_concept_id.append(f'{safe_var_name} = :value{i}')
+                    if include_descendents:
+                        list_concept_id.append(f'ancestor_concept_id = :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
+            # For the final bit of the query, we use AND between categories and OR within a category
+            query_exposure += "and" if query_exposure == "" else "or"
             query_exposure += f"""
-                and exists (
+                exists (
                     select 1
                     from omop.observation co
+                    left join omop.concept_ancestor as ca on ca.descendant_concept_id = co.{safe_var_name}
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
         if 'drug_exposure' in filter[0]:
             n_open_treatment += 1
             variable_name = filter[0]['drug_exposure']
+            safe_var_name = safe_column_name(variable_name)
             list_concept_id = []
             for concept_id in filter[1]:
-                safe_var_name = safe_column_name(variable_name)
                 if variable_name == 'Age':
                     operator = safe_operator(filter[2])
                     filters_dict[f'value{i}'] = filter[3]
@@ -472,12 +483,17 @@ def create_dynamic_filter(filters):
                 else:
                     filters_dict[f'value{i}'] = concept_id
                     list_concept_id.append(f'{safe_var_name} = :value{i}')
+                    if include_descendents:
+                        list_concept_id.append(f'ancestor_concept_id = :value{i}')
                 i += 1
             query_person_id =  ' or '.join(list_concept_id)
+            # For the final bit of the query, we use AND between categories and OR within a category
+            query_treatment += "and" if query_treatment == "" else "or"
             query_treatment += f"""
-                and exists (
+                exists (
                     select 1
                     from omop.drug_exposure co
+                    left join omop.concept_ancestor as ca on ca.descendant_concept_id = co.{safe_var_name}
                     where p.person_id = co.person_id
                     and ({query_person_id})
             """
@@ -498,7 +514,7 @@ def create_dynamic_filter(filters):
     query_treatment += ')'* n_open_treatment
 
     if list_person:
-        base_filter['demographic_filters'] += ' and ( ' + " and ".join(list_person) + ' ) '
+        base_filter['demographic_filters'] += ' and ( ' + " or ".join(list_person) + ' ) '
 
     base_filter['condition_filters'] += query_condition
     base_filter['measurement_filters'] += query_measurement
@@ -677,7 +693,7 @@ async def checkFilters(filtersDict, offset, limit):
                             elif "treatments" in scope:
                                 filterId = 'ageAtTreatment'
                         tableMap = mapBeaconScopeToOMOP(filterId)
-                        dictTableMap.append([tableMap, listConcept_id, operator, value])
+                        dictTableMap.append([tableMap, listConcept_id, operator, value, includeDescendantTerms])
                         continue
 
             else: # If GET
@@ -703,9 +719,6 @@ async def checkFilters(filtersDict, offset, limit):
                                                     "vocabulary_id": vocabulary_id,
                                                     "concept_code": concept_code
                                                 })
-                    #records = individual_queries.sql_get_concept_domain(engine,
-                    #                                                    vocabulary_id=vocabulary_id,
-                    #                                                    concept_code=concept_code)
                     # Check if records is empty
                     if records.rowcount <= 0:
                         return [], 0, get_basic_discovery_response(), {}
@@ -716,12 +729,7 @@ async def checkFilters(filtersDict, offset, limit):
                     listConcept_id.add(original_concept_id)
                     # Look in which domains the concept_id belongs
                     tableMap = map_domains(domain_id)
-                    if includeDescendantTerms:
-                        # Import descendants of the concept_id
-                        concept_ids = await search_descendants(original_concept_id)
-                        # Concept_id and descendants in same set()
-                        listConcept_id = listConcept_id.union(concept_ids)
-                dictTableMap.append([tableMap, listConcept_id, operator, value])
+                dictTableMap.append([tableMap, listConcept_id, operator, value, includeDescendantTerms])
     # logger.info(dictTableMap)
     base_filter, filters_dict = create_dynamic_filter(dictTableMap)
     query_count = super_query_count(base_filter)
@@ -775,8 +783,6 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
         base_filter, filters_dict = create_dynamic_filter([])
         discovery_data = await get_discovery(base_filter, filters_dict)
 
-    # logger.info(f"Number of ids: ${count_ids}")
-
     # NB: I'm concerned about the memory usage of the following
 
     dictPerson = await get_individuals_person(listIds, filters_dict)        # List with Id, sex, ethnicity
@@ -800,45 +806,6 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
 
     return schema, count_ids, docs, discovery_data
 
-
-
-def get_individual_with_id(entry_id: Optional[str], qparams: RequestParams):
-
-    schema = DefaultSchemas.INDIVIDUALS
-
-    if qparams.query.filters:
-        originalListIds = filters(qparams.query.filters)
-        if not entry_id in listIds:
-            return schema, 0, []
-
-    # Search Id
-    listIds = get_individual_id(person_id=entry_id)
-
-    dictPerson = get_individuals_person(listIds)
-    dictCondition = get_individuals_condition(listIds)
-    dictProcedures = get_individuals_procedure(listIds)
-    dictMeasures = get_individuals_measures(listIds)
-    dictExposures = get_individuals_exposures(listIds)
-    dictTreatments = get_individuals_treatments(listIds)
-
-
-    dictPerson = search_ontologies(dictPerson)
-    dictCondition = search_ontologies(dictCondition)
-    dictProcedures = search_ontologies(dictProcedures)
-    dictMeasures = search_ontologies(dictMeasures)
-    dictExposures = search_ontologies(dictExposures)
-    dictTreatments = search_ontologies(dictTreatments)
-
-    docs = format_query(listIds, dictPerson, dictCondition, dictProcedures, dictMeasures, dictExposures, dictTreatments)
-
-    return schema, 1, docs
-
-def get_biosamples_of_individual(entry_id: Optional[str], qparams: RequestParams):
-    collection = 'individuals'
-    schema = DefaultSchemas.BIOSAMPLES
-    schema, count, docs = get_biosamples_with_person_id(entry_id, qparams)
-    return schema, count, docs
-
 async def get_filtering_terms_of_individual(entry_id: Optional[str], qparams: RequestParams):
     schema = DefaultSchemas.FILTERINGTERMS
 
@@ -861,133 +828,3 @@ async def get_filtering_terms_of_individual(entry_id: Optional[str], qparams: Re
                 l_indFilters.append(dict_filter)
     # logger.info(l_indFilters)
     return schema, len(l_indFilters), l_indFilters
-
-def get_cohort_individuals(cohort_id, offset=0, limit=10):
-
-    schema = DefaultSchemas.INDIVIDUALS
-    count_ids = 0
-
-
-    listIds = individual_queries.cohort_individuals(engine,
-                                offset=offset,
-                                limit=limit,
-                                cohort_id=cohort_id)                 # List with all Ids
-    count_ids = individual_queries.count_cohort_individuals(engine, cohort_id=cohort_id)   # Count individuals
-
-    dictPerson = get_individuals_person(listIds)        # List with Id, sex, ethnicity
-    dictCondition = get_individuals_condition(listIds)  # List with al the diseases per Id
-    dictProcedures = get_individuals_procedure(listIds)      # List with all the procedures per Id
-    dictMeasures = get_individuals_measures(listIds)
-    dictExposures = get_individuals_exposures(listIds)
-    dictTreatments = get_individuals_treatments(listIds)
-
-    dictPerson = search_ontologies(dictPerson)
-    dictCondition = search_ontologies(dictCondition)
-    dictProcedures = search_ontologies(dictProcedures)
-    dictMeasures = search_ontologies(dictMeasures)
-    dictExposures = search_ontologies(dictExposures)
-    dictTreatments = search_ontologies(dictTreatments)
-
-    docs = format_query(listIds, dictPerson, dictCondition, dictProcedures, dictMeasures, dictExposures, dictTreatments)
-
-    return schema, count_ids, docs
-
-# def build_filters(filtersDict):
-#     CURIE_REGEX = r'^([a-zA-Z0-9]*):\/?[a-zA-Z0-9]*$'
-#     print(filtersDict)
-#     listOfList = []
-#     dictTableMap = []
-#     for value in filtersDict:
-#         listConcept_id = set()
-#         if re.match(CURIE_REGEX, value):
-#             vocabulary_id, concept_code = value.split(':')
-#             # Get OMOP Id from the vocabulary:concept_code (SNOMED:1234)
-#             records = individual_queries.sql_get_concept_domain(engine,
-#                                                                 vocabulary_id=vocabulary_id,
-#                                                                 concept_code=concept_code)
-#             # Check if records is empty
-#             res = peek(records)
-#             if res is None:
-#                 return [], 0
-#             _, records = res
-#             for record in records:
-#                 original_concept_id = record[0]
-#                 domain_id = record[1]
-#             listConcept_id.add(original_concept_id)
-#             # Look in which domains the concept_id belongs
-#             tableMap=map_domains(domain_id)
-#             # Import descendants of the concept_id
-#             concept_ids= search_descendants(original_concept_id)
-#             # Concept_id and descendants in same set()
-#             listConcept_id = listConcept_id.union(concept_ids)
-#             dictTableMap.append([tableMap, listConcept_id])
-#         else:
-#             # If not CURIE
-#             return [], 0
-#     print(dictTableMap)
-
-
-###### All these functions below are from the RI-Mongo implementation
-###### They do not work
-def get_variants_of_individual(entry_id: Optional[str], qparams: RequestParams):
-    # collection = 'individuals'
-    # query = {"$and": [{"id": entry_id}]}
-    # query = apply_request_parameters(query, qparams)
-    # query = apply_filters(query, qparams.query.filters, collection)
-    # count = get_count(engine.beacon.individuals, query)
-    # individual_ids = engine.beacon.individuals \
-    #     .find_one(query, {"id": 1, "_id": 0})
-    # logger.debug(individual_ids)
-    # individual_ids=get_cross_query(individual_ids,'id','caseLevelData.biosampleId')
-    # logger.debug(individual_ids)
-    # query = apply_filters(individual_ids, qparams.query.filters, collection)
-
-    # schema = DefaultSchemas.GENOMICVARIATIONS
-    # count = get_count(engine.beacon.genomicVariations, query)
-    # docs = get_documents(
-    #     engine.beacon.genomicVariations,
-    #     query,
-    #     qparams.query.pagination.skip,
-    #     qparams.query.pagination.limit
-    # )
-    schema = DefaultSchemas.GENOMICVARIATIONS
-    count = 0
-    docs = {}
-    return schema, count, docs
-
-def get_runs_of_individual(entry_id: Optional[str], qparams: RequestParams):
-    # collection = 'individuals'
-    # query = {"individualId": entry_id}
-    # query = apply_request_parameters(query, qparams)
-    # query = apply_filters(query, qparams.query.filters, collection)
-    # schema = DefaultSchemas.RUNS
-    # count = get_count(engine.beacon.runs, query)
-    # docs = get_documents(
-    #     engine.beacon.runs,
-    #     query,
-    #     qparams.query.pagination.skip,
-    #     qparams.query.pagination.limit
-    # )
-    schema = DefaultSchemas.RUNS
-    count = 0
-    docs = {}
-    return schema, count, docs
-
-
-def get_analyses_of_individual(entry_id: Optional[str], qparams: RequestParams):
-    # collection = 'individuals'
-    # query = {"individualId": entry_id}
-    # query = apply_request_parameters(query, qparams)
-    # query = apply_filters(query, qparams.query.filters, collection)
-    # schema = DefaultSchemas.ANALYSES
-    # count = get_count(engine.beacon.analyses, query)
-    # docs = get_documents(
-    #     engine.beacon.analyses,
-    #     query,
-    #     qparams.query.pagination.skip,
-    #     qparams.query.pagination.limit
-    # )
-    schema = DefaultSchemas.ANALYSES
-    count = 0
-    docs = {}
-    return schema, count, docs
