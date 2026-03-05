@@ -18,7 +18,6 @@ import traceback
 from datetime import datetime, timezone
 from queue import Queue
 
-
 import watchdog.events
 from candigv2_logging.logging import CanDIGLogger, initialize
 from watchdog.observers import Observer
@@ -30,6 +29,7 @@ initialize()
 logger = CanDIGLogger(__file__)
 
 processing_queue = Queue()
+
 
 def detect_data_type(data: dict) -> str:
     """
@@ -46,6 +46,7 @@ def detect_data_type(data: dict) -> str:
 # ==============================================================================
 # Main Ingest Function
 # ==============================================================================
+
 
 async def process_queued_file(file_path: str):
     """Read a file, ingest data, and removes the file after complete"""
@@ -112,6 +113,7 @@ async def process_queued_file(file_path: str):
 # ==============================================================================
 # Daemon Process
 # ==============================================================================
+
 
 class DaemonHandler(watchdog.events.FileSystemEventHandler):
     def on_created(self, event):

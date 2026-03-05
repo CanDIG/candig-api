@@ -2,15 +2,15 @@
 Database insert operations for OMOP tables.
 """
 
-from decimal import Decimal
+import json
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
 from sqlalchemy import Row, text
 from sqlalchemy.ext.asyncio import AsyncSession
-import json
 
 from ..config import settings
 
@@ -378,9 +378,7 @@ async def create_procedure_occurrence(
             record_data.get("procedure_type_concept_id")
         ),
         "modifier_concept_id": safe_int(record_data.get("modifier_concept_id")),
-        "quantity": safe_int(
-            record_data.get("quantity")
-        ),
+        "quantity": safe_int(record_data.get("quantity")),
         "provider_id": safe_int(record_data.get("provider_id")),
         "visit_occurrence_id": safe_int(record_data.get("visit_occurrence_id")),
         "visit_detail_id": safe_int(record_data.get("visit_detail_id")),
@@ -532,6 +530,7 @@ async def create_visit_occurrence(
     return await handle_insert(
         session, settings.CDM_SCHEMA, "visit_occurrence", "visit_occurrence_id", params
     )
+
 
 async def create_sample(session: AsyncSession, record_data: dict) -> Dict[str, Any]:
     sample_info = record_data.get("sample_info")

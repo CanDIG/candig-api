@@ -2,12 +2,20 @@
 Helper functions for data ingestion
 """
 
-from candigv2_logging.logging import CanDIGLogger
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+import json
+import os
+from typing import Any, Dict, List, Optional, Tuple
 
+from candigv2_logging.logging import CanDIGLogger
+from connexion.exceptions import ProblemException
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.config import settings
+from src.database.db_operations import get_db_session
 from src.database.insert_operations import (
     create_condition_occurrence,
+    create_dataset,
     create_death,
     create_drug_exposure,
     create_episode,
@@ -15,25 +23,13 @@ from src.database.insert_operations import (
     create_fact_relationship,
     create_measurement,
     create_observation,
-    create_procedure_occurrence,
-    create_specimen,
-    create_visit_occurrence,
-    create_sample,
-)
-
-from typing import Any, Dict
-
-from src.database.db_operations import get_db_session
-from src.database.insert_operations import (
-    create_dataset,
     create_person,
     create_person_in_dataset,
+    create_procedure_occurrence,
+    create_sample,
+    create_specimen,
+    create_visit_occurrence,
 )
-from src.config import settings
-from connexion.exceptions import ProblemException
-from typing import List, Tuple, Optional
-import json
-import os
 
 logger = CanDIGLogger(__file__)
 
@@ -240,26 +236,38 @@ async def ingest_single_person(
 
         except ProblemException as pe:
             await session.rollback()
-            return False, person_source_val, f"Error Person '{person_source_val}': {pe.title} - {pe.detail}"
+            return (
+                False,
+                person_source_val,
+                f"Error Person '{person_source_val}': {pe.title} - {pe.detail}",
+            )
 
         except Exception as e:
             await session.rollback()
             err_str = str(e)
-            
+
             # Log the full detailed error for debug
             logger.error(f"Ingest Error for person '{person_source_val}': {err_str}")
 
             # Check for Duplicate/Conflict (409)
             if "409" in err_str or "already exists" in err_str.lower():
-                return False, person_source_val, f"Skipped Person '{person_source_val}': Already exists."
+                return (
+                    False,
+                    person_source_val,
+                    f"Skipped Person '{person_source_val}': Already exists.",
+                )
 
             # Shorten error message
             if "[SQL:" in err_str:
                 err_str = err_str.split("[SQL:")[0]
             if "Error'>:" in err_str:
                 err_str = err_str.split("Error'>:")[-1]
-            
-            return False, person_source_val, f"Error Person '{person_source_val}': {err_str.strip()}"
+
+            return (
+                False,
+                person_source_val,
+                f"Error Person '{person_source_val}': {err_str.strip()}",
+            )
 
     return False, person_source_val, "Failed to acquire database session."
 
@@ -336,7 +344,6 @@ def calculate_status(success_count: int, fail_count: int) -> str:
     return "Success"
 
 
-
 async def ingest_samples(
     data: dict, queue_id: str, prefix: str
 ) -> Tuple[List[str], List[str], int]:
@@ -375,7 +382,9 @@ async def ingest_samples(
                                 f"SELECT person_id FROM {settings.CDM_SCHEMA}.person "
                                 f"WHERE person_source_value = :psv LIMIT 1"
                             )
-                            person_res = await session.execute(person_q, {"psv": person_source_value})
+                            person_res = await session.execute(
+                                person_q, {"psv": person_source_value}
+                            )
                             person_row = person_res.fetchone()
 
                             if not person_row:
@@ -392,7 +401,8 @@ async def ingest_samples(
                                 f"WHERE specimen_source_id = :ssid AND person_id = :pid LIMIT 1"
                             )
                             specimen_res = await session.execute(
-                                specimen_q, {"ssid": specimen_source_id, "pid": person_id}
+                                specimen_q,
+                                {"ssid": specimen_source_id, "pid": person_id},
                             )
                             specimen_row = specimen_res.fetchone()
 
@@ -420,12 +430,16 @@ async def ingest_samples(
                             await create_sample(session, sample_record)
                             await session.commit()
 
-                            logger.info(f"[{queue_id}] Successfully ingested sample: {sample_id}")
+                            logger.info(
+                                f"[{queue_id}] Successfully ingested sample: {sample_id}"
+                            )
                             all_ingested.append(sample_id)
 
                         except ProblemException as pe:
                             await session.rollback()
-                            err_msg = f"Error Sample '{sample_id}': {pe.title} - {pe.detail}"
+                            err_msg = (
+                                f"Error Sample '{sample_id}': {pe.title} - {pe.detail}"
+                            )
                             logger.error(f"[{queue_id}] {err_msg}")
                             all_errors.append(err_msg)
                             total_fails += 1
@@ -433,16 +447,22 @@ async def ingest_samples(
                         except Exception as e:
                             await session.rollback()
                             err_str = str(e)
-                            logger.error(f"[{queue_id}] Ingest error for sample '{sample_id}': {err_str}")
+                            logger.error(
+                                f"[{queue_id}] Ingest error for sample '{sample_id}': {err_str}"
+                            )
 
                             if "409" in err_str or "already exists" in err_str.lower():
-                                all_errors.append(f"Skipped Sample '{sample_id}': Already exists.")
+                                all_errors.append(
+                                    f"Skipped Sample '{sample_id}': Already exists."
+                                )
                             else:
                                 if "[SQL:" in err_str:
                                     err_str = err_str.split("[SQL:")[0]
                                 if "Error'>:" in err_str:
                                     err_str = err_str.split("Error'>:")[-1]
-                                all_errors.append(f"Error Sample '{sample_id}': {err_str.strip()}")
+                                all_errors.append(
+                                    f"Error Sample '{sample_id}': {err_str.strip()}"
+                                )
 
                             total_fails += 1
 
@@ -451,8 +471,6 @@ async def ingest_samples(
     )
 
     return all_ingested, all_errors, total_fails
-
-
 
 
 def write_results(results_path: str, result_data: dict, source_file_path: str):

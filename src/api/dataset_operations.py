@@ -10,8 +10,8 @@ from connexion.exceptions import ProblemException
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
+from src.api.auth import get_authorized_datasets, is_action_allowed, remove_dataset
 from src.database.db_operations import get_db_session
-from src.api.auth import is_action_allowed, get_authorized_datasets, remove_dataset
 
 from ..config import settings  # Import settings
 
@@ -64,7 +64,7 @@ async def create(body: dict):
     """
     Create a new dataset with new person(s)
     """
-    if not is_action_allowed(dataset=body['id']):
+    if not is_action_allowed(dataset=body["id"]):
         return {"error": f"User is not authorized to create dataset {body['id']}"}, 403
 
     async for session in get_db_session():

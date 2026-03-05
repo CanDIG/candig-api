@@ -18,6 +18,7 @@ from ..config import settings
 
 Base = declarative_base()
 
+
 class Dataset(Base):
     __tablename__ = "dataset"
     __table_args__ = {"schema": settings.CANDIG_SCHEMA}
