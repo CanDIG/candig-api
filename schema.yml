@@ -280,6 +280,41 @@ paths:
       tags:
         - Datasets
 
+  /datasets/{dataset_id}/samples:
+    get:
+      summary: List all sample for a dataset
+      description: |
+        Returns all sample objects ingested for the given dataset.
+      operationId: dataset_operations.list_samples
+      parameters:
+        - in: path
+          name: dataset_id
+          required: true
+          schema:
+            title: Dataset Id
+            type: string
+      responses:
+        200:
+          description: List of sample registration objects for the dataset
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sample"
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        403:
+          $ref: "#/components/responses/403ForbiddenError"
+        404:
+          $ref: "#/components/responses/404NotFoundError"
+        default:
+          $ref: "#/components/responses/5xxServerError"
+      tags:
+        - Datasets
+
   /datasets/upload:
     post:
       summary: Upload a JSON file for ingest data
@@ -317,6 +352,53 @@ paths:
           $ref: "#/components/responses/5xxServerError"
       tags:
         - Datasets
+
+  /sample/upload:
+    post:
+      summary: Upload a MoH sample JSON file for ingest
+      description: |
+        Upload a MoH schema (MoHSchemaV3) JSON file for sample registration ingestion.
+        A prefix must be provided to prepend to each donor's program_id when
+        constructing the dataset identifier.
+      operationId: api_operations.upload_sample
+      parameters:
+        - in: query
+          name: prefix
+          required: true
+          schema:
+            type: string
+          description: Prefix to prepend to the program_id for each donor
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: MoH JSON file containing sample registration data
+              required:
+                - file
+            encoding:
+              file:
+                contentType: application/json
+      responses:
+        202:
+          description: File uploaded and queued for processing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileUploadResponseBody"
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        default:
+          $ref: "#/components/responses/5xxServerError"
+      tags:
+        - Samples
 
   /datasets/upload/status/{queue_id}:
     get:
@@ -759,6 +841,26 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/DatasetSingleNoInfoBody"
+
+    Sample:
+      type: object
+      properties:
+        sample_id:
+          type: string
+          description: Unique identifier for the sample
+        dataset_id:
+          type: string
+          description: The dataset this sample belongs to
+        person_id:
+          type: integer
+          description: Internal person ID
+        specimen_id:
+          type: integer
+          description: Internal specimen ID
+        sample_info:
+          type: object
+          additionalProperties: true
+          description: Original sample
 
     DatasetSingleNoPeopleBody:
       type: object
@@ -1713,23 +1815,19 @@ components:
     FileUploadResponseBody:
       type: object
       properties:
-        filename:
-          type: string
-          description: Name of the uploaded file
-        content_type:
-          type: string
-          description: MIME type of the uploaded file
-        size:
-          type: integer
-          description: Size of the file in bytes
         message:
           type: string
           description: Success message
+        queue_id:
+          type: string
+          description: Unique identifier for the queued processing job
+        url:
+          type: string
+          description: URL to poll for the processing status of this job
       required:
-        - filename
-        - content_type
-        - size
         - message
+        - queue_id
+        - url
     WhoAmIBody:
       type: object
       properties:
@@ -3032,5 +3130,5 @@ components:
           $ref: '#/components/schemas/TimeElement'
           description: >
             age/time when the procedure was performed
-    
-    
+
+
