@@ -106,6 +106,78 @@ async def upload_file(file):
         raise ProblemException(status=500, title="Upload Error", detail=str(e))
 
 
+# --- Sample Upload Endpoint ---
+async def upload_sample(file, prefix: str):
+    """
+    Write a sample to server and create a queue status ID
+    """
+    temp_path = None
+    try:
+        content = await file.read()
+
+        # Before attempting to ingest, we need to check user permissions
+        try:
+            request = connexion.request
+            jsoncontent = json.loads(content)
+            authzed_datasets = get_authorized_datasets()
+            for donor in jsoncontent['donors']:
+                program_id = donor["program_id"]
+                if program_id not in authzed_datasets:
+                    return {
+                        "error": "Forbidden",
+                        "message": f"User {get_user_id(request)} does not have permission to ingest '{program_id}'",
+                    }, 403
+        except (KeyError, json.JSONDecodeError) as e:
+            raise ProblemException(status=500, title="Uploaded File in Unexpected Format", detail=str(e))
+
+        # Generate a unique ID for this job
+        queue_id = secrets.token_hex(8)
+
+        # Write the file to a temp location first
+        temp_dir = tempfile.gettempdir()
+        with tempfile.NamedTemporaryFile(
+            delete=False, mode="wb", dir=temp_dir, suffix=".tmp"
+        ) as f:
+            temp_path = f.name
+            f.write(content)
+
+        results_path = os.path.join(settings.RESULTS_DIR, queue_id)
+        stub = {
+            "status": "In Queue",
+            "file_name": file.filename,
+            "file_size": len(content),
+            "uploaded_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+            "prefix": prefix,
+        }
+
+        with open(results_path, "w") as f:
+            json.dump(stub, f)
+
+        # Move the file into the ingest folder to trigger the daemon
+        final_path = os.path.join(settings.TO_INGEST_DIR, queue_id)
+        shutil.move(temp_path, final_path)
+
+        logger.info(
+            f"Sample file '{file.filename}' queued with ID: {queue_id} (prefix='{prefix}')"
+        )
+
+        return {
+            "message": "Sample file uploaded for processing.",
+            "queue_id": queue_id,
+            "url": f"/v1/datasets/upload/status/{queue_id}",
+        }, 202
+
+    except ProblemException:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise
+    except Exception as e:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+        logger.error(f"Error in upload_sample: {str(e)}")
+        raise ProblemException(status=500, title="Upload Error", detail=str(e))
+
+
 # --- Status Endpoint ---
 async def get_upload_status(queue_id: str):
     """
