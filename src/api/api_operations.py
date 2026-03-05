@@ -124,7 +124,7 @@ async def upload_sample(file, prefix: str):
             jsoncontent = json.loads(content)
             authzed_datasets = get_authorized_datasets()
             for donor in jsoncontent["donors"]:
-                program_id = donor["program_id"]
+                program_id = f"{prefix}~{donor['program_id']}"
                 if program_id not in authzed_datasets:
                     return {
                         "error": "Forbidden",
