@@ -18,6 +18,7 @@ from src.database.insert_operations import (
     create_procedure_occurrence,
     create_specimen,
     create_visit_occurrence,
+    create_sample,
 )
 
 from typing import Any, Dict
@@ -333,6 +334,125 @@ def calculate_status(success_count: int, fail_count: int) -> str:
     elif fail_count > 0 and success_count == 0:
         return "Failed"
     return "Success"
+
+
+
+async def ingest_samples(
+    data: dict, queue_id: str, prefix: str
+) -> Tuple[List[str], List[str], int]:
+    """
+    Extracts sample data from json
+    """
+    all_ingested = []
+    all_errors = []
+    total_fails = 0
+
+    logger.info(f"[{queue_id}] Starting samples data ingestion")
+
+    donors = data.get("donors", [])
+
+    for donor in donors:
+        donor_id = donor.get("submitter_donor_id")
+        raw_program_id = donor.get("program_id", "")
+        dataset_id = f"{prefix}~{raw_program_id}"
+        person_source_value = f"{prefix}~{raw_program_id}~{donor_id}"
+        primary_diagnoses = donor.get("primary_diagnoses", [])
+
+        for diagnosis in primary_diagnoses:
+            specimens = diagnosis.get("specimens", [])
+
+            for specimen in specimens:
+                specimen_source_id = specimen.get("submitter_specimen_id")
+                sample_registrations = specimen.get("sample_registrations", [])
+                for sample in sample_registrations:
+                    submitter_sample_id = sample.get("submitter_sample_id")
+                    sample_id = f"{prefix}~{raw_program_id}~{submitter_sample_id}"
+
+                    async for session in get_db_session():
+                        try:
+                            # 1. Look up person_id by person_source_value
+                            person_q = text(
+                                f"SELECT person_id FROM {settings.CDM_SCHEMA}.person "
+                                f"WHERE person_source_value = :psv LIMIT 1"
+                            )
+                            person_res = await session.execute(person_q, {"psv": person_source_value})
+                            person_row = person_res.fetchone()
+
+                            if not person_row:
+                                raise ProblemException(
+                                    status=422,
+                                    title="Person Not Found",
+                                    detail=f"No person found with person_source_value='{person_source_value}'.",
+                                )
+                            person_id = person_row[0]
+
+                            # 2. Look up specimen_id by specimen_source_id
+                            specimen_q = text(
+                                f"SELECT specimen_id FROM {settings.CDM_SCHEMA}.specimen "
+                                f"WHERE specimen_source_id = :ssid AND person_id = :pid LIMIT 1"
+                            )
+                            specimen_res = await session.execute(
+                                specimen_q, {"ssid": specimen_source_id, "pid": person_id}
+                            )
+                            specimen_row = specimen_res.fetchone()
+
+                            if not specimen_row:
+                                raise ProblemException(
+                                    status=422,
+                                    title="Specimen Not Found",
+                                    detail=f"No specimen found with specimen_source_id='{specimen_source_id}' for donor '{person_source_value}'.",
+                                )
+                            specimen_id = specimen_row[0]
+
+                            # 3. Build and insert sample record
+                            sample_record = {
+                                "sample_id": sample_id,
+                                "sample_info": {
+                                    **sample,
+                                    "submitter_donor_id": donor_id,
+                                    "submitter_specimen_id": specimen_source_id,
+                                },
+                                "dataset_id": dataset_id,
+                                "person_id": person_id,
+                                "specimen_id": specimen_id,
+                            }
+
+                            await create_sample(session, sample_record)
+                            await session.commit()
+
+                            logger.info(f"[{queue_id}] Successfully ingested sample: {sample_id}")
+                            all_ingested.append(sample_id)
+
+                        except ProblemException as pe:
+                            await session.rollback()
+                            err_msg = f"Error Sample '{sample_id}': {pe.title} - {pe.detail}"
+                            logger.error(f"[{queue_id}] {err_msg}")
+                            all_errors.append(err_msg)
+                            total_fails += 1
+
+                        except Exception as e:
+                            await session.rollback()
+                            err_str = str(e)
+                            logger.error(f"[{queue_id}] Ingest error for sample '{sample_id}': {err_str}")
+
+                            if "409" in err_str or "already exists" in err_str.lower():
+                                all_errors.append(f"Skipped Sample '{sample_id}': Already exists.")
+                            else:
+                                if "[SQL:" in err_str:
+                                    err_str = err_str.split("[SQL:")[0]
+                                if "Error'>:" in err_str:
+                                    err_str = err_str.split("Error'>:")[-1]
+                                all_errors.append(f"Error Sample '{sample_id}': {err_str.strip()}")
+
+                            total_fails += 1
+
+    logger.info(
+        f"[{queue_id}] Samples ingestion completed: {len(all_ingested)} ingested, {total_fails} failed"
+    )
+
+    return all_ingested, all_errors, total_fails
+
+
 
 
 def write_results(results_path: str, result_data: dict, source_file_path: str):
