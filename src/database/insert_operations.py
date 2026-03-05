@@ -10,6 +10,7 @@ from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
 from sqlalchemy import Row, text
 from sqlalchemy.ext.asyncio import AsyncSession
+import json
 
 from ..config import settings
 
@@ -530,4 +531,18 @@ async def create_visit_occurrence(
 
     return await handle_insert(
         session, settings.CDM_SCHEMA, "visit_occurrence", "visit_occurrence_id", params
+    )
+
+async def create_sample(session: AsyncSession, record_data: dict) -> Dict[str, Any]:
+    sample_info = record_data.get("sample_info")
+    params = {
+        "sample_id": str(record_data.get("sample_id")),
+        "sample_info": json.dumps(sample_info) if sample_info is not None else None,
+        "dataset_id": str(record_data.get("dataset_id")),
+        "person_id": safe_int(record_data.get("person_id")),
+        "specimen_id": safe_int(record_data.get("specimen_id")),
+    }
+
+    return await handle_insert(
+        session, settings.CANDIG_SCHEMA, "sample", "sample_id", params
     )
