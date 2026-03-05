@@ -11,7 +11,7 @@ Tables added:
 
 from typing import Any, Dict, Optional
 
-from sqlalchemy import JSON, ForeignKey, Integer, PrimaryKeyConstraint, String
+from sqlalchemy import JSON, Integer
 from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 
 from ..config import settings
