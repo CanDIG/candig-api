@@ -358,8 +358,7 @@ paths:
       summary: Upload a MoH sample JSON file for ingest
       description: |
         Upload a MoH schema (MoHSchemaV3) JSON file for sample registration ingestion.
-        A prefix must be provided to prepend to each donor's program_id when
-        constructing the dataset identifier.
+        The prefix will be prepended to each donor's program_id
       operationId: api_operations.upload_sample
       parameters:
         - in: query
