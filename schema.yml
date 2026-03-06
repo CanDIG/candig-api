@@ -353,7 +353,7 @@ paths:
       tags:
         - Datasets
 
-  /sample/upload:
+  /datasets/upload/samples:
     post:
       summary: Upload a MoH sample JSON file for ingest
       description: |
