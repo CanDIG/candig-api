@@ -18,12 +18,11 @@ import traceback
 from datetime import datetime, timezone
 from queue import Queue
 
-
 import watchdog.events
 from candigv2_logging.logging import CanDIGLogger, initialize
 from watchdog.observers import Observer
 
-from src.api.helpers import calculate_status, ingest_data, write_results
+from src.api.helpers import calculate_status, ingest_data, ingest_samples, write_results
 from src.config import settings
 
 initialize()
@@ -32,9 +31,22 @@ logger = CanDIGLogger(__file__)
 processing_queue = Queue()
 
 
+def detect_data_type(data: dict) -> str:
+    """
+    Determine the type of data based on the JSON structure.
+    """
+    # Check for MoH schema (samples/donors data)
+    if data.get("schema_class") == "MoHSchemaV3":
+        return "samples"
+
+    # Default to OMOP for all other cases
+    return "omop"
+
+
 # ==============================================================================
 # Main Ingest Function
 # ==============================================================================
+
 
 async def process_queued_file(file_path: str):
     """Read a file, ingest data, and removes the file after complete"""
@@ -50,6 +62,8 @@ async def process_queued_file(file_path: str):
     except Exception as e:
         logger.warning(f"Could not read existing metadata for {queue_id}: {e}")
 
+    prefix = result_data.get("prefix")
+
     logger.info(f"PROCESSING JOB: {queue_id}")
 
     try:
@@ -57,20 +71,31 @@ async def process_queued_file(file_path: str):
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        # 2. Process Data
-        ingested_persons, error_logs, fail_count = await ingest_data(data, queue_id)
+        # 2. Detect data type and use ingest function
+        data_type = detect_data_type(data)
+        logger.info(f"Detected data type: {data_type} for job {queue_id}")
+
+        if data_type == "samples" and prefix:
+            ingested_items, error_logs, fail_count = await ingest_samples(
+                data, queue_id, prefix=prefix
+            )
+        elif data_type == "omop":
+            ingested_items, error_logs, fail_count = await ingest_data(data, queue_id)
+        else:
+            raise ValueError(f"Unknown data type: {data_type}")
 
         # 3. Get status report
-        success_count = len(ingested_persons)
+        success_count = len(ingested_items)
         status = calculate_status(success_count, fail_count)
         result_data.update(
             {
                 "status": status,
+                "data_type": data_type,
                 "processed_at": datetime.now(timezone.utc).strftime(
                     "%Y-%m-%d %H:%M:%S UTC"
                 ),
                 "ingested_count": success_count,
-                "ingested_persons": ingested_persons,
+                "ingested_items": ingested_items,
                 "errors": error_logs if error_logs else None,
             }
         )
@@ -88,6 +113,7 @@ async def process_queued_file(file_path: str):
 # ==============================================================================
 # Daemon Process
 # ==============================================================================
+
 
 class DaemonHandler(watchdog.events.FileSystemEventHandler):
     def on_created(self, event):

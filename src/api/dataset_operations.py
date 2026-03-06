@@ -10,8 +10,8 @@ from connexion.exceptions import ProblemException
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
+from src.api.auth import get_authorized_datasets, is_action_allowed, remove_dataset
 from src.database.db_operations import get_db_session
-from src.api.auth import is_action_allowed, get_authorized_datasets, remove_dataset
 
 from ..config import settings  # Import settings
 
@@ -64,7 +64,7 @@ async def create(body: dict):
     """
     Create a new dataset with new person(s)
     """
-    if not is_action_allowed(dataset=body['id']):
+    if not is_action_allowed(dataset=body["id"]):
         return {"error": f"User is not authorized to create dataset {body['id']}"}, 403
 
     async for session in get_db_session():
@@ -785,4 +785,53 @@ async def delete_by_id(id: str):
                 status=500,
                 title="Database Error",
                 detail=f"An error occurred while deleting the dataset: {str(e)}",
+            )
+
+
+# --- List Sample Endpoint ---
+async def list_samples(dataset_id: str):
+    """Returns all sample objects for a given dataset."""
+    if not is_action_allowed(dataset=dataset_id):
+        return {"error": f"User is not authorized to access dataset {dataset_id}"}, 403
+
+    stmt = text(f"""
+        SELECT sample_id, sample_info, person_id, specimen_id
+        FROM {settings.CANDIG_SCHEMA}.sample
+        WHERE dataset_id = :dataset_id
+        ORDER BY sample_id
+    """)
+
+    async for session in get_db_session():
+        try:
+            result = await session.execute(stmt, {"dataset_id": dataset_id})
+            records = result.all()
+
+            samples = []
+            for record in records:
+                sample_info = record.sample_info
+                if isinstance(sample_info, str):
+                    sample_info = json.loads(sample_info)
+
+                samples.append(
+                    {
+                        "sample_id": record.sample_id,
+                        "dataset_id": dataset_id,
+                        "person_id": record.person_id,
+                        "specimen_id": record.specimen_id,
+                        "sample_info": sample_info or {},
+                    }
+                )
+
+            return samples, 200
+
+        except ProblemException:
+            raise
+        except Exception as e:
+            logger.error(
+                f"Database Error in dataset.list_sample_registrations: {str(e)}"
+            )
+            raise ProblemException(
+                status=500,
+                title="Database Error",
+                detail=f"An error occurred while fetching sample registrations: {e}",
             )

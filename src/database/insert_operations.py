@@ -2,8 +2,9 @@
 Database insert operations for OMOP tables.
 """
 
-from decimal import Decimal
+import json
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from candigv2_logging.logging import CanDIGLogger
@@ -377,9 +378,7 @@ async def create_procedure_occurrence(
             record_data.get("procedure_type_concept_id")
         ),
         "modifier_concept_id": safe_int(record_data.get("modifier_concept_id")),
-        "quantity": safe_int(
-            record_data.get("quantity")
-        ),
+        "quantity": safe_int(record_data.get("quantity")),
         "provider_id": safe_int(record_data.get("provider_id")),
         "visit_occurrence_id": safe_int(record_data.get("visit_occurrence_id")),
         "visit_detail_id": safe_int(record_data.get("visit_detail_id")),
@@ -530,4 +529,19 @@ async def create_visit_occurrence(
 
     return await handle_insert(
         session, settings.CDM_SCHEMA, "visit_occurrence", "visit_occurrence_id", params
+    )
+
+
+async def create_sample(session: AsyncSession, record_data: dict) -> Dict[str, Any]:
+    sample_info = record_data.get("sample_info")
+    params = {
+        "sample_id": str(record_data.get("sample_id")),
+        "sample_info": json.dumps(sample_info) if sample_info is not None else None,
+        "dataset_id": str(record_data.get("dataset_id")),
+        "person_id": safe_int(record_data.get("person_id")),
+        "specimen_id": safe_int(record_data.get("specimen_id")),
+    }
+
+    return await handle_insert(
+        session, settings.CANDIG_SCHEMA, "sample", "sample_id", params
     )
