@@ -397,7 +397,7 @@ paths:
         default:
           $ref: "#/components/responses/5xxServerError"
       tags:
-        - Samples
+        - Datasets
 
   /datasets/upload/status/{queue_id}:
     get:
