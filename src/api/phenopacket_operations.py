@@ -104,9 +104,6 @@ async def get_by_id(dataset_id: str, id: int):
 
 
 async def get_medical_actions(person_id: int):
-    # TODO: need to group/link each
-    # treatment_targets
-    # instead of getting only 1
     (
         response_to_treatments,
         treatment_intents,
@@ -248,8 +245,6 @@ async def get_diseases(person_id: int):
     map term, onset and laterality only
 
     Combine all retrieved information into disease object(s)
-
-    Optimized with concurrent queries.
     """
     diseases_map = settings.MAPPING_JSON["diseases"]
 
