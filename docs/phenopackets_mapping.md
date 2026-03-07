@@ -114,6 +114,8 @@ WHERE person_id = <your_test_id>
 
 **OMOP Source Table:** `death`
 
+**Inclusion rule:** Only created if subject has death object in OMOP
+
 ### 1.7.1. status
 - **OMOP Source:** `death.death_date`
 
@@ -123,7 +125,7 @@ WHERE person_id = <your_test_id>
 
   - If death_date is present → `"DECEASED"`
 
-  - Else → `"UNKNOWN_STATUS"`. We don’t have a way to tell if the person is deceased but with a missing value or ALIVE
+  - Else Do not create `vital_status` object
 
 **SQL Check:**
 

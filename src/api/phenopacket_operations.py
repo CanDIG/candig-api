@@ -623,26 +623,40 @@ async def get_subject(id: int):
                 [row.gender_concept_id, row.cause_of_death_concept_id]
             )
 
-            subject = Individual(
-                id=str(row.id),
-                alternate_ids=[row.alternate_ids],
-                date_of_birth=get_birth_timestamp(
-                    row.year_of_birth, row.month_of_birth, row.day_of_birth
-                ),
-                sex=get_sex_status(row.sex_concept_id),
-                gender=ontology_map.get(row.gender_concept_id),
-                taxonomy=OntologyClass(
-                    id="SNOMED:337915000", label="Homo sapiens (organism)"
-                ),
-                vital_status=VitalStatus(
-                    status=get_death_status(row.time_of_death),
-                    time_of_death=get_phenopacket_timestamp(row.time_of_death),
-                    cause_of_death=ontology_map.get(row.cause_of_death_concept_id),
-                    survival_time_in_days=get_survival_time(
-                        row.disease_first_occurrence_date, row.time_of_death
+            if row.time_of_death or row.cause_of_death_concept_id:
+                subject = Individual(
+                    id=str(row.id),
+                    alternate_ids=[row.alternate_ids],
+                    date_of_birth=get_birth_timestamp(
+                        row.year_of_birth, row.month_of_birth, row.day_of_birth
                     ),
-                ),
-            )
+                    sex=get_sex_status(row.sex_concept_id),
+                    gender=ontology_map.get(row.gender_concept_id),
+                    taxonomy=OntologyClass(
+                        id="SNOMED:337915000", label="Homo sapiens (organism)"
+                    ),
+                    vital_status=VitalStatus(
+                        status=get_death_status(row.time_of_death),
+                        time_of_death=get_phenopacket_timestamp(row.time_of_death),
+                        cause_of_death=ontology_map.get(row.cause_of_death_concept_id),
+                        survival_time_in_days=get_survival_time(
+                            row.disease_first_occurrence_date, row.time_of_death
+                        ),
+                    ),
+                )
+            else:
+                subject = Individual(
+                    id=str(row.id),
+                    alternate_ids=[row.alternate_ids],
+                    date_of_birth=get_birth_timestamp(
+                        row.year_of_birth, row.month_of_birth, row.day_of_birth
+                    ),
+                    sex=get_sex_status(row.sex_concept_id),
+                    gender=ontology_map.get(row.gender_concept_id),
+                    taxonomy=OntologyClass(
+                        id="SNOMED:337915000", label="Homo sapiens (organism)"
+                    )
+                )
 
             return subject, 200
 
@@ -1271,7 +1285,7 @@ async def get_radiation_therapies(person_id: int):
 
         except Exception as e:
             logger.error(f"Database Error in get_radiation_therapies: {str(e)}")
-            return {}
+            return 
 
     return {}
 
