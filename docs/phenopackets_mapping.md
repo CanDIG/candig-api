@@ -872,6 +872,7 @@ WHERE person_id = <your_test_id> AND drug_type_concept_id = 32833;
 
 ### 4.6. Action Type: Radiation Therapy
 **Block:** `medical_actions.radiation_therapy`
+**Grouping** Radiation therapy fields grouped by linkage to `Treatment regimen (32531)` episode
 
 #### 4.6.1. modality
 - **OMOP Source:** `episode.episode_object_concept_id`

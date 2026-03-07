@@ -170,14 +170,15 @@ async def get_medical_actions(person_id: int):
                 medical_actions.append(medical_action)
 
         # Combine radiation therapies with responses
-        for radiation in radiation_therapies:
-            medical_action = MedicalAction(
-                radiation_therapy=radiation,
-                treatment_target=this_target,
-                treatment_intent=this_intent,
-                response_to_treatment=this_response,
-            )
-            medical_actions.append(medical_action)
+        if episode in radiation_therapies.keys():
+            for radiation in radiation_therapies[episode]:
+                medical_action = MedicalAction(
+                    radiation_therapy=radiation,
+                    treatment_target=this_target,
+                    treatment_intent=this_intent,
+                    response_to_treatment=this_response,
+                )
+                medical_actions.append(medical_action)
 
     return medical_actions if medical_actions else None
 
@@ -1203,6 +1204,8 @@ async def get_radiation_therapies(person_id: int):
         - Total radiation dose delivered (40483776) measurement
         - Fractions (4037631) measurement
         - Procedure site (4181646) observation
+
+    Grouped by linkage to Treatment regimen (32531) episode
     """
     rt_map = settings.MAPPING_JSON["medical_actions"]["action"]["radiation_therapy"]
     raw_sql = text(f"""
@@ -1210,12 +1213,19 @@ async def get_radiation_therapies(person_id: int):
             episode.episode_object_concept_id as modality_concept_id,
             observation.value_as_concept_id as body_site_concept_id,
             dosage_measurement.value_as_number as dosage,
-            fractions_measurement.value_as_number as fractions
+            fractions_measurement.value_as_number as fractions,
+            ee.episode_id as treatment_episode_id
         FROM {settings.CDM_SCHEMA}.episode episode
         LEFT JOIN {settings.CDM_SCHEMA}.observation observation
             ON observation.observation_event_id = episode.episode_id
             AND observation.observation_concept_id 
             IN({",".join([str(x) for x in rt_map["body_site"]["concept_ids"]])})
+        LEFT JOIN omop.episode_event ee
+            ON episode.episode_id=ee.event_id
+            AND ee.episode_event_field_concept_id=798885
+        LEFT JOIN omop.episode te
+            ON ee.event_id=te.episode_id
+            AND te.episode_concept_id=32531
         LEFT JOIN {settings.CDM_SCHEMA}.measurement dosage_measurement
             ON dosage_measurement.person_id = episode.person_id
             AND dosage_measurement.measurement_concept_id 
@@ -1241,7 +1251,7 @@ async def get_radiation_therapies(person_id: int):
             ontology_map = await get_ontologies(concept_ids)
 
             # Convert rows to list of radiation therapy objects
-            radiation_therapies = []
+            radiation_therapies = {}
             for row in rows:
                 modality = ontology_map.get(row.modality_concept_id)
                 body_site = ontology_map.get(row.body_site_concept_id)
@@ -1252,15 +1262,18 @@ async def get_radiation_therapies(person_id: int):
                     dosage= int(row.dosage) if row.dosage else -99,
                     fractions=int(row.fractions) if row.fractions else -99,
                 )
-                radiation_therapies.append(therapy)
+                try:
+                    radiation_therapies[row.treatment_episode_id].append(therapy)
+                except KeyError:
+                    radiation_therapies[row.treatment_episode_id] = [therapy]
 
             return radiation_therapies
 
         except Exception as e:
             logger.error(f"Database Error in get_radiation_therapies: {str(e)}")
-            return []
+            return {}
 
-    return []
+    return {}
 
 
 async def get_measurements(person_id: int):
