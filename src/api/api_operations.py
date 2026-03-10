@@ -86,6 +86,24 @@ async def upload_sample(file, site_id: str):
     return add_to_queue(file.filename, content, site_id=site_id)
 
 
+async def upload_genomic(file, site_id: str):
+    content = await file.read()
+    token = connexion.request.headers['Authorization'].split("Bearer ")[1]
+
+    try:
+        request = connexion.request
+        jsoncontent = json.loads(content)
+
+        response, status_code = await check_genomic_data(jsoncontent, site_id, token)
+        if status_code != 200:
+            return response, status_code
+    except Exception as e:
+        raise ProblemException(
+            status=500, title="Uploaded File in Unexpected Format", detail=str(e)
+        )
+    return add_to_queue(file.filename, json.dumps({"genomic": response}).encode(), site_id=site_id)
+
+
 def add_to_queue(filename, content, site_id=None):
     temp_path = None
 
