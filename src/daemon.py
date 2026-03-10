@@ -39,6 +39,9 @@ def detect_data_type(data: dict) -> str:
     if data.get("schema_class") == "MoHSchemaV3":
         return "samples"
 
+    elif data.get("genomic") is not None:
+        return "genomic"
+
     # Default to OMOP for all other cases
     return "omop"
 
@@ -81,6 +84,8 @@ async def process_queued_file(file_path: str):
             )
         elif data_type == "omop":
             ingested_items, error_logs, fail_count = await ingest_data(data, queue_id)
+        elif data_type == "genomic":
+            ingested_items, error_logs, fail_count = await ingest_genomic(data, queue_id)
         else:
             raise ValueError(f"Unknown data type: {data_type}")
 
