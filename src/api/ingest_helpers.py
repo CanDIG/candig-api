@@ -510,7 +510,7 @@ async def ingest_genomic(ingest_json, queue_id):
     program_ids = set()
     to_index = []
     status_code = 200
-    result["errors"] = []
+    error_logs = []
     for experiment in ingest_json["experiments"]:
         experiment_drs_obj = {
             "id": experiment["experiment_id"],
@@ -523,7 +523,7 @@ async def ingest_genomic(ingest_json, queue_id):
         }
         response = requests.post(f"{url}", json=experiment_drs_obj, headers=headers)
         if response.status_code != 200:
-            result["errors"].append(f"error creating experiment drs object {experiment_drs_obj['id']}: {response.status_code} {response.text}")
+            error_logs.append(f"error creating experiment drs object {experiment_drs_obj['id']}: {response.status_code} {response.text}")
 
     if "runs" in ingest_json:
         for run in ingest_json["runs"]:
@@ -535,7 +535,7 @@ async def ingest_genomic(ingest_json, queue_id):
                     if "403" in err:
                         status_code = 403
                         break
-                    result["results"].append(f"error processing {response["id"]} {response["name"]} in experiment {run["experiment_id"]}: {err}")
+                    error_logs.append(f"error processing {response["id"]} {response["name"]} in experiment {run["experiment_id"]}: {err}")
             else:
                 result["results"].append(f"processed {response["id"]} {response["name"]} for experiment {run["experiment_id"]}")
                 if "sample" in response:
@@ -552,6 +552,8 @@ async def ingest_genomic(ingest_json, queue_id):
             result["results"][-1] = f"error processing analysis {analysis["analysis_id"]}: No samples were specified"
             break
         response = create_analysis(analysis)
+        if "errors" in response:
+            error_logs.extend(response["errors"])
 
         # remove the temporary "processing..." message
         result["results"].pop()
@@ -599,7 +601,7 @@ async def ingest_genomic(ingest_json, queue_id):
                 if len(biosample["experiments"]["wts"]) > 0:
                     statistics[program_id]['transcriptomes'] += 1
         else:
-            result["errors"].append(f"Could not collect completeness stats for program: {response.text}")
+            error_logs.append(f"Could not collect completeness stats for program: {response.text}")
 
     for program_id in statistics:
         # get the program
@@ -610,14 +612,12 @@ async def ingest_genomic(ingest_json, queue_id):
             program["statistics"] = statistics[program_id]
             response = requests.post(url, headers=headers, json=program)
             if response.status_code != 200:
-                result["errors"].append(f"Could not add statistics for program: {response.text}")
+                error_logs.append(f"Could not add statistics for program: {response.text}")
         else:
-            result["errors"].append(f"Could not add statistics for program: {response.text}")
-
-    if len(result["errors"]) == 0:
-        result.pop("errors")
+            error_logs.append(f"Could not add statistics for program: {response.text}")
 
     return result, status_code
+    # ingested_items, error_logs, fail_count
 
 
 def write_results(results_path: str, result_data: dict, source_file_path: str):
