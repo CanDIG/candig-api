@@ -493,7 +493,8 @@ async def ingest_samples(
     return all_ingested, all_errors, total_fails
 
 
-async def ingest_genomic(ingest_json):
+async def ingest_genomic(ingest_json, queue_id):
+    error_logs = []
     result = {
         "results": []
     }
