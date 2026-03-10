@@ -61,7 +61,7 @@ async def upload_file(file):
 
 
 # --- Sample Upload Endpoint ---
-async def upload_sample(file, prefix: str):
+async def upload_sample(file, site_id: str):
     """
     Write a sample to server and create a queue status ID
     """
@@ -73,7 +73,7 @@ async def upload_sample(file, prefix: str):
         jsoncontent = json.loads(content)
         authzed_datasets = get_authorized_datasets()
         for donor in jsoncontent["donors"]:
-            program_id = f"{prefix}~{donor['program_id']}"
+            program_id = f"{site_id}~{donor['program_id']}"
             if program_id not in authzed_datasets:
                 return {
                     "error": "Forbidden",
@@ -83,10 +83,10 @@ async def upload_sample(file, prefix: str):
         raise ProblemException(
             status=500, title="Uploaded File in Unexpected Format", detail=str(e)
         )
-    return add_to_queue(file.filename, content, prefix=prefix)
+    return add_to_queue(file.filename, content, site_id=site_id)
 
 
-def add_to_queue(filename, content, prefix=None):
+def add_to_queue(filename, content, site_id=None):
     temp_path = None
 
     try:
@@ -109,8 +109,8 @@ def add_to_queue(filename, content, prefix=None):
             "file_size": len(content),
             "uploaded_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
         }
-        if prefix is not None:
-            stub['prefix'] = prefix
+        if site_id is not None:
+            stub['site_id'] = site_id
 
         with open(results_path, "w") as f:
             json.dump(stub, f)

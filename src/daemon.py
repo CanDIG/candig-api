@@ -62,7 +62,7 @@ async def process_queued_file(file_path: str):
     except Exception as e:
         logger.warning(f"Could not read existing metadata for {queue_id}: {e}")
 
-    prefix = result_data.get("prefix")
+    site_id = result_data.get("site_id")
 
     logger.info(f"PROCESSING JOB: {queue_id}")
 
@@ -75,9 +75,9 @@ async def process_queued_file(file_path: str):
         data_type = detect_data_type(data)
         logger.info(f"Detected data type: {data_type} for job {queue_id}")
 
-        if data_type == "samples" and prefix:
+        if data_type == "samples" and site_id:
             ingested_items, error_logs, fail_count = await ingest_samples(
-                data, queue_id, prefix=prefix
+                data, queue_id, site_id=site_id
             )
         elif data_type == "omop":
             ingested_items, error_logs, fail_count = await ingest_data(data, queue_id)
