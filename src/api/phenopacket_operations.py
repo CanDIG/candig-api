@@ -758,6 +758,7 @@ async def get_episode_events_by_event_field(episode_id, episode_event_field_conc
             return [row.event_id for row in rows]
         except Exception as e:
             logger.error(f"Error in get_episode_events_by_event_field: {str(e)}")
+            return []
         
 
 async def get_ontologies(concept_ids: list):
@@ -1234,10 +1235,10 @@ async def get_radiation_therapies(person_id: int):
             ON observation.observation_event_id = episode.episode_id
             AND observation.observation_concept_id 
             IN({",".join([str(x) for x in rt_map["body_site"]["concept_ids"]])})
-        LEFT JOIN omop.episode_event ee
+        LEFT JOIN {settings.CDM_SCHEMA}.episode_event ee
             ON episode.episode_id=ee.event_id
             AND ee.episode_event_field_concept_id=798885
-        LEFT JOIN omop.episode te
+        LEFT JOIN {settings.CDM_SCHEMA}.episode te
             ON ee.event_id=te.episode_id
             AND te.episode_concept_id=32531
         LEFT JOIN {settings.CDM_SCHEMA}.measurement dosage_measurement
@@ -1285,7 +1286,7 @@ async def get_radiation_therapies(person_id: int):
 
         except Exception as e:
             logger.error(f"Database Error in get_radiation_therapies: {str(e)}")
-            return 
+            return {}
 
     return {}
 
