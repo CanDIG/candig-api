@@ -190,7 +190,7 @@ async def test_treatment_agent_produces_medical_action(
     mock_targets.return_value = {1: target}
     mock_agents.return_value = {1: [Treatment(agent=agent, drug_type="PRESCRIPTION")]}
     mock_procedures.return_value = {}
-    mock_radiation.return_value = []
+    mock_radiation.return_value = {}
     mock_events.return_value = [1]
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
@@ -252,7 +252,7 @@ async def test_procedure_produces_medical_action(
     mock_targets.return_value = {1: target}
     mock_agents.return_value = {}
     mock_procedures.return_value = {1: [Procedure(code=code)]}
-    mock_radiation.return_value = []
+    mock_radiation.return_value = {}
     mock_events.return_value = []
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
@@ -315,11 +315,13 @@ async def test_radiation_therapy_produces_medical_action(
     mock_targets.return_value = {1: target}
     mock_agents.return_value = {}
     mock_procedures.return_value = {}
-    mock_radiation.return_value = [
-        RadiationTherapy(
-            modality=modality, body_site=body_site, dosage=60, fractions=25
-        )
-    ]
+    mock_radiation.return_value = {
+        1: [
+            RadiationTherapy(
+                modality=modality, body_site=body_site, dosage=60, fractions=25
+            )
+        ]
+    }
     mock_events.return_value = []
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
@@ -385,14 +387,16 @@ async def test_multiple_action_types_produces_correct_count(
     mock_procedures.return_value = {
         1: [Procedure(code=OntologyClass(id="SNOMED:66398006", label="Surgery"))]
     }
-    mock_radiation.return_value = [
-        RadiationTherapy(
-            modality=OntologyClass(id="SNOMED:1156506007", label="External beam"),
-            body_site=OntologyClass(id="SNOMED:722738000", label="Femur"),
-            dosage=60,
-            fractions=25,
-        )
-    ]
+    mock_radiation.return_value = {
+        1: [
+            RadiationTherapy(
+                modality=OntologyClass(id="SNOMED:1156506007", label="External beam"),
+                body_site=OntologyClass(id="SNOMED:722738000", label="Femur"),
+                dosage=60,
+                fractions=25,
+            )
+        ]
+    }
     mock_events.return_value = [1]
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
@@ -455,7 +459,7 @@ async def test_two_episodes_two_agents_produces_four_actions(
     # event_ids 101 and 102 are returned for each episode; agents keyed by those event ids
     mock_agents.return_value = {101: [t1], 102: [t2]}
     mock_procedures.return_value = {}
-    mock_radiation.return_value = []
+    mock_radiation.return_value = {}
     mock_events.return_value = [101, 102]
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
@@ -515,7 +519,7 @@ async def test_missing_intent_defaults_to_no_value(
         ]
     }
     mock_procedures.return_value = {}
-    mock_radiation.return_value = []
+    mock_radiation.return_value = {}
     mock_events.return_value = [1]
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
@@ -571,7 +575,7 @@ async def test_missing_response_defaults_to_no_value(
         ]
     }
     mock_procedures.return_value = {}
-    mock_radiation.return_value = []
+    mock_radiation.return_value = {}
     mock_events.return_value = [1]
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
