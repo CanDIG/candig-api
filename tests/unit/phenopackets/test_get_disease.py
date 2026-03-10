@@ -6,11 +6,19 @@ import pytest
 from src.api.phenopacket_operations import get_diseases
 
 
-def make_mock_session(mock_rows, extra_rows=None):
+def make_mock_session(mock_rows, comorbidity_rows=None):
     mock_session = AsyncMock()
-    mock_result = MagicMock()
-    mock_result.fetchall.return_value = mock_rows
-    mock_session.execute = AsyncMock(return_value=mock_result)
+
+    if comorbidity_rows is None:
+        comorbidity_rows = []
+
+    pdx_result = MagicMock()
+    pdx_result.fetchall.return_value = mock_rows
+
+    comorbidity_result = MagicMock()
+    comorbidity_result.fetchall.return_value = comorbidity_rows
+
+    mock_session.execute = AsyncMock(side_effect=[pdx_result, comorbidity_result])
 
     async def session_gen():
         yield mock_session
@@ -336,16 +344,14 @@ async def test_clinical_tnm_finding_populated(
 async def test_laterality_populated(
     mock_get_ancestor, mock_get_measurement, mock_get_ontologies, mock_get_db_session
 ):
-    """laterality uses only the first element from the measurement list."""
-    from phenopackets import OntologyClass
-
-    left = OntologyClass(id="Cancer Modifier:OMOP4999911", label="Left")
-
+    """laterality comes from the SQL row's laterality_concept_id looked up in ontology_map."""
     mock_get_ancestor.return_value = []
-    mock_get_measurement.side_effect = [[], [left]]
-    mock_get_ontologies.return_value = make_ontology_map([45590880, 44497844])
+    mock_get_measurement.return_value = []
 
-    row = make_mock_disease_row()
+    ontology_map = make_ontology_map([45590880, 44497844, 35918306])
+    mock_get_ontologies.return_value = ontology_map
+
+    row = make_mock_disease_row({"laterality_concept_id": 35918306})
     mock_get_db_session.return_value = make_mock_session([row])
 
     diseases, status_code = await get_diseases(1)

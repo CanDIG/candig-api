@@ -104,9 +104,6 @@ async def get_by_id(dataset_id: str, id: int):
 
 
 async def get_medical_actions(person_id: int):
-    # TODO: need to group/link each
-    # treatment_targets
-    # instead of getting only 1
     (
         response_to_treatments,
         treatment_intents,
@@ -125,21 +122,15 @@ async def get_medical_actions(person_id: int):
 
     medical_actions = []
 
-    # Use first target for now since we can't figure out the link
-    treatment_target = treatment_targets[0] if treatment_targets else None
-
     episodes = list(
         set(list(response_to_treatments.keys()) + list(treatment_intents.keys()))
     )
 
-    if not episodes:
-        return None
-
-    if not (treatment_agents or procedures or radiation_therapies):
-        return None
+    # Get drug exposure events linked to each episode
 
     # Create combinations of each treatment type with each response
     for episode in episodes:
+        
         # get intent and response linked to the episode, return No value if not in dict
         try:
             this_intent = treatment_intents[episode]
@@ -149,35 +140,45 @@ async def get_medical_actions(person_id: int):
             this_response = response_to_treatments[episode]
         except KeyError as e:
             this_response = OntologyClass(id="SNOMED:408094002", label="No value")
+        try:
+            this_target = treatment_targets[episode]
+        except KeyError as e:
+            this_target = OntologyClass(id="SNOMED:408094002", label="No value")
         # Combine treatment agents with responses
-        for agent in treatment_agents:
-            medical_action = MedicalAction(
-                treatment=agent,
-                treatment_target=treatment_target,
-                treatment_intent=this_intent,
-                response_to_treatment=this_response,
-            )
-            medical_actions.append(medical_action)
+        drug_events = await get_episode_events_by_event_field(episode, 798885)
+        for event in drug_events:
+            if event in treatment_agents.keys():
+                event_agents=treatment_agents[event]
+                for agent in event_agents:
+                    medical_action = MedicalAction(
+                        treatment=agent,
+                        treatment_target=this_target,
+                        treatment_intent=this_intent,
+                        response_to_treatment=this_response,
+                    )
+                    medical_actions.append(medical_action)
 
         # Combine procedures with responses
-        for procedure in procedures:
-            medical_action = MedicalAction(
-                procedure=procedure,
-                treatment_target=treatment_target,
-                treatment_intent=this_intent,
-                response_to_treatment=this_response,
-            )
-            medical_actions.append(medical_action)
+        if episode in procedures.keys():
+            for procedure in procedures[episode]:
+                medical_action = MedicalAction(
+                    procedure=procedure,
+                    treatment_target=this_target,
+                    treatment_intent=this_intent,
+                    response_to_treatment=this_response,
+                )
+                medical_actions.append(medical_action)
 
         # Combine radiation therapies with responses
-        for radiation in radiation_therapies:
-            medical_action = MedicalAction(
-                radiation_therapy=radiation,
-                treatment_target=treatment_target,
-                treatment_intent=this_intent,
-                response_to_treatment=this_response,
-            )
-            medical_actions.append(medical_action)
+        if episode in radiation_therapies.keys():
+            for radiation in radiation_therapies[episode]:
+                medical_action = MedicalAction(
+                    radiation_therapy=radiation,
+                    treatment_target=this_target,
+                    treatment_intent=this_intent,
+                    response_to_treatment=this_response,
+                )
+                medical_actions.append(medical_action)
 
     return medical_actions if medical_actions else None
 
@@ -202,7 +203,7 @@ async def get_concept_by_id_or_ancestor(
                 m.{filtering_field} IN (
                 SELECT descendant_concept_id FROM {settings.CDM_SCHEMA}.concept_ancestor
                 WHERE ancestor_concept_id IN ({",".join([str(x) for x in ancestor_concept_ids])})) 
-                OR m.value_as_concept_id IN ({",".join([str(x) for x in concept_ids])})
+                OR m.{filtering_field} IN ({",".join([str(x) for x in concept_ids])})
             )
     """)
 
@@ -234,15 +235,17 @@ async def get_diseases(person_id: int):
     """
     To populate the diseases object in Phenopackets:
 
-    Get term, onset, resolution, primary_site for a person by joining their 'Disease First Occurrence'
+    Get term, onset, resolution, primary_site, laterality for a person by joining their 'Disease First Occurrence'
     episode (concept_id=32528) with its linked condition_occurrence tables via the episode_event table,
-    join with 'Primary site Cancer' (concept_id=3011717) observation to get the primary site.
+    join with 'Primary site Cancer' (concept_id=3011717) observation to get the primary site, 
+    join laterality with the condition_occurrence via the measurement_event_id
 
-    Then look up clinical_tnm stages, laterality and disease_stages.
+    Then look up clinical_tnm stages, and disease_stages.
+
+    Look up comorbidity condition_occurrences by all condition_occurrences not found in previous query,
+    map term, onset and laterality only
 
     Combine all retrieved information into disease object(s)
-
-    Optimized with concurrent queries.
     """
     diseases_map = settings.MAPPING_JSON["diseases"]
 
@@ -251,7 +254,9 @@ async def get_diseases(person_id: int):
         condition_occurrence.condition_concept_id as term,
         condition_occurrence.condition_start_date as onset,
         condition_occurrence.condition_end_date as resolution,
-        primary_site_obs.value_as_concept_id as primary_site_concept_id
+        primary_site_obs.value_as_concept_id as primary_site_concept_id,
+        laterality_meas.value_as_concept_id as laterality_concept_id,
+        condition_occurrence.condition_occurrence_id as pdx_id
     FROM {settings.CDM_SCHEMA}.episode episode
     INNER JOIN {settings.CDM_SCHEMA}.episode_event episode_event
         ON episode.episode_id = episode_event.episode_id
@@ -259,20 +264,21 @@ async def get_diseases(person_id: int):
     INNER JOIN {settings.CDM_SCHEMA}.condition_occurrence condition_occurrence
         ON episode_event.event_id = condition_occurrence.condition_occurrence_id
     LEFT JOIN {settings.CDM_SCHEMA}.observation primary_site_obs
-        ON primary_site_obs.person_id = :person_id
+        ON primary_site_obs.observation_event_id = condition_occurrence.condition_occurrence_id
         AND primary_site_obs.observation_concept_id 
         IN({",".join(map(str, diseases_map["primary_site"]["concept_ids"]))})
+    LEFT JOIN {settings.CDM_SCHEMA}.measurement laterality_meas
+        ON laterality_meas.measurement_event_id=condition_occurrence.condition_occurrence_id
+        AND laterality_meas.measurement_concept_id IN({",".join(map(str, diseases_map["laterality"]["concept_ids"]))})
     WHERE episode.person_id = :person_id
         AND episode.episode_concept_id = {diseases_map["term"]["grouping_concept_id"]}
     """)
 
-    (clinical_tnm_finding_list, laterality_list, disease_stages) = await asyncio.gather(
+    (clinical_tnm_finding_list, disease_stages) = await asyncio.gather(
         # get ontologies for clinical tnm measurements [cT category, cM category, cN category]
         get_measurement_concepts(
             person_id, diseases_map["clinical_tnm_finding"]["concept_ids"]
         ),
-        # get ontologies for Laterality measurements
-        get_measurement_concepts(person_id, diseases_map["laterality"]["concept_ids"]),
         get_concept_by_id_or_ancestor(
             person_id,
             diseases_map["disease_stage"]["omop_object"],
@@ -283,9 +289,6 @@ async def get_diseases(person_id: int):
         ),
     )
 
-    # laterality should be a single object, not a list
-    laterality = laterality_list[0] if laterality_list else None
-
     async for session in get_db_session():
         try:
             result = await session.execute(raw_sql, {"person_id": person_id})
@@ -293,7 +296,7 @@ async def get_diseases(person_id: int):
 
             concept_ids = [row.term for row in rows] + [
                 row.primary_site_concept_id for row in rows
-            ]
+                ] + [row.laterality_concept_id for row in rows]
             ontology_map = await get_ontologies(concept_ids)
 
             diseases = []
@@ -305,10 +308,40 @@ async def get_diseases(person_id: int):
                     disease_stage=disease_stages,
                     clinical_tnm_finding=clinical_tnm_finding_list,
                     primary_site=ontology_map.get(row.primary_site_concept_id),
-                    laterality=laterality,
+                    laterality=ontology_map.get(row.laterality_concept_id),
                 )
                 diseases.append(disease)
+            pdx_ids = [row.pdx_id for row in rows]
+            comorbidities_raw_sql = text(f"""
+                SELECT 
+                    condition_occurrence.condition_concept_id as term,
+                    condition_occurrence.condition_start_date as onset,
+                    condition_occurrence.condition_end_date as resolution,
+                    laterality_meas.value_as_concept_id as laterality_concept_id
+                FROM {settings.CDM_SCHEMA}.condition_occurrence condition_occurrence
+                LEFT JOIN {settings.CDM_SCHEMA}.measurement as laterality_meas
+                ON laterality_meas.measurement_event_id=condition_occurrence.condition_occurrence_id
+                AND laterality_meas.measurement_concept_id IN({",".join(map(str, diseases_map["laterality"]["concept_ids"]))})
+                WHERE condition_occurrence.person_id = :person_id
+                    AND condition_occurrence.condition_occurrence_id NOT IN({",".join(map(str, pdx_ids))})
+                """)
+            result = await session.execute(comorbidities_raw_sql, 
+                                           {"person_id": person_id})
+            rows = result.fetchall()
 
+            concept_ids = [row.term for row in rows] + [
+                row.laterality_concept_id for row in rows
+            ]
+            ontology_map = await get_ontologies(concept_ids)
+
+            for row in rows:
+                disease = Disease(
+                    term=ontology_map.get(row.term),
+                    onset=get_phenopacket_timestamp(row.onset),
+                    resolution=get_phenopacket_timestamp(row.resolution),
+                    laterality=ontology_map.get(row.laterality_concept_id)
+                )
+                diseases.append(disease)
             return diseases, 200
 
         except Exception as e:
@@ -425,12 +458,10 @@ async def get_biosamples_measurements(person_id: int) -> dict:
                                 biosample_measurements[row.group_id].append(measurement)
                             except KeyError as e:
                                 biosample_measurements[row.group_id] = [measurement]
-                return biosample_measurements
-
             except Exception as e:
                 logger.error(f"Database Error in get_biosamples_measurements: {str(e)}")
                 return {}
-    return {}
+    return biosample_measurements
 
 
 async def get_biosamples(person_id: int):
@@ -592,26 +623,40 @@ async def get_subject(id: int):
                 [row.gender_concept_id, row.cause_of_death_concept_id]
             )
 
-            subject = Individual(
-                id=str(row.id),
-                alternate_ids=[row.alternate_ids],
-                date_of_birth=get_birth_timestamp(
-                    row.year_of_birth, row.month_of_birth, row.day_of_birth
-                ),
-                sex=get_sex_status(row.sex_concept_id),
-                gender=ontology_map.get(row.gender_concept_id),
-                taxonomy=OntologyClass(
-                    id="SNOMED:337915000", label="Homo sapiens (organism)"
-                ),
-                vital_status=VitalStatus(
-                    status=get_death_status(row.time_of_death),
-                    time_of_death=get_phenopacket_timestamp(row.time_of_death),
-                    cause_of_death=ontology_map.get(row.cause_of_death_concept_id),
-                    survival_time_in_days=get_survival_time(
-                        row.disease_first_occurrence_date, row.time_of_death
+            if row.time_of_death or row.cause_of_death_concept_id:
+                subject = Individual(
+                    id=str(row.id),
+                    alternate_ids=[row.alternate_ids],
+                    date_of_birth=get_birth_timestamp(
+                        row.year_of_birth, row.month_of_birth, row.day_of_birth
                     ),
-                ),
-            )
+                    sex=get_sex_status(row.sex_concept_id),
+                    gender=ontology_map.get(row.gender_concept_id),
+                    taxonomy=OntologyClass(
+                        id="SNOMED:337915000", label="Homo sapiens (organism)"
+                    ),
+                    vital_status=VitalStatus(
+                        status=get_death_status(row.time_of_death),
+                        time_of_death=get_phenopacket_timestamp(row.time_of_death),
+                        cause_of_death=ontology_map.get(row.cause_of_death_concept_id),
+                        survival_time_in_days=get_survival_time(
+                            row.disease_first_occurrence_date, row.time_of_death
+                        ),
+                    ),
+                )
+            else:
+                subject = Individual(
+                    id=str(row.id),
+                    alternate_ids=[row.alternate_ids],
+                    date_of_birth=get_birth_timestamp(
+                        row.year_of_birth, row.month_of_birth, row.day_of_birth
+                    ),
+                    sex=get_sex_status(row.sex_concept_id),
+                    gender=ontology_map.get(row.gender_concept_id),
+                    taxonomy=OntologyClass(
+                        id="SNOMED:337915000", label="Homo sapiens (organism)"
+                    )
+                )
 
             return subject, 200
 
@@ -697,6 +742,25 @@ def get_survival_time(disease_first_occurrence_date, death_date):
     return delta.days
 
 
+async def get_episode_events_by_event_field(episode_id, episode_event_field_concept_id):
+    """get a list of events linked to the given episode by a specific event type"""
+    raw_sql = text(f"""
+            SELECT 
+                episode_event.event_id as event_id
+            FROM {settings.CDM_SCHEMA}.episode_event episode_event
+            WHERE episode_event.episode_id = {episode_id} 
+            AND episode_event.episode_event_field_concept_id = {episode_event_field_concept_id}
+        """)
+    async for session in get_db_session():
+        try:
+            result = await session.execute(raw_sql)
+            rows = result.fetchall()
+            return [row.event_id for row in rows]
+        except Exception as e:
+            logger.error(f"Error in get_episode_events_by_event_field: {str(e)}")
+            return []
+        
+
 async def get_ontologies(concept_ids: list):
     if not concept_ids:
         return {}
@@ -754,9 +818,9 @@ async def get_medical_action_by_field(person_id: int, field: str) -> dict:
     """
     Get medical action information based on field mapping grouped by episode ids
 
-    Return is a dict with episode ids as keys and field mapping as an ontology
-    {episode_id_1: {id: "ontology_curie", label: "ontology label"},
-     episode_id_2: {id: "ontology_curie", label: "ontology label"}}
+    Return is a dict with episode ids as keys and field mapping as OntologyTerm objects
+    {episode_id_1: OntologyTerm(id: "ontology_curie", label: "ontology label"),
+     episode_id_2: OntologyTerm(id: "ontology_curie", label: "ontology label")}
     """
     ma_map = settings.MAPPING_JSON["medical_actions"][field]
     raw_sql = text(f"""
@@ -811,13 +875,16 @@ async def get_treatment_targets(person_id: int):
 
     raw_sql = text(f"""
         SELECT DISTINCT
-            condition_occurrence.condition_concept_id as treatment_target_concept_id
+            condition_occurrence.condition_concept_id as treatment_target_concept_id,
+            other_event.episode_id as episode_id
         FROM {settings.CDM_SCHEMA}.episode episode
         INNER JOIN {settings.CDM_SCHEMA}.episode_event episode_event
             ON episode.episode_id = episode_event.episode_id
             AND episode_event.episode_event_field_concept_id = 1147127
         INNER JOIN {settings.CDM_SCHEMA}.condition_occurrence condition_occurrence
             ON episode_event.event_id = condition_occurrence.condition_occurrence_id
+        INNER JOIN {settings.CDM_SCHEMA}.episode_event as other_event
+        ON condition_occurrence_id=other_event.event_id
         WHERE episode.person_id = :person_id
             AND episode.episode_concept_id = {ma_map["treatment_target"]["grouping_concept_id"]}
     """)
@@ -832,12 +899,12 @@ async def get_treatment_targets(person_id: int):
             ontology_map = await get_ontologies(concept_ids)
 
             # Convert rows to list of OntologyClass objects
-            targets = [
+            targets = {row.episode_id:
                 ontology_map.get(row.treatment_target_concept_id) for row in rows
-            ]
+            }
 
             # Filter out None values if conversion failed
-            return [t for t in targets if t is not None]
+            return {k:v for k,v in targets.items() if v is not None}
 
         except Exception as e:
             logger.error(f"Database Error in get_treatment_targets: {str(e)}")
@@ -868,7 +935,8 @@ async def get_treatment_agents(person_id: int):
             drug_exposure.quantity as dose_intervals_quantity_value,
             drug_exposure.route_concept_id as route_concept_id,
             drug_exposure.drug_type_concept_id as drug_type_concept_id,
-            drug_exposure.{tx_map["agent"]["source_value_field"]} as drug_source_value
+            drug_exposure.{tx_map["agent"]["source_value_field"]} as drug_source_value,
+            episode.episode_id as sys_therapy_episode_id
         FROM {settings.CDM_SCHEMA}.episode episode
         INNER JOIN {settings.CDM_SCHEMA}.episode_event episode_event
             ON episode.episode_id = episode_event.episode_id
@@ -904,7 +972,7 @@ async def get_treatment_agents(person_id: int):
             ontology_map = await get_ontologies(concept_ids)
 
             # Convert rows to list of treatment agent objects
-            treatment_agents = []
+            treatment_agents = {}
             for row in rows:
                 if row.drug_concept_id == 0 and "|" in row.drug_source_value:
                     split_drug = row.drug_source_value.split("|")
@@ -938,7 +1006,6 @@ async def get_treatment_agents(person_id: int):
                             id="SNOMED:261665006", label="Unknown"
                         )
 
-                    # If drug exposure is from 'EHR Order' drug type, include cumulative dose
                     if (
                         row.drug_type_concept_id
                         in tx_map["cumulative_dose"]["concept_ids"]
@@ -1003,7 +1070,10 @@ async def get_treatment_agents(person_id: int):
                         drug_type=treatment_agent["drug_type"],
                         cumulative_dose=treatment_agent["cumulative_dose"],
                     )
-                    treatment_agents.append(treatment)
+                    try:
+                        treatment_agents[row.sys_therapy_episode_id].append(treatment)
+                    except KeyError:
+                        treatment_agents[row.sys_therapy_episode_id] = [treatment]
 
             return treatment_agents
 
@@ -1029,7 +1099,8 @@ async def get_procedures(person_id: int):
             procedure_occurrence.procedure_concept_id,
             procedure_occurrence.procedure_source_value,
             procedure_occurrence.procedure_date as performed,
-            observation.value_as_concept_id as body_site_concept_id
+            observation.value_as_concept_id as body_site_concept_id,
+            episode.episode_id as episode_id
         FROM {settings.CDM_SCHEMA}.episode episode
         INNER JOIN {settings.CDM_SCHEMA}.episode_event episode_event
             ON episode.episode_id = episode_event.episode_id
@@ -1049,8 +1120,14 @@ async def get_procedures(person_id: int):
                           SELECT DISTINCT
                             procedure_occurrence.procedure_concept_id,
                             procedure_occurrence.procedure_source_value,
-                            procedure_occurrence.procedure_date as performed
-                          FROM {settings.CDM_SCHEMA}.{procedure_map["code"]["omop_object"]} procedure_occurrence
+                            procedure_occurrence.procedure_date as performed,
+                            episode.episode_id as episode_id
+                          FROM {settings.CDM_SCHEMA}.episode episode
+                          INNER JOIN {settings.CDM_SCHEMA}.episode_event episode_event
+                            ON episode.episode_id = episode_event.episode_id
+                            AND episode_event.episode_event_field_concept_id = 1147082
+                          INNER JOIN {settings.CDM_SCHEMA}.procedure_occurrence procedure_occurrence
+                            ON episode_event.event_id = procedure_occurrence.procedure_occurrence_id
                           WHERE {procedure_map["code"]["omop_object"]}.person_id = :person_id
                           AND ({procedure_map["code"]["omop_object"]}.procedure_concept_id
                           IN({",".join(map(str, list(procedure_map["code"]["concept_ids"])))}) 
@@ -1071,7 +1148,7 @@ async def get_procedures(person_id: int):
             ontology_map = await get_ontologies(concept_ids)
 
             # Convert rows to list of procedure objects
-            procedures = []
+            procedures = {}
             for row in surgery_rows:
                 if row.procedure_concept_id == 0 and "|" in row.procedure_source_value:
                     split_procedure = row.procedure_source_value.split("|")
@@ -1086,7 +1163,10 @@ async def get_procedures(person_id: int):
                     procedure = Procedure(
                         code=code, body_site=body_site, performed=performed
                     )
-                    procedures.append(procedure)
+                    try:
+                        procedures[row.episode_id].append(procedure)
+                    except KeyError:
+                        procedures[row.episode_id] = [procedure]
 
             others_result = await session.execute(
                 others_raw_sql, {"person_id": person_id}
@@ -1117,7 +1197,10 @@ async def get_procedures(person_id: int):
                 performed = get_phenopacket_timestamp(row.performed)
                 if code:
                     procedure = Procedure(code=code, performed=performed)
-                    procedures.append(procedure)
+                    try:
+                        procedures[row.episode_id].append(procedure)
+                    except KeyError:
+                        procedures[row.episode_id] = [procedure]
 
             return procedures
 
@@ -1136,6 +1219,8 @@ async def get_radiation_therapies(person_id: int):
         - Total radiation dose delivered (40483776) measurement
         - Fractions (4037631) measurement
         - Procedure site (4181646) observation
+
+    Grouped by linkage to Treatment regimen (32531) episode
     """
     rt_map = settings.MAPPING_JSON["medical_actions"]["action"]["radiation_therapy"]
     raw_sql = text(f"""
@@ -1143,12 +1228,19 @@ async def get_radiation_therapies(person_id: int):
             episode.episode_object_concept_id as modality_concept_id,
             observation.value_as_concept_id as body_site_concept_id,
             dosage_measurement.value_as_number as dosage,
-            fractions_measurement.value_as_number as fractions
+            fractions_measurement.value_as_number as fractions,
+            ee.episode_id as treatment_episode_id
         FROM {settings.CDM_SCHEMA}.episode episode
         LEFT JOIN {settings.CDM_SCHEMA}.observation observation
             ON observation.observation_event_id = episode.episode_id
             AND observation.observation_concept_id 
             IN({",".join([str(x) for x in rt_map["body_site"]["concept_ids"]])})
+        LEFT JOIN {settings.CDM_SCHEMA}.episode_event ee
+            ON episode.episode_id=ee.event_id
+            AND ee.episode_event_field_concept_id=798885
+        LEFT JOIN {settings.CDM_SCHEMA}.episode te
+            ON ee.event_id=te.episode_id
+            AND te.episode_concept_id=32531
         LEFT JOIN {settings.CDM_SCHEMA}.measurement dosage_measurement
             ON dosage_measurement.person_id = episode.person_id
             AND dosage_measurement.measurement_concept_id 
@@ -1174,33 +1266,29 @@ async def get_radiation_therapies(person_id: int):
             ontology_map = await get_ontologies(concept_ids)
 
             # Convert rows to list of radiation therapy objects
-            radiation_therapies = []
+            radiation_therapies = {}
             for row in rows:
                 modality = ontology_map.get(row.modality_concept_id)
                 body_site = ontology_map.get(row.body_site_concept_id)
 
-                # Only include radiation therapy if ALL required fields are present
-                if (
-                    modality
-                    and body_site
-                    and row.dosage is not None
-                    and row.fractions is not None
-                ):
-                    therapy = RadiationTherapy(
-                        modality=modality,
-                        body_site=body_site,
-                        dosage=int(row.dosage),
-                        fractions=int(row.fractions),
-                    )
-                    radiation_therapies.append(therapy)
+                therapy = RadiationTherapy(
+                    modality=modality,
+                    body_site=body_site,
+                    dosage= int(row.dosage) if row.dosage else -99,
+                    fractions=int(row.fractions) if row.fractions else -99,
+                )
+                try:
+                    radiation_therapies[row.treatment_episode_id].append(therapy)
+                except KeyError:
+                    radiation_therapies[row.treatment_episode_id] = [therapy]
 
             return radiation_therapies
 
         except Exception as e:
             logger.error(f"Database Error in get_radiation_therapies: {str(e)}")
-            return []
+            return {}
 
-    return []
+    return {}
 
 
 async def get_measurements(person_id: int):
@@ -1219,7 +1307,8 @@ async def get_measurements(person_id: int):
                     {mapping["omop_object"]}.{mapping["number_value_field"]} as measurement_value,
                     {mapping["omop_object"]}.{mapping["filtering_field"]} as measurement_type_concept_id,
                     {mapping["omop_object"]}.{mapping["date_field"]} as measurement_date,
-                    {mapping["omop_object"]}.{mapping["unit_field"]} as measurement_unit_concept_id
+                    {mapping["omop_object"]}.{mapping["unit_field"]} as measurement_unit_concept_id,
+                    {mapping["omop_object"]}.qualifier_concept_id
                 FROM {settings.CDM_SCHEMA}.{mapping["omop_object"]}
                 WHERE {mapping["omop_object"]}.person_id = :person_id
                     AND {mapping["omop_object"]}.{mapping["filtering_field"]} 
@@ -1239,7 +1328,7 @@ async def get_measurements(person_id: int):
                     AND ({mapping["filtering_field"]} IN (
                     SELECT descendant_concept_id FROM {settings.CDM_SCHEMA}.concept_ancestor
                     WHERE ancestor_concept_id IN ({",".join([str(x) for x in mapping["ancestor_ids"]])}))
-                    OR {mapping["filtering_field"]} IN ({",".join([str(x) for x in mapping["concept_ids"]])}))
+                    OR {mapping["filtering_field"]} IN({",".join([str(x) for x in mapping["concept_ids"]])}))
             """)
 
         elif mapping["omop_object"] == "procedure_occurrence":

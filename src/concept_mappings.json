@@ -15,7 +15,7 @@
                 },
                 "cumulative_dose": {
                     "concept_ids": [
-                        32833
+                        32833, 32838
                     ],
                     "unit": {
                         "concept_map": {
@@ -160,58 +160,15 @@
             ]
         },
         "disease_stage": {
-            "omop_object": "measurement",
-            "filtering_field": "value_as_concept_id",
+            "omop_object": "observation",
+            "filtering_field": "observation_concept_id",
             "concept_value_field": "value_as_concept_id",
             "concept_ids": [
-                4136272,
-                4114652,
-                4128936,
-                45884284,
-                45881605,
-                45882496,
-                45879332,
-                45878383,
-                45876317,
-                45884292,
-                45876326,
-                45881861,
-                45880980,
-                45882495,
-                45882494,
-                1633775,
-                45881607,
-                45881606,
-                45878652,
-                46237073,
-                45880979,
-                37163968,
-                45876316,
-                46237999,
-                46237478,
-                45882497,
-                45878382,
-                46237084,
-                45878643,
-                45880978,
-                37163997,
-                37163998,
-                45884285,
-                45881608,
-                46237081,
-                46237479,
-                45876327,
-                45878395,
-                46237998,
-                46237085
+                4295636
             ],
             "ancestor_ids":[
-                37163866,
-                4130406,
-                734333
-            ],
-            "concept_ids_description": "Concept ids include all currently mapped concept_ids used in mohccn_omop_mapping https://github.com/CanDIG/mohccn-omop-etl/blob/b4d58adcb4ea5d944d071371a045de730f18dd23/config/mohccn_vocabulary_mapped_20250909_JL.csv#L367",
-            "ancestor_ids_description": "Allows any child terms of 'American Joint Committee on Cancer allowable value', 'Stages' or 'INRG finding'."
+                1000000
+            ]
         }
     },
     "biosamples": {
@@ -261,6 +218,15 @@
                 "grouping_omop_object": "specimen",
                 "grouping_field": "observation_event_id",
                 "date_field": "observation_date"
+            },
+            {   
+                "omop_object": "observation",
+                "concept_ids": [4160340],
+                "filtering_field": "observation_concept_id",
+                "concept_value_field": "qualifier_concept_id",
+                "grouping_omop_object": "specimen",
+                "grouping_field": "observation_event_id",
+                "date_field": "observation_date"
             }
         ]
     },
@@ -271,6 +237,7 @@
             "concept_value_field": "value_as_concept_id",
             "number_value_field": "value_as_number",
             "concept_ids": [
+                4226407,
                 4203711,
                 43054909,
                 37172639,
@@ -281,7 +248,21 @@
                 4161179,
                 4244984,
                 4077124,
-                1074673
+                1074673,
+                45763689
+            ],
+            "date_field": "observation_date",
+            "unit_field": "unit_concept_id"
+        },
+        {
+            "omop_object": "observation",
+            "filtering_field": "observation_concept_id",
+            "concept_value_field": "qualifier_concept_id",
+            "number_value_field": "value_as_number",
+            "concept_ids": [
+                4226407,
+                4295636,
+                4082405
             ],
             "date_field": "observation_date",
             "unit_field": "unit_concept_id"
@@ -298,7 +279,11 @@
                 4139794
             ],
             "concept_ids": [
-                734306
+                734306,
+                4184217,
+                4206020,
+                4217572,
+                4194639
             ]
         },
         {
@@ -308,14 +293,6 @@
             "concept_value_field": "modifier_concept_id",
             "ancestor_ids": [1242725],
             "concept_ids": [1000000]
-        },
-        {
-            "omop_object": "procedure_occurrence",
-            "filtering_field": "procedure_concept_id",
-            "date_field": "procedure_date",
-            "concept_value_field": "procedure_concept_id",
-            "ancestor_ids": [4216752],
-            "concept_ids": [4273629, 4061650, 4295112]
         }
     ]
 }   

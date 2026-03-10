@@ -156,6 +156,10 @@ def patch_all(
 
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
+@patch(
+    "src.api.phenopacket_operations.get_episode_events_by_event_field",
+    new_callable=AsyncMock,
+)
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_radiation_therapies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_procedures", new_callable=AsyncMock)
@@ -171,6 +175,7 @@ async def test_treatment_agent_produces_medical_action(
     mock_procedures,
     mock_radiation,
     mock_ontologies,
+    mock_events,
     mock_db,
 ):
     """A treatment agent + response -> one MedicalAction with treatment set."""
@@ -182,10 +187,11 @@ async def test_treatment_agent_produces_medical_action(
     agent = OntologyClass(id="RxNorm:42426830", label="Tamoxifen")
 
     mock_by_field.side_effect = [{1: response}, {1: intent}]
-    mock_targets.return_value = [target]
-    mock_agents.return_value = [Treatment(agent=agent, drug_type="PRESCRIPTION")]
-    mock_procedures.return_value = []
-    mock_radiation.return_value = []
+    mock_targets.return_value = {1: target}
+    mock_agents.return_value = {1: [Treatment(agent=agent, drug_type="PRESCRIPTION")]}
+    mock_procedures.return_value = {}
+    mock_radiation.return_value = {}
+    mock_events.return_value = [1]
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
 
@@ -209,6 +215,10 @@ async def test_treatment_agent_produces_medical_action(
 
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
+@patch(
+    "src.api.phenopacket_operations.get_episode_events_by_event_field",
+    new_callable=AsyncMock,
+)
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_radiation_therapies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_procedures", new_callable=AsyncMock)
@@ -224,6 +234,7 @@ async def test_procedure_produces_medical_action(
     mock_procedures,
     mock_radiation,
     mock_ontologies,
+    mock_events,
     mock_db,
 ):
     """A procedure + response → one MedicalAction with procedure set."""
@@ -238,10 +249,11 @@ async def test_procedure_produces_medical_action(
     )
 
     mock_by_field.side_effect = [{1: response}, {1: intent}]
-    mock_targets.return_value = [target]
-    mock_agents.return_value = []
-    mock_procedures.return_value = [Procedure(code=code)]
-    mock_radiation.return_value = []
+    mock_targets.return_value = {1: target}
+    mock_agents.return_value = {}
+    mock_procedures.return_value = {1: [Procedure(code=code)]}
+    mock_radiation.return_value = {}
+    mock_events.return_value = []
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
 
@@ -264,6 +276,10 @@ async def test_procedure_produces_medical_action(
 
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
+@patch(
+    "src.api.phenopacket_operations.get_episode_events_by_event_field",
+    new_callable=AsyncMock,
+)
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_radiation_therapies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_procedures", new_callable=AsyncMock)
@@ -279,6 +295,7 @@ async def test_radiation_therapy_produces_medical_action(
     mock_procedures,
     mock_radiation,
     mock_ontologies,
+    mock_events,
     mock_db,
 ):
     """A radiation therapy + response → one MedicalAction with radiation_therapy set."""
@@ -295,14 +312,17 @@ async def test_radiation_therapy_produces_medical_action(
     )
 
     mock_by_field.side_effect = [{1: response}, {1: intent}]
-    mock_targets.return_value = [target]
-    mock_agents.return_value = []
-    mock_procedures.return_value = []
-    mock_radiation.return_value = [
-        RadiationTherapy(
-            modality=modality, body_site=body_site, dosage=60, fractions=25
-        )
-    ]
+    mock_targets.return_value = {1: target}
+    mock_agents.return_value = {}
+    mock_procedures.return_value = {}
+    mock_radiation.return_value = {
+        1: [
+            RadiationTherapy(
+                modality=modality, body_site=body_site, dosage=60, fractions=25
+            )
+        ]
+    }
+    mock_events.return_value = []
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
 
@@ -325,6 +345,10 @@ async def test_radiation_therapy_produces_medical_action(
 
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
+@patch(
+    "src.api.phenopacket_operations.get_episode_events_by_event_field",
+    new_callable=AsyncMock,
+)
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_radiation_therapies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_procedures", new_callable=AsyncMock)
@@ -340,6 +364,7 @@ async def test_multiple_action_types_produces_correct_count(
     mock_procedures,
     mock_radiation,
     mock_ontologies,
+    mock_events,
     mock_db,
 ):
     """1 agent + 1 procedure + 1 radiation × 1 episode = 3 MedicalAction objects."""
@@ -350,24 +375,29 @@ async def test_multiple_action_types_produces_correct_count(
     target = OntologyClass(id="ICD10:C23", label="Malignant neoplasm of gallbladder")
 
     mock_by_field.side_effect = [{1: response}, {1: intent}]
-    mock_targets.return_value = [target]
-    mock_agents.return_value = [
-        Treatment(
-            agent=OntologyClass(id="RxNorm:42426830", label="Tamoxifen"),
-            drug_type="PRESCRIPTION",
-        )
-    ]
-    mock_procedures.return_value = [
-        Procedure(code=OntologyClass(id="SNOMED:66398006", label="Surgery"))
-    ]
-    mock_radiation.return_value = [
-        RadiationTherapy(
-            modality=OntologyClass(id="SNOMED:1156506007", label="External beam"),
-            body_site=OntologyClass(id="SNOMED:722738000", label="Femur"),
-            dosage=60,
-            fractions=25,
-        )
-    ]
+    mock_targets.return_value = {1: target}
+    mock_agents.return_value = {
+        1: [
+            Treatment(
+                agent=OntologyClass(id="RxNorm:42426830", label="Tamoxifen"),
+                drug_type="PRESCRIPTION",
+            )
+        ]
+    }
+    mock_procedures.return_value = {
+        1: [Procedure(code=OntologyClass(id="SNOMED:66398006", label="Surgery"))]
+    }
+    mock_radiation.return_value = {
+        1: [
+            RadiationTherapy(
+                modality=OntologyClass(id="SNOMED:1156506007", label="External beam"),
+                body_site=OntologyClass(id="SNOMED:722738000", label="Femur"),
+                dosage=60,
+                fractions=25,
+            )
+        ]
+    }
+    mock_events.return_value = [1]
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
 
@@ -383,6 +413,10 @@ async def test_multiple_action_types_produces_correct_count(
 
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
+@patch(
+    "src.api.phenopacket_operations.get_episode_events_by_event_field",
+    new_callable=AsyncMock,
+)
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_radiation_therapies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_procedures", new_callable=AsyncMock)
@@ -398,6 +432,7 @@ async def test_two_episodes_two_agents_produces_four_actions(
     mock_procedures,
     mock_radiation,
     mock_ontologies,
+    mock_events,
     mock_db,
 ):
     """2 episodes × 2 agents = 4 MedicalAction objects."""
@@ -407,23 +442,25 @@ async def test_two_episodes_two_agents_produces_four_actions(
     r2 = OntologyClass(id="LOINC:LA4567-9", label="Partial response")
     i1 = OntologyClass(id="SNOMED:447295008", label="Forensic intent")
     i2 = OntologyClass(id="SNOMED:123456789", label="Curative intent")
+    t1 = Treatment(
+        agent=OntologyClass(id="RxNorm:42426830", label="Tamoxifen"),
+        drug_type="PRESCRIPTION",
+    )
+    t2 = Treatment(
+        agent=OntologyClass(id="RxNorm:99999999", label="Ipilimumab"),
+        drug_type="PRESCRIPTION",
+    )
 
     mock_by_field.side_effect = [{1: r1, 2: r2}, {1: i1, 2: i2}]
-    mock_targets.return_value = [
-        OntologyClass(id="ICD10:C23", label="Malignant neoplasm of gallbladder")
-    ]
-    mock_agents.return_value = [
-        Treatment(
-            agent=OntologyClass(id="RxNorm:42426830", label="Tamoxifen"),
-            drug_type="PRESCRIPTION",
-        ),
-        Treatment(
-            agent=OntologyClass(id="RxNorm:99999999", label="Ipilimumab"),
-            drug_type="PRESCRIPTION",
-        ),
-    ]
-    mock_procedures.return_value = []
-    mock_radiation.return_value = []
+    mock_targets.return_value = {
+        1: OntologyClass(id="ICD10:C23", label="Malignant neoplasm of gallbladder"),
+        2: OntologyClass(id="ICD10:C23", label="Malignant neoplasm of gallbladder"),
+    }
+    # event_ids 101 and 102 are returned for each episode; agents keyed by those event ids
+    mock_agents.return_value = {101: [t1], 102: [t2]}
+    mock_procedures.return_value = {}
+    mock_radiation.return_value = {}
+    mock_events.return_value = [101, 102]
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
 
@@ -441,6 +478,10 @@ async def test_two_episodes_two_agents_produces_four_actions(
 
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
+@patch(
+    "src.api.phenopacket_operations.get_episode_events_by_event_field",
+    new_callable=AsyncMock,
+)
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_radiation_therapies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_procedures", new_callable=AsyncMock)
@@ -456,6 +497,7 @@ async def test_missing_intent_defaults_to_no_value(
     mock_procedures,
     mock_radiation,
     mock_ontologies,
+    mock_events,
     mock_db,
 ):
     """Episode present in response but not in intent → intent defaults to 'No value'."""
@@ -465,17 +507,20 @@ async def test_missing_intent_defaults_to_no_value(
 
     # episode 1 has a response but NO intent
     mock_by_field.side_effect = [{1: response}, {}]
-    mock_targets.return_value = [
-        OntologyClass(id="ICD10:C23", label="Malignant neoplasm of gallbladder")
-    ]
-    mock_agents.return_value = [
-        Treatment(
-            agent=OntologyClass(id="RxNorm:42426830", label="Tamoxifen"),
-            drug_type="PRESCRIPTION",
-        )
-    ]
-    mock_procedures.return_value = []
-    mock_radiation.return_value = []
+    mock_targets.return_value = {
+        1: OntologyClass(id="ICD10:C23", label="Malignant neoplasm of gallbladder")
+    }
+    mock_agents.return_value = {
+        1: [
+            Treatment(
+                agent=OntologyClass(id="RxNorm:42426830", label="Tamoxifen"),
+                drug_type="PRESCRIPTION",
+            )
+        ]
+    }
+    mock_procedures.return_value = {}
+    mock_radiation.return_value = {}
+    mock_events.return_value = [1]
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
 
@@ -489,6 +534,10 @@ async def test_missing_intent_defaults_to_no_value(
 
 @pytest.mark.asyncio
 @patch("src.api.phenopacket_operations.get_db_session")
+@patch(
+    "src.api.phenopacket_operations.get_episode_events_by_event_field",
+    new_callable=AsyncMock,
+)
 @patch("src.api.phenopacket_operations.get_ontologies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_radiation_therapies", new_callable=AsyncMock)
 @patch("src.api.phenopacket_operations.get_procedures", new_callable=AsyncMock)
@@ -504,6 +553,7 @@ async def test_missing_response_defaults_to_no_value(
     mock_procedures,
     mock_radiation,
     mock_ontologies,
+    mock_events,
     mock_db,
 ):
     """Episode present in intent but not in response → response defaults to 'No value'."""
@@ -513,17 +563,20 @@ async def test_missing_response_defaults_to_no_value(
 
     # episode 1 in intent only, no matching response
     mock_by_field.side_effect = [{}, {1: intent}]
-    mock_targets.return_value = [
-        OntologyClass(id="ICD10:C23", label="Malignant neoplasm of gallbladder")
-    ]
-    mock_agents.return_value = [
-        Treatment(
-            agent=OntologyClass(id="RxNorm:42426830", label="Tamoxifen"),
-            drug_type="PRESCRIPTION",
-        )
-    ]
-    mock_procedures.return_value = []
-    mock_radiation.return_value = []
+    mock_targets.return_value = {
+        1: OntologyClass(id="ICD10:C23", label="Malignant neoplasm of gallbladder")
+    }
+    mock_agents.return_value = {
+        1: [
+            Treatment(
+                agent=OntologyClass(id="RxNorm:42426830", label="Tamoxifen"),
+                drug_type="PRESCRIPTION",
+            )
+        ]
+    }
+    mock_procedures.return_value = {}
+    mock_radiation.return_value = {}
+    mock_events.return_value = [1]
     mock_ontologies.return_value = {}
     mock_db.return_value = make_mock_session([])
 
