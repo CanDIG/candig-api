@@ -38,76 +38,26 @@ async def upload_file(file):
     """
     Write a file to server and create a queue status ID
     """
-    temp_path = None
+    content = await file.read()
+
+    # Before attempting to ingest a dataset, we need to check user permissions
     try:
-        content = await file.read()
-
-        # Before attempting to ingest a dataset, we need to check user permissions
-        try:
-            request = connexion.request
-            token = request.headers["Authorization"].split("Bearer ")[1]
-            jsoncontent = json.loads(content)
-            authzed_datasets = get_authorized_datasets()
-            for dataset in jsoncontent["datasets"]:
-                ds_id = dataset["id"]
-                if ds_id not in authzed_datasets:
-                    return {
-                        "error": "Forbidden",
-                        "message": f"User {get_user_id(request)} does not have permission to ingest '{ds_id}'",
-                    }, 403
-        except Exception as e:
-            raise ProblemException(
-                status=500, title="Uploaded File in Unexpected Format", detail=str(e)
-            )
-
-        # Generate a unique ID for this job
-        queue_id = secrets.token_hex(8)
-
-        # write to file
-        temp_dir = tempfile.gettempdir()
-        with tempfile.NamedTemporaryFile(
-            delete=False, mode="wb", dir=temp_dir, suffix=".tmp"
-        ) as f:
-            temp_path = f.name
-            f.write(content)
-
-        # Create an initial status file with filename and timestamp
-        results_path = os.path.join(settings.RESULTS_DIR, queue_id)
-        with open(results_path, "w") as f:
-            json.dump(
-                {
-                    "status": "In Queue",
-                    "file_name": file.filename,
-                    "file_size": len(content),
-                    "uploaded_at": datetime.now(timezone.utc).strftime(
-                        "%Y-%m-%d %H:%M:%S UTC"
-                    ),
-                },
-                f,
-            )
-
-        # move the file to trigger the daemon
-        final_path = os.path.join(settings.TO_INGEST_DIR, queue_id)
-        shutil.move(temp_path, final_path)
-
-        logger.info(f"File '{file.filename}' queued with ID: {queue_id}")
-
-        return {
-            "message": "File uploaded for processing.",
-            "queue_id": queue_id,
-            "url": f"/v1/datasets/upload/status/{queue_id}",
-        }, 202
-
-    except ProblemException:
-        if temp_path and os.path.exists(temp_path):
-            os.remove(temp_path)
-        raise
+        request = connexion.request
+        token = request.headers["Authorization"].split("Bearer ")[1]
+        jsoncontent = json.loads(content)
+        authzed_datasets = get_authorized_datasets()
+        for dataset in jsoncontent["datasets"]:
+            ds_id = dataset["id"]
+            if ds_id not in authzed_datasets:
+                return {
+                    "error": "Forbidden",
+                    "message": f"User {get_user_id(request)} does not have permission to ingest '{ds_id}'",
+                }, 403
     except Exception as e:
-        # Cleanup the temp file if something went wrong
-        if temp_path and os.path.exists(temp_path):
-            os.remove(temp_path)
-        logger.error(f"Error in upload_file: {str(e)}")
-        raise ProblemException(status=500, title="Upload Error", detail=str(e))
+        raise ProblemException(
+            status=500, title="Uploaded File in Unexpected Format", detail=str(e)
+        )
+    return add_to_queue(file.filename, content)
 
 
 # --- Sample Upload Endpoint ---
@@ -115,27 +65,31 @@ async def upload_sample(file, prefix: str):
     """
     Write a sample to server and create a queue status ID
     """
-    temp_path = None
+    content = await file.read()
+
+    # Before attempting to ingest, we need to check user permissions
     try:
-        content = await file.read()
+        request = connexion.request
+        jsoncontent = json.loads(content)
+        authzed_datasets = get_authorized_datasets()
+        for donor in jsoncontent["donors"]:
+            program_id = f"{prefix}~{donor['program_id']}"
+            if program_id not in authzed_datasets:
+                return {
+                    "error": "Forbidden",
+                    "message": f"User {get_user_id(request)} does not have permission to ingest '{ds_id}'",
+                }, 403
+    except Exception as e:
+        raise ProblemException(
+            status=500, title="Uploaded File in Unexpected Format", detail=str(e)
+        )
+    return add_to_queue(file.filename, content, prefix=prefix)
 
-        # Before attempting to ingest, we need to check user permissions
-        try:
-            request = connexion.request
-            jsoncontent = json.loads(content)
-            authzed_datasets = get_authorized_datasets()
-            for donor in jsoncontent["donors"]:
-                program_id = f"{prefix}~{donor['program_id']}"
-                if program_id not in authzed_datasets:
-                    return {
-                        "error": "Forbidden",
-                        "message": f"User {get_user_id(request)} does not have permission to ingest '{program_id}'",
-                    }, 403
-        except (KeyError, json.JSONDecodeError) as e:
-            raise ProblemException(
-                status=500, title="Uploaded File in Unexpected Format", detail=str(e)
-            )
 
+def add_to_queue(filename, content, prefix=None):
+    temp_path = None
+
+    try:
         # Generate a unique ID for this job
         queue_id = secrets.token_hex(8)
 
@@ -147,14 +101,16 @@ async def upload_sample(file, prefix: str):
             temp_path = f.name
             f.write(content)
 
+        # Create an initial status file with filename and timestamp
         results_path = os.path.join(settings.RESULTS_DIR, queue_id)
         stub = {
             "status": "In Queue",
-            "file_name": file.filename,
+            "file_name": filename,
             "file_size": len(content),
             "uploaded_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
-            "prefix": prefix,
         }
+        if prefix is not None:
+            stub['prefix'] = prefix
 
         with open(results_path, "w") as f:
             json.dump(stub, f)
@@ -163,21 +119,19 @@ async def upload_sample(file, prefix: str):
         final_path = os.path.join(settings.TO_INGEST_DIR, queue_id)
         shutil.move(temp_path, final_path)
 
-        logger.info(
-            f"Sample file '{file.filename}' queued with ID: {queue_id} (prefix='{prefix}')"
-        )
+        logger.info(f"File '{filename}' queued with ID: {queue_id}")
 
         return {
-            "message": "Sample file uploaded for processing.",
+            "message": "File uploaded for processing.",
             "queue_id": queue_id,
             "url": f"/v1/datasets/upload/status/{queue_id}",
         }, 202
-
     except ProblemException:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
         raise
     except Exception as e:
+        # Cleanup the temp file if something went wrong
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
         logger.error(f"Error in upload_sample: {str(e)}")
