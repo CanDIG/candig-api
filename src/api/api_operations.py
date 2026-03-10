@@ -15,6 +15,7 @@ from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
 
 from src.api.auth import get_authorized_datasets
+from src.api.ingest_helpers import check_genomic_data
 
 from ..config import settings  # Import settings
 

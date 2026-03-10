@@ -1,15 +1,20 @@
 """
-Helper functions for data ingestion
+Helper functions for clinical data ingestion
 """
 
 import json
 import os
+import re
+import requests
 from typing import Any, Dict, List, Optional, Tuple
 
 from candigv2_logging.logging import CanDIGLogger
 from connexion.exceptions import ProblemException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+from jsonschema import Draft202012Validator
+from urllib.parse import urlparse
+from clinical_etl.schema import openapi_to_jsonschema
 
 from src.config import settings
 from src.database.db_operations import get_db_session
@@ -31,7 +36,22 @@ from src.database.insert_operations import (
     create_visit_occurrence,
 )
 
+from authx.auth import create_service_token, get_s3_url
+from src.api.auth import get_dataset, is_action_allowed
+from src.api.dataset_operations import list_samples
+
+
 logger = CanDIGLogger(__file__)
+
+
+CANDIG_URL = os.getenv("CANDIG_URL", "")
+HTSGET_URL = os.getenv("HTSGET_URL", f"{CANDIG_URL}/genomics")
+DRS_URL = os.getenv("DRS_URL", f"{CANDIG_URL}/drs")
+TAKUAN_URL = os.getenv("RNAGET_URL", f"{CANDIG_URL}/rnaget")
+DRS_HOST_URL = "drs://" + CANDIG_URL.replace(f"{urlparse(CANDIG_URL).scheme}://","") + "/drs"
+KATSU_URL = os.environ.get("KATSU_URL")
+IS_TESTING = os.getenv("IS_TESTING", False)
+
 
 # ==============================================================================
 # Mapping for each OMOP table
@@ -345,7 +365,7 @@ def calculate_status(success_count: int, fail_count: int) -> str:
 
 
 async def ingest_samples(
-    data: dict, queue_id: str, prefix: str
+    data: dict, queue_id: str, site_id: str
 ) -> Tuple[List[str], List[str], int]:
     """
     Extracts sample data from json
@@ -361,8 +381,8 @@ async def ingest_samples(
     for donor in donors:
         donor_id = donor.get("submitter_donor_id")
         raw_program_id = donor.get("program_id", "")
-        dataset_id = f"{prefix}~{raw_program_id}"
-        person_source_value = f"{prefix}~{raw_program_id}~{donor_id}"
+        dataset_id = f"{site_id}~{raw_program_id}"
+        person_source_value = f"{site_id}~{raw_program_id}~{donor_id}"
         primary_diagnoses = donor.get("primary_diagnoses", [])
 
         for diagnosis in primary_diagnoses:
@@ -373,7 +393,7 @@ async def ingest_samples(
                 sample_registrations = specimen.get("sample_registrations", [])
                 for sample in sample_registrations:
                     submitter_sample_id = sample.get("submitter_sample_id")
-                    sample_id = f"{prefix}~{raw_program_id}~{submitter_sample_id}"
+                    sample_id = f"{site_id}~{raw_program_id}~{submitter_sample_id}"
 
                     async for session in get_db_session():
                         try:
@@ -486,3 +506,87 @@ def write_results(results_path: str, result_data: dict, source_file_path: str):
             os.remove(source_file_path)
     except OSError as e:
         logger.error(f"Could not remove source file: {e}")
+
+
+async def check_genomic_data(jsoncontent, site_id, token):
+    with open("ingest-schema.yml") as f:
+        openapi_text = f.read()
+        experiment_schema = openapi_to_jsonschema(openapi_text, "Experiment")
+        analysis_schema = openapi_to_jsonschema(openapi_text, "Analysis")
+        run_schema = openapi_to_jsonschema(openapi_text, "Run")
+    result = {
+        "errors": {},
+    }
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+    # sort by dataset
+    by_dataset = {}
+
+    for type in jsoncontent.keys():
+        for item in jsoncontent[type]:
+            if item["dataset_id"] not in by_dataset:
+                by_dataset[item["dataset_id"]] = {"experiments": [], "runs": [], "analyses": []}
+            by_dataset[item["dataset_id"]][type].append(item)
+
+    for dataset_id in by_dataset.keys():
+        if dataset_id not in result["errors"]:
+            result["errors"][dataset_id] = []
+        response, status_code = get_dataset(dataset_id)
+        if status_code > 300:
+            result["errors"][dataset_id].append({"not found": "No dataset authorization exists"})
+        elif not is_action_allowed(dataset_id):
+            result["errors"][dataset_id].append({"unauthorized": "user is not allowed to ingest to dataset"})
+            continue
+
+        # get all sample_registrations for this dataset
+        samples_in_dataset, status_code = await list_samples(dataset_id)
+        samples_in_dataset = list(map(lambda x: x["sample_id"], samples_in_dataset))
+        if "experiments" in by_dataset[dataset_id]:
+            for experiment in by_dataset[dataset_id]["experiments"]:
+                sample_errors = []
+                # validate the json
+                for error in Draft202012Validator(experiment_schema).iter_errors(experiment):
+                    sample_errors.extend(f"{' > '.join(error.path)}: {error.message}")
+                if len(sample_errors) > 0:
+                    continue
+                # check to see if the samples exist in katsu
+                if experiment["submitter_sample_id"] not in samples_in_dataset:
+                    sample_errors.append({"no such sample": f"sample {experiment['submitter_sample_id']} does not exist in clinical data {samples_in_dataset}"})
+                if len(sample_errors) > 0:
+                    result["errors"][dataset_id].append({experiment["experiment_id"]: sample_errors})
+        if "analyses" in by_dataset[dataset_id]:
+            for analysis in by_dataset[dataset_id]["analyses"]:
+                sample_errors = []
+                # validate the json
+                if analysis["analysis_id"] == analysis["main"]["name"]:
+                    sample_errors = f"Experiment {analysis['analysis_id']} cannot have the same name as one of its files."
+                if "index" in analysis and analysis["analysis_id"] == analysis["index"]["name"]:
+                    sample_errors = f"Experiment {analysis['analysis_id']} cannot have the same name as one of its files."
+                else:
+                    for error in Draft202012Validator(analysis_schema).iter_errors(analysis):
+                        sample_errors.extend(f"{' > '.join(error.path)}: {error.message}")
+                if len(sample_errors) > 0:
+                    result["errors"][dataset_id].append({analysis["analysis_id"]: sample_errors})
+        if "runs" in by_dataset[dataset_id]:
+            for run in by_dataset[dataset_id]["runs"]:
+                sample_errors = []
+                for file in run["files"]:
+                    if run["run_id"] == file["name"]:
+                        sample_errors = f"Experiment {run["run_id"]} cannot have the same name as one of its files."
+                # validate the json
+                for error in Draft202012Validator(run_schema).iter_errors(run):
+                    sample_errors.extend(f"{' > '.join(error.path)}: {error.message}")
+                if len(sample_errors) > 0:
+                    result["errors"][dataset_id].append({run["run_id"]: sample_errors})
+        if len(result["errors"][dataset_id]) == 0:
+            result["errors"].pop(dataset_id)
+    if len(result["errors"]) == 0:
+        return by_dataset, 200
+    return result, 400
+
+
+def delete_program(program_id, token):
+    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+    url = f"{DRS_URL}/ga4gh/drs/v1/programs/{program_id}"
+
+    return requests.delete(url, headers=headers)

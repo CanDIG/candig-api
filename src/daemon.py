@@ -22,7 +22,7 @@ import watchdog.events
 from candigv2_logging.logging import CanDIGLogger, initialize
 from watchdog.observers import Observer
 
-from src.api.helpers import calculate_status, ingest_data, ingest_samples, write_results
+from src.api.ingest_helpers import calculate_status, ingest_data, ingest_samples, ingest_genomic, write_results
 from src.config import settings
 
 initialize()
