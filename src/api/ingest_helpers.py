@@ -493,8 +493,9 @@ async def ingest_samples(
 
 async def ingest_genomic(ingest_json, queue_id):
     error_logs = []
+    fail_count = 0
     result = {
-        "results": []
+        "runs": [], "experiments": [], "analyses": []
     }
     url = f"{DRS_URL}/ga4gh/drs/v1/objects"
     # Use service token to authenticate this with htsget
@@ -503,110 +504,102 @@ async def ingest_genomic(ingest_json, queue_id):
         "Content-Type": "application/json"
     }
 
-    program_ids = set()
+    dataset_ids = set()
     to_index = []
     status_code = 200
-    error_logs = []
-    for experiment in ingest_json["experiments"]:
-        experiment_drs_obj = {
-            "id": experiment["experiment_id"],
-            "name": experiment["submitter_sample_id"],
-            "description": experiment["metadata"]["library_strategy"].lower(),
-            "program": experiment["program_id"],
-            "version": "v1",
-            "metadata": experiment["metadata"],
-            "contents": []
-        }
-        response = requests.post(f"{url}", json=experiment_drs_obj, headers=headers)
-        if response.status_code != 200:
-            error_logs.append(f"error creating experiment drs object {experiment_drs_obj['id']}: {response.status_code} {response.text}")
+    for dataset_id in ingest_json:
+        for experiment in ingest_json[dataset_id]["experiments"]:
+            logger.debug(f"[{queue_id}] Ingesting {experiment['experiment_id']}")
+            experiment_drs_obj = {
+                "id": experiment["experiment_id"],
+                "name": experiment["submitter_sample_id"],
+                "description": experiment["metadata"]["library_strategy"].lower(),
+                "program": experiment["dataset_id"],
+                "version": "v1",
+                "metadata": experiment["metadata"],
+                "contents": []
+            }
+            response = requests.post(f"{url}", json=experiment_drs_obj, headers=headers)
+            if response.status_code != 200:
+                error_logs.append(f"error creating experiment drs object {experiment_drs_obj['id']}: {response.status_code} {response.text}")
+                fail_count += 1
+            else:
+                result["experiments"].append(experiment["experiment_id"])
 
-    if "runs" in ingest_json:
-        for run in ingest_json["runs"]:
-            result["results"].append(f"processing run {run["run_id"]}...")
-            response = create_run(run)
-            result["results"].pop()
-            if len(response["errors"]) > 0:
+        if "runs" in ingest_json[dataset_id]:
+            for run in ingest_json[dataset_id]["runs"]:
+                logger.debug(f"[{queue_id}] Ingesting {run['run_id']}")
+                response = create_run(run)
+                if "errors" in response and len(response["errors"]) > 0:
+                    for err in response["errors"]:
+                        if "403" in err:
+                            status_code = 403
+                            break
+                        error_logs.append(f"error processing {response["id"]} {response["name"]} in experiment {run["experiment_id"]}: {err}")
+                    fail_count += 1
+                else:
+                    result["runs"].append(run["run_id"])
+
+        for analysis in ingest_json[dataset_id]["analyses"]:
+            logger.debug(f"[{queue_id}] Ingesting {analysis['analysis_id']}")
+            dataset_ids.add(analysis["dataset_id"])
+
+            # create the corresponding DRS objects
+            if "samples" not in analysis or len(analysis["samples"]) == 0:
+                error_logs.append(f"error processing analysis {analysis["analysis_id"]}: No samples were specified")
+                break
+            response = create_analysis(analysis)
+            if "errors" in response and len(response["errors"]) > 0:
                 for err in response["errors"]:
                     if "403" in err:
                         status_code = 403
                         break
-                    error_logs.append(f"error processing {response["id"]} {response["name"]} in experiment {run["experiment_id"]}: {err}")
+                    error_logs.append(f"error processing {response["id"]} {response["name"]} in experiment {analysis["analysis_id"]}: {err}")
+                fail_count += 1
             else:
-                result["results"].append(f"processed {response["id"]} {response["name"]} for experiment {run["experiment_id"]}")
-                if "sample" in response:
-                    result["results"].append(response["sample"])
+                result["analyses"].append(analysis["analysis_id"])
 
-
-    for analysis in ingest_json["analyses"]:
-        logger.debug(f"Ingesting {analysis['analysis_id']}")
-        program_ids.add(analysis["program_id"])
-        result["results"].append(f"processing analysis {analysis["analysis_id"]}...")
-
-        # create the corresponding DRS objects
-        if "samples" not in analysis or len(analysis["samples"]) == 0:
-            result["results"][-1] = f"error processing analysis {analysis["analysis_id"]}: No samples were specified"
-            break
-        response = create_analysis(analysis)
-        if "errors" in response:
-            error_logs.extend(response["errors"])
-
-        # remove the temporary "processing..." message
-        result["results"].pop()
-
-        if len(response["errors"]) > 0:
-            for err in response["errors"]:
-                if "403" in err:
-                    status_code = 403
-                    break
-                result["results"].append(f"error processing {response["id"]} {response["name"]} in experiment {analysis["analysis_id"]}: {err}")
-        else:
-            result["results"].append(f"processed {response["id"]} {response["name"]} for experiment {analysis["analysis_id"]}")
-            if "sample" in response:
-                result["results"].append(response["sample"])
-
-        if "to_index" in response:
-            to_index.extend(response.pop("to_index"))
-
+            if "to_index" in response:
+                to_index.extend(response.pop("to_index"))
 
     # send off index calls
     for url in to_index:
+        logger.debug(f"[{queue_id}] Indexing {url}")
         response = requests.get(url, headers=headers)
 
-    # update completeness stats for program_ids with created biosamples
+    # update completeness stats for dataset_ids with created biosamples
     statistics = {}
-    for program_id in program_ids:
+    for dataset_id in dataset_ids:
+        logger.debug(f"[{queue_id}] Compiling statistics for {dataset_id}")
         url = f"{HTSGET_URL}/htsget/v1/biosamples"
-        response = requests.get(url, headers=headers, params={"program": program_id})
+        response = requests.get(url, headers=headers, params={"program": dataset_id})
         if response.status_code == 200:
             for biosample in response.json():
-                logger.debug(biosample)
-                if program_id not in statistics:
-                    statistics[program_id] = { 'genomes': 0, 'transcriptomes': 0, 'all': 0 }
+                if dataset_id not in statistics:
+                    statistics[dataset_id] = { 'genomes': 0, 'transcriptomes': 0, 'all': 0 }
                 if len(biosample["experiments"]["wgs"]) > 0 and len(biosample["experiments"]["wts"]) > 0:
-                    statistics[program_id]['all'] += 1
+                    statistics[dataset_id]['all'] += 1
                 if len(biosample["experiments"]["wgs"]) > 0:
-                    statistics[program_id]['genomes'] += 1
+                    statistics[dataset_id]['genomes'] += 1
                 if len(biosample["experiments"]["wts"]) > 0:
-                    statistics[program_id]['transcriptomes'] += 1
+                    statistics[dataset_id]['transcriptomes'] += 1
         else:
             error_logs.append(f"Could not collect completeness stats for program: {response.text}")
 
-    for program_id in statistics:
+    for dataset_id in statistics:
         # get the program
         url = f"{DRS_URL}/ga4gh/drs/v1/programs"
-        response = requests.get(f"{url}/{program_id}", headers=headers)
+        response = requests.get(f"{url}/{dataset_id}", headers=headers)
         if response.status_code == 200:
             program = response.json()
-            program["statistics"] = statistics[program_id]
+            program["statistics"] = statistics[dataset_id]
             response = requests.post(url, headers=headers, json=program)
             if response.status_code != 200:
                 error_logs.append(f"Could not add statistics for program: {response.text}")
         else:
             error_logs.append(f"Could not add statistics for program: {response.text}")
 
-    return result, status_code
-    # ingested_items, error_logs, fail_count
+    return result, error_logs, fail_count
 
 
 def write_results(results_path: str, result_data: dict, source_file_path: str):
@@ -646,7 +639,7 @@ def create_analysis(analysis):
     analysis_drs_obj["id"] = analysis["analysis_id"]
     analysis_drs_obj["name"] = analysis["analysis_id"]
     analysis_drs_obj["description"] = analysis_type
-    analysis_drs_obj["program"] = analysis["program_id"]
+    analysis_drs_obj["program"] = analysis["dataset_id"]
     analysis_drs_obj["reference_genome"] = analysis["metadata"]["reference"]
     analysis_drs_obj["version"] = "v1"
     analysis_drs_obj["metadata"] = analysis["metadata"]
@@ -735,7 +728,7 @@ def create_analysis(analysis):
                 "extra_properties": {}
             }
             response = requests.post(f"{TAKUAN_URL}/experiment", json=experiment_json, headers=headers)
-            logger.debug(f"takuan experiment post {response.status_code}, {response.text}")
+            logger.debug(f"[{queue_id}] takuan experiment post {response.status_code}, {response.text}")
 
             # ingest matrix
             response = requests.get(f"{DRS_URL}/ga4gh/drs/v1/objects/{analysis["main"]["name"]}/download", headers=headers)
@@ -831,6 +824,8 @@ def create_analysis(analysis):
         # flag the analysis_drs_object for indexing:
         url =f"{HTSGET_URL}/htsget/v1/{analysis_drs_obj['id']}/index"
         result["to_index"] = [url]
+    if len(result["errors"]) == 0:
+        result.pop("errors")
     return result
 
 
@@ -853,7 +848,7 @@ def create_run(run):
     run_drs_obj["id"] = run["run_id"]
     run_drs_obj["name"] = run["experiment_id"]
     run_drs_obj["description"] = "raw_reads"
-    run_drs_obj["program"] = run["program_id"]
+    run_drs_obj["program"] = run["dataset_id"]
     run_drs_obj["version"] = "v1"
     run_drs_obj["metadata"] = run["metadata"]
     if "contents" not in run_drs_obj:
@@ -862,8 +857,6 @@ def create_run(run):
     # add files to contents
     for file in run["files"]:
         response = add_file_drs_object(run_drs_obj, file, run["metadata"]["filetype"], headers)
-        result["name"] = response["name"]
-        result["id"] = response["id"]
         if "error" in response:
             result["errors"].append(response["error"])
             return result
@@ -924,7 +917,8 @@ def create_run(run):
         result["errors"].append(f"could not verify run: {response.text}")
         return result
 
-    result["sample"] = f"connected experiment {run["experiment_id"]} to run {run["run_id"]}"
+    if len(result["errors"]) == 0:
+        result.pop("errors")
     return result
 
 
@@ -1095,8 +1089,8 @@ async def check_genomic_data(jsoncontent, site_id, token):
     return result, 400
 
 
-def delete_program(program_id, token):
+def delete_program(dataset_id, token):
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    url = f"{DRS_URL}/ga4gh/drs/v1/programs/{program_id}"
+    url = f"{DRS_URL}/ga4gh/drs/v1/programs/{dataset_id}"
 
     return requests.delete(url, headers=headers)
