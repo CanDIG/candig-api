@@ -49,8 +49,6 @@ HTSGET_URL = os.getenv("HTSGET_URL", f"{CANDIG_URL}/genomics")
 DRS_URL = os.getenv("DRS_URL", f"{CANDIG_URL}/drs")
 TAKUAN_URL = os.getenv("RNAGET_URL", f"{CANDIG_URL}/rnaget")
 DRS_HOST_URL = "drs://" + CANDIG_URL.replace(f"{urlparse(CANDIG_URL).scheme}://","") + "/drs"
-KATSU_URL = os.environ.get("KATSU_URL")
-IS_TESTING = os.getenv("IS_TESTING", False)
 
 
 # ==============================================================================
@@ -500,12 +498,10 @@ async def ingest_genomic(ingest_json, queue_id):
     }
     url = f"{DRS_URL}/ga4gh/drs/v1/objects"
     # Use service token to authenticate this with htsget
-    headers = {}
-    if not IS_TESTING:
-        headers = {
-            "X-Service-Token": create_service_token(),
-            "Content-Type": "application/json"
-        }
+    headers = {
+        "X-Service-Token": create_service_token(),
+        "Content-Type": "application/json"
+    }
 
     program_ids = set()
     to_index = []
@@ -572,13 +568,6 @@ async def ingest_genomic(ingest_json, queue_id):
         if "to_index" in response:
             to_index.extend(response.pop("to_index"))
 
-    # Use service token to authenticate this with htsget
-    headers = {}
-    if not IS_TESTING:
-        headers = {
-            "X-Service-Token": create_service_token(),
-            "Content-Type": "application/json"
-        }
 
     # send off index calls
     for url in to_index:
@@ -642,12 +631,10 @@ def create_analysis(analysis):
     }
 
     # Use service token to authenticate this with htsget
-    headers = {}
-    if not IS_TESTING:
-        headers = {
-            "X-Service-Token": create_service_token(),
-            "Content-Type": "application/json"
-        }
+    headers = {
+        "X-Service-Token": create_service_token(),
+        "Content-Type": "application/json"
+    }
 
     analysis_type = analysis["metadata"]["analysis_type"]
 
@@ -854,12 +841,10 @@ def create_run(run):
     }
 
     # Use service token to authenticate this with htsget
-    headers = {}
-    if not IS_TESTING:
-        headers = {
-            "X-Service-Token": create_service_token(),
-            "Content-Type": "application/json"
-        }
+    headers = {
+        "X-Service-Token": create_service_token(),
+        "Content-Type": "application/json"
+    }
 
     run_drs_obj = {}
     response = requests.get(f"{url}/{run['run_id']}", headers=headers)
