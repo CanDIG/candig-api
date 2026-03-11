@@ -568,11 +568,11 @@ async def test_upload_file_mixed_valid_invalid_datasets(
 # --- Foreign Key Mismatch Tests ---
 # These tests verify FK validation during ingestion and error capture in status file
 @pytest.mark.asyncio
-@patch("src.api.helpers.get_db_session")
-@patch("src.api.helpers.create_dataset")
-@patch("src.api.helpers.create_person")
-@patch("src.api.helpers.create_person_in_dataset")
-@patch("src.api.helpers.create_record")
+@patch("src.api.ingest_helpers.get_db_session")
+@patch("src.api.ingest_helpers.create_dataset")
+@patch("src.api.ingest_helpers.create_person")
+@patch("src.api.ingest_helpers.create_person_in_dataset")
+@patch("src.api.ingest_helpers.create_record")
 @patch("src.api.api_operations.secrets.token_hex")
 @patch("src.api.api_operations.shutil.move")
 @patch("src.api.api_operations.tempfile.NamedTemporaryFile")
@@ -605,7 +605,7 @@ async def test_upload_file_with_measurement_fk_mismatch(
     Test that FK mismatch in measurement_event_id is caught during ingestion
     and the error is properly captured in error_logs.
     """
-    from src.api.helpers import ingest_data
+    from src.api.ingest_helpers import ingest_data
 
     # Arrange
     queue_id = "fk_mismatch_test"
@@ -678,7 +678,7 @@ async def test_upload_file_with_measurement_fk_mismatch(
     mock_get_db_session.side_effect = lambda: create_session_gen()
 
     with patch(
-        "src.api.helpers.check_person_exists", new_callable=AsyncMock
+        "src.api.ingest_helpers.check_person_exists", new_callable=AsyncMock
     ) as mock_check_person:
         mock_check_person.return_value = False
 
@@ -716,11 +716,11 @@ async def test_upload_file_with_measurement_fk_mismatch(
 
 
 @pytest.mark.asyncio
-@patch("src.api.helpers.get_db_session")
-@patch("src.api.helpers.create_dataset")
-@patch("src.api.helpers.create_person")
-@patch("src.api.helpers.create_person_in_dataset")
-@patch("src.api.helpers.create_record")
+@patch("src.api.ingest_helpers.get_db_session")
+@patch("src.api.ingest_helpers.create_dataset")
+@patch("src.api.ingest_helpers.create_person")
+@patch("src.api.ingest_helpers.create_person_in_dataset")
+@patch("src.api.ingest_helpers.create_record")
 @patch("src.api.api_operations.secrets.token_hex")
 @patch("src.api.api_operations.shutil.move")
 @patch("src.api.api_operations.tempfile.NamedTemporaryFile")
@@ -753,7 +753,7 @@ async def test_upload_file_with_episode_event_fk_mismatch(
     Test that FK mismatch in episode_event (event_id doesn't exist) is caught
     and the error is properly captured.
     """
-    from src.api.helpers import ingest_data
+    from src.api.ingest_helpers import ingest_data
 
     # Arrange
     queue_id = "episode_event_fk_mismatch"
@@ -831,7 +831,7 @@ async def test_upload_file_with_episode_event_fk_mismatch(
     mock_get_db_session.side_effect = lambda: create_session_gen()
 
     with patch(
-        "src.api.helpers.check_person_exists", new_callable=AsyncMock
+        "src.api.ingest_helpers.check_person_exists", new_callable=AsyncMock
     ) as mock_check_person:
         mock_check_person.return_value = False
 
@@ -854,11 +854,11 @@ async def test_upload_file_with_episode_event_fk_mismatch(
 
 
 @pytest.mark.asyncio
-@patch("src.api.helpers.get_db_session")
-@patch("src.api.helpers.create_dataset")
-@patch("src.api.helpers.create_person")
-@patch("src.api.helpers.create_person_in_dataset")
-@patch("src.api.helpers.create_record")
+@patch("src.api.ingest_helpers.get_db_session")
+@patch("src.api.ingest_helpers.create_dataset")
+@patch("src.api.ingest_helpers.create_person")
+@patch("src.api.ingest_helpers.create_person_in_dataset")
+@patch("src.api.ingest_helpers.create_record")
 @patch("src.api.api_operations.secrets.token_hex")
 @patch("src.api.api_operations.shutil.move")
 @patch("src.api.api_operations.tempfile.NamedTemporaryFile")
@@ -890,7 +890,7 @@ async def test_upload_file_with_fact_relationship_fk_mismatch(
     """
     Test that FK mismatch in fact_relationship (fact_id_2 must exist) is caught.
     """
-    from src.api.helpers import ingest_data
+    from src.api.ingest_helpers import ingest_data
 
     # Arrange
     queue_id = "fact_relationship_fk_mismatch"
@@ -971,7 +971,7 @@ async def test_upload_file_with_fact_relationship_fk_mismatch(
     mock_get_db_session.side_effect = lambda: create_session_gen()
 
     with patch(
-        "src.api.helpers.check_person_exists", new_callable=AsyncMock
+        "src.api.ingest_helpers.check_person_exists", new_callable=AsyncMock
     ) as mock_check_person:
         mock_check_person.return_value = False
 
