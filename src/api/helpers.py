@@ -360,6 +360,10 @@ async def ingest_samples(
 
     for donor in donors:
         donor_id = donor.get("submitter_donor_id")
+        if not donor_id:
+            total_fails += 1
+            all_errors.append("Missing required field: submitter_donor_id")
+            continue
         raw_program_id = donor.get("program_id", "")
         dataset_id = f"{prefix}~{raw_program_id}"
         person_source_value = f"{prefix}~{raw_program_id}~{donor_id}"
