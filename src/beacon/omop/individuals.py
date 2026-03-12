@@ -560,6 +560,7 @@ def discovery_query_primary_site(filter):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_discovery_filters']}
+        {filter['genomics_filters']}
         GROUP BY c.concept_name
     """
 
@@ -576,6 +577,7 @@ def discovery_query_treatment_type(filter):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_discovery_filters']}
+        {filter['genomics_filters']}
         GROUP BY c.concept_name
     """
 
@@ -592,6 +594,7 @@ def discovery_query_drug_type(filter):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_discovery_filters']}
+        {filter['genomics_filters']}
         GROUP BY c.concept_name
     """
 
@@ -607,6 +610,7 @@ def discovery_query_program(filter):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_discovery_filters']}
+        {filter['genomics_filters']}
         GROUP BY d.dataset_id
     """
 
@@ -621,6 +625,7 @@ def super_query_get(filter, offset, limit):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_filters']}
+        {filter['genomics_filters']}
 
         limit {limit}
         offset {offset}
@@ -763,9 +768,10 @@ async def filters(filtersDict, offset, limit, extra_filters):
 def search_genomic_variants(qparams: RequestParams=RequestParams()):
     # We basically need to form a request to HTSGet and pass all of our qparams.requestParameters.g_variant to them
     headers = {
-        "X-Service-Token": authx.auth.create_service_token()
+        "X-Service-Token": authx.auth.create_service_token(),
+        "Authorization": request.headers["Authorization"]
     }
-    logger.info(qparams.query.request_parameters)
+
     payload = {
         'query': {
             'requestParameters': qparams.query.request_parameters["g_variant"]
@@ -786,7 +792,7 @@ def search_genomic_variants(qparams: RequestParams=RequestParams()):
                 # How do we search on this in a performant manner...
                 # Scratch that, we only have a few days left to implement this
     else:
-        logger.error(f"Received error {response.status_code} while searching HTSGet: {response.reason}")
+        logger.error(f"Received error {response.status_code} while searching HTSGet: {response.reason} {response.text}")
     return found_samples
 
 
@@ -798,7 +804,9 @@ def create_samples_filter(samples: List, filters_dict: dict):
         if not first:
             ret_filter += ' or '
         first = False
-        ret_filter += f' CONCAT(dataset_id, ''~'', specimen_id) = :samples{i}'
+        #Son said it was dataset_id~specimen_id but it looks more like it's just sample_id
+        #ret_filter += f' CONCAT(dataset_id, ''~'', specimen_id) = :samples{i}'
+        ret_filter += f' sample_id = :samples{i}'
         filters_dict[f'samples{i}'] = sample_id
     # Close both the exists clause and also the chain of dataset_id conditionals
     ret_filter += '))'
