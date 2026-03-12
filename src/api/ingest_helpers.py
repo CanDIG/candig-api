@@ -728,7 +728,7 @@ def create_analysis(analysis):
                 "extra_properties": {}
             }
             response = requests.post(f"{TAKUAN_URL}/experiment", json=experiment_json, headers=headers)
-            logger.debug(f"[{queue_id}] takuan experiment post {response.status_code}, {response.text}")
+            logger.debug(f"takuan experiment post {response.status_code}, {response.text}")
 
             # ingest matrix
             response = requests.get(f"{DRS_URL}/ga4gh/drs/v1/objects/{analysis["main"]["name"]}/download", headers=headers)
