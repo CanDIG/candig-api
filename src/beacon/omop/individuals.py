@@ -661,7 +661,7 @@ async def get_discovery(base_filter, filters_dict):
     discovery['drug_type_count'] = await format_filtered_discovery(discovery_query_drug_type(base_filter), filters_dict)
     return discovery
 
-async def checkFilters(filtersDict, offset, limit, extra_filters):
+async def checkFilters(filtersDict, offset, limit, extra_filters, extra_filters_dict):
     listOfList = []
     dictTableMap = []
     typeQuery = request.method
@@ -744,8 +744,8 @@ async def checkFilters(filtersDict, offset, limit, extra_filters):
                 dictTableMap.append([tableMap, listConcept_id, operator, value, includeDescendantTerms])
     # logger.info(dictTableMap)
     base_filter, filters_dict = create_dynamic_filter(dictTableMap)
-    for filter in extra_filters:
-        base_filter.update(filter)
+    base_filter.update(extra_filters)
+    filters_dict.update(extra_filters_dict)
     query_count = super_query_count(base_filter)
     count_records = (await basic_query(query_count, filters_dict)).fetchone()[0]
 
@@ -760,9 +760,9 @@ async def checkFilters(filtersDict, offset, limit, extra_filters):
     return listOfList, count_records, discovery, filters_dict
 
 # /individuals/?filters=SNOMED:0&filters=OMOP:23
-async def filters(filtersDict, offset, limit, extra_filters):
+async def filters(filtersDict, offset, limit, extra_filters, extra_filters_dict):
     # There used to be a lot of code here, but now that we pass the connexion request it's all unnecessary
-    return await checkFilters(filtersDict, offset, limit, extra_filters)
+    return await checkFilters(filtersDict, offset, limit, extra_filters, extra_filters_dict)
 
 
 def search_genomic_variants(qparams: RequestParams=RequestParams()):
@@ -780,6 +780,7 @@ def search_genomic_variants(qparams: RequestParams=RequestParams()):
             'apiVersion': 'v2'
         }
     }
+
     response = requests.post(url=f"{HTSGET_URL}/beacon/v2/g_variants", headers=headers, json=payload)
     found_samples = []
     if response.ok:
@@ -797,7 +798,7 @@ def search_genomic_variants(qparams: RequestParams=RequestParams()):
 
 
 def create_samples_filter(samples: List, filters_dict: dict):
-    ret_filter = 'and exists (SELECT 1 FROM candig.samples d where p.person_id = d.person_id and ('
+    ret_filter = 'and exists (SELECT 1 FROM candig.sample d where p.person_id = d.person_id and ('
     first = True
     for i, sample_id in enumerate(samples):
         # Expecting sample_id to be of the form: dataset_id~specimen_id e.g. SITE_PM2C~SAMPLE_0001
@@ -820,7 +821,8 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
     discovery_data = {}
     
     # First, we determine if we need to join on any genomics results
-    genomics_filters = {}
+    extra_filters = {}
+    extra_filters_dict = {}
     if "g_variant" in qparams.query.request_parameters:
         found_samples = search_genomic_variants(qparams)
 
@@ -829,16 +831,23 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
             return schema, 0, [], {}
 
         # Otherwise, insert this as a single filter with a bunch of entries
-        genomics_filters = {'genomics_filters': create_samples_filter(found_samples)}
+        genomics_filters, genomic_filters_dict = create_samples_filter(found_samples, {})
+        extra_filters['genomics_filters'] = genomics_filters
+        extra_filters_dict.update(genomic_filters_dict)
 
     if qparams.query.pagination.limit == 0:
         qparams.query.pagination.limit = MAX_LIMIT
+    
+    filter_params = []
     if qparams.query.filters and len(qparams.query.filters) > 0 and len(qparams.query.filters[0]) > 0:
+        filter_params = qparams.query.filters[0]
+    if len(filter_params) > 0 or len(extra_filters) > 0:
         # NB: qparams.query.filters is a list, whereas we need it to be a dict?
-        listIds, count_ids, discovery_data, filters_dict = await filters(qparams.query.filters[0],
+        listIds, count_ids, discovery_data, filters_dict = await filters(filter_params,
                                                                         offset=qparams.query.pagination.skip,
                                                                         limit=qparams.query.pagination.limit,
-                                                                        extra_filters=genomics_filters)
+                                                                        extra_filters=extra_filters,
+                                                                        extra_filters_dict=extra_filters_dict)
         if count_ids == 0:
             return schema, count_ids, [], discovery_data
     else:
