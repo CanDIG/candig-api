@@ -951,8 +951,8 @@ components:
       required:
         - beaconId
         - apiVersion
-        - returnedSchemas
-        - returnedGranularity
+        # - returnedSchemas
+        # - returnedGranularity
         - receivedRequestSummary
       type: object
     BeaconId:
@@ -996,7 +996,7 @@ components:
       required:
         - apiVersion
         - requestedSchemas
-        - pagination
+        # - pagination
         - requestedGranularity
     BeaconResultsets:
       description: Sets of results to be returned as query response.
