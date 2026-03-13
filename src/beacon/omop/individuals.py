@@ -753,7 +753,7 @@ async def checkFilters(filtersDict, offset, limit, extra_filters, extra_filters_
     discovery = await get_discovery(base_filter, filters_dict)
 
     query_get = super_query_get(base_filter, offset, limit)
-    logger.info(query_get)
+    # logger.info(query_get)
     records_get = await basic_query(query_get, filters_dict)
     listOfList = [str(record[0]) for record in records_get]
 
@@ -789,7 +789,7 @@ def search_genomic_variants(qparams: RequestParams=RequestParams()):
             if not isinstance(results, list):
                 continue
             for item in results:
-                found_samples.append(item["submitter_sample_id"])
+                found_samples.append(program + "~" + item["submitter_sample_id"])
                 # How do we search on this in a performant manner...
                 # Scratch that, we only have a few days left to implement this
     else:
@@ -805,8 +805,6 @@ def create_samples_filter(samples: List, filters_dict: dict):
         if not first:
             ret_filter += ' or '
         first = False
-        #Son said it was dataset_id~specimen_id but it looks more like it's just sample_id
-        #ret_filter += f' CONCAT(dataset_id, ''~'', specimen_id) = :samples{i}'
         ret_filter += f' sample_id = :samples{i}'
         filters_dict[f'samples{i}'] = sample_id
     # Close both the exists clause and also the chain of dataset_id conditionals
