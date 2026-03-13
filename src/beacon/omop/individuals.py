@@ -8,6 +8,7 @@ from ...beacon.omop.utils import  search_ontologies, basic_query, peek
 from ...beacon.omop import engine, mappings
 from ...beacon.request.model import RequestParams
 from ...beacon.omop.schemas import DefaultSchemas
+from .utils import search_htsget, get_samples_from_htsget_response, create_samples_filter
 import aiosql
 from sqlalchemy import text, bindparam
 from ..conf import MAX_LIMIT
@@ -20,9 +21,6 @@ logger = CanDIGLogger(__file__)
 
 queries_file = Path(__file__).parent / "sql" / "individuals.sql"
 individual_queries = aiosql.from_path(queries_file, "psycopg2", mandatory_parameters=False)
-
-CANDIG_URL = os.getenv("CANDIG_URL", "")
-HTSGET_URL = os.getenv("HTSGET_URL", f"{CANDIG_URL}/genomics")
 
 def get_basic_discovery_response():
     return {
@@ -661,8 +659,7 @@ async def get_discovery(base_filter, filters_dict):
     discovery['drug_type_count'] = await format_filtered_discovery(discovery_query_drug_type(base_filter), filters_dict)
     return discovery
 
-async def checkFilters(filtersDict, offset, limit, extra_filters, extra_filters_dict):
-    listOfList = []
+async def parseFilters(filtersDict, extra_filters, extra_filters_dict):
     dictTableMap = []
     typeQuery = request.method
     async with engine.connect() as conn:
@@ -742,10 +739,15 @@ async def checkFilters(filtersDict, offset, limit, extra_filters, extra_filters_
                     # Look in which domains the concept_id belongs
                     tableMap = map_domains(domain_id)
                 dictTableMap.append([tableMap, listConcept_id, operator, value, includeDescendantTerms])
-    # logger.info(dictTableMap)
     base_filter, filters_dict = create_dynamic_filter(dictTableMap)
     base_filter.update(extra_filters)
     filters_dict.update(extra_filters_dict)
+    return base_filter, filters_dict
+
+async def checkFilters(filtersDict, offset, limit, extra_filters, extra_filters_dict):
+    base_filter, filters_dict = await parseFilters(filtersDict, extra_filters, extra_filters_dict)
+    
+    # logger.info(dictTableMap)
     query_count = super_query_count(base_filter)
     count_records = (await basic_query(query_count, filters_dict)).fetchone()[0]
 
@@ -765,53 +767,6 @@ async def filters(filtersDict, offset, limit, extra_filters, extra_filters_dict)
     return await checkFilters(filtersDict, offset, limit, extra_filters, extra_filters_dict)
 
 
-def search_genomic_variants(qparams: RequestParams=RequestParams()):
-    # We basically need to form a request to HTSGet and pass all of our qparams.requestParameters.g_variant to them
-    headers = {
-        "X-Service-Token": authx.auth.create_service_token(),
-        "Authorization": request.headers["Authorization"]
-    }
-
-    payload = {
-        'query': {
-            'requestParameters': qparams.query.request_parameters["g_variant"]
-        },
-        'meta': {
-            'apiVersion': 'v2'
-        }
-    }
-
-    response = requests.post(url=f"{HTSGET_URL}/beacon/v2/g_variants", headers=headers, json=payload)
-    found_samples = []
-    if response.ok:
-        htsget = response.json()
-        for program, results in htsget.get('estimatedResults', {}).items():
-            if not isinstance(results, list):
-                continue
-            for item in results:
-                found_samples.append(program + "~" + item["submitter_sample_id"])
-                # How do we search on this in a performant manner...
-                # Scratch that, we only have a few days left to implement this
-    else:
-        logger.error(f"Received error {response.status_code} while searching HTSGet: {response.reason} {response.text}")
-    return found_samples
-
-
-def create_samples_filter(samples: List, filters_dict: dict):
-    ret_filter = 'and exists (SELECT 1 FROM candig.sample d where p.person_id = d.person_id and ('
-    first = True
-    for i, sample_id in enumerate(samples):
-        # Expecting sample_id to be of the form: dataset_id~specimen_id e.g. SITE_PM2C~SAMPLE_0001
-        if not first:
-            ret_filter += ' or '
-        first = False
-        ret_filter += f' sample_id = :samples{i}'
-        filters_dict[f'samples{i}'] = sample_id
-    # Close both the exists clause and also the chain of dataset_id conditionals
-    ret_filter += '))'
-    return ret_filter, filters_dict
-
-
 async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=RequestParams()):
 
     schema = DefaultSchemas.INDIVIDUALS
@@ -822,7 +777,7 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
     extra_filters = {}
     extra_filters_dict = {}
     if "g_variant" in qparams.query.request_parameters:
-        found_samples = search_genomic_variants(qparams)
+        found_samples = get_samples_from_htsget_response(search_htsget(qparams))
 
         # If a genomic variant was requested but none was found, exit early
         if len(found_samples) == 0:
