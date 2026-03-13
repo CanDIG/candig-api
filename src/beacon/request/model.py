@@ -118,6 +118,8 @@ class RequestParams(CamelModel):
                     self.query.filters.append(v)
                 elif k == "requestedGranularity":
                     self.query.requested_granularity = v
+                elif k == "requestParameters":
+                    self.query.request_parameters.update(v)
                 else:
                     self.query.request_parameters[k] = v
         return self

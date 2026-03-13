@@ -94,6 +94,9 @@ async def post_person(body: dict):
     # Figure out what kind of search we should be doing (see beacon/request/routes)
     params = RequestParams(**body).from_request(body)
 
+    # Before we continue, we should check to make sure that if a genomic search is attempted, it has all required fields
+    # or wait... is that handled by connexion?
+
     # Pass out the parsed search parameters to SQL (see beacon/omop/)
     schema, count, records, discovery_data = await individuals.get_individuals(None, params)
 
