@@ -358,15 +358,14 @@ paths:
       summary: Upload a MoH sample JSON file for ingest
       description: |
         Upload a MoH schema (MoHSchemaV3) JSON file for sample registration ingestion.
-        The prefix will be prepended to each donor's program_id
       operationId: api_operations.upload_sample
       parameters:
         - in: query
-          name: prefix
+          name: site_id
           required: true
           schema:
             type: string
-          description: Prefix to prepend to the program_id for each donor
+          description: Name of the site, defined in the OMOP ETL tool
       requestBody:
         required: true
         content:
@@ -378,6 +377,52 @@ paths:
                   type: string
                   format: binary
                   description: MoH JSON file containing sample registration data
+              required:
+                - file
+            encoding:
+              file:
+                contentType: application/json
+      responses:
+        202:
+          description: File uploaded and queued for processing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileUploadResponseBody"
+        400:
+          $ref: "#/components/responses/400BadRequestError"
+        401:
+          $ref: "#/components/responses/401UnauthorizedError"
+        default:
+          $ref: "#/components/responses/5xxServerError"
+      tags:
+        - Datasets
+
+  /datasets/upload/genomic:
+    post:
+      summary: Upload genomic JSON file for ingest
+      description: |
+        Upload a genomic JSON file ingestion.
+        The site_id will be prepended to each donor's program_id
+      operationId: api_operations.upload_genomic
+      parameters:
+        - in: query
+          name: site_id
+          required: true
+          schema:
+            type: string
+          description: Name of the site, defined in the OMOP ETL tool
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: JSON file containing genomic data
               required:
                 - file
             encoding:
@@ -1600,7 +1645,7 @@ components:
         modifier_source_value:
           type: string
           maxLength: 50
-        
+
 
     IngestDrugExposure:
       type: object
@@ -1761,7 +1806,7 @@ components:
 
     IngestVisitOccurrence:
       type: object
-      required: 
+      required:
         - visit_occurrence_id
         - visit_concept_id
         - visit_start_date
@@ -1833,8 +1878,8 @@ components:
         key:
           type: string
           description: User's key, usually their email
-    
-    
+
+
 
     Phenopacket:
       description: >
@@ -1903,7 +1948,7 @@ components:
       description: >
         Represents an individual organism, typically a patient or study subject.
       type: object
-      required: 
+      required:
         - id
       properties:
         id:
@@ -1998,7 +2043,7 @@ components:
       properties:
         description:
           type: string
-          description: free text 
+          description: free text
         assay:
           $ref: '#/components/schemas/OntologyClass'
           description: >
@@ -2182,7 +2227,7 @@ components:
       description: >
         A clinical or research interpretation of a specific genomic variant.
       type: object
-      required: 
+      required:
         - acmg_pathogenicity_classification
         - therapeutic_actionability
         - variation_descriptor
@@ -2233,7 +2278,7 @@ components:
           $ref: '#/components/schemas/TimeElement'
           description: >
             an element representing the age of resolution (abatement) of the disease
-        disease_stage: 
+        disease_stage:
           type: array
           items:
             $ref: '#/components/schemas/OntologyClass'
@@ -2277,7 +2322,7 @@ components:
                 How the patient responded to the treatment
             adverse_events:
               type: array
-              items: 
+              items:
                 $ref: '#/components/schemas/OntologyClass'
               description: >
                 Any adverse effects experienced by the patient attributed to the treatment
@@ -2303,7 +2348,7 @@ components:
                 How the patient responded to the treatment
             adverse_events:
               type: array
-              items: 
+              items:
                 $ref: '#/components/schemas/OntologyClass'
               description: >
                 Any adverse effects experienced by the patient attributed to the treatment
@@ -2329,7 +2374,7 @@ components:
                 How the patient responded to the treatment
             adverse_events:
               type: array
-              items: 
+              items:
                 $ref: '#/components/schemas/OntologyClass'
               description: >
                 Any adverse effects experienced by the patient attributed to the treatment
@@ -2355,7 +2400,7 @@ components:
                 How the patient responded to the treatment
             adverse_events:
               type: array
-              items: 
+              items:
                 $ref: '#/components/schemas/OntologyClass'
               description: >
                 Any adverse effects experienced by the patient attributed to the treatment
@@ -2363,7 +2408,7 @@ components:
               $ref: '#/components/schemas/OntologyClass'
               description: >
                 The reason that the treatment was stopped.
-    
+
     Treatment:
       type: object
       description: >
@@ -2390,7 +2435,7 @@ components:
           $ref: '#/components/schemas/Quantity'
           description: >
             The cumulative dose administered during the period of the treatment.
-    
+
     DoseInterval:
       type: object
       description: >
@@ -2422,11 +2467,11 @@ components:
         - PRESCRIPTION
         - EHR_MEDICATION_LIST
         - ADMINISTRATION_RELATED_TO_PROCEDURE
-    
+
     RadiationTherapy:
       description: >
         Radiation therapy (or radiotherapy) uses ionizing radiation, generally as part of cancer treatment to control or kill malignant cells.
-      required: 
+      required:
         - modality
         - body_site
         - dosage
@@ -2448,12 +2493,12 @@ components:
           type: integer
           description: >
             The total number of fractions delivered as part of treatment. REQUIRED.
-    
+
     TherapeuticRegimen:
       type: object
       description: >
         This element represents a therapeutic regimen which will involve a specified set of treatments for a particular condition.
-      required: 
+      required:
         - identifier
         - regimen_status
       properties:
@@ -2660,10 +2705,10 @@ components:
           type: string
           description: >
             The age encoded as an ISO 8601 duration string (e.g. P5Y).
-            
+
     GestationalAge:
       description: >
-        Gestational age (or menstrual age) is the time elapsed between the first day of the last normal menstrual period and the day of delivery. 
+        Gestational age (or menstrual age) is the time elapsed between the first day of the last normal menstrual period and the day of delivery.
       type: object
       required: [weeks]
       properties:
@@ -2780,13 +2825,13 @@ components:
           type: integer
           description: >
             Number of days the patient was alive after their primary diagnosis.
-    
+
     Status:
       description: >
         Enumeration of interpretation status values.
       type: string
       enum: [UNKNOWN_STATUS, ALIVE, DECEASED]
-    
+
     VariationDescriptor:
       type: object
       description: >
@@ -2868,7 +2913,7 @@ components:
             by the core schema.
           items:
             $ref: "#/components/schemas/Extension"
-    
+
     Extension:
       type: object
       description: >
@@ -3109,7 +3154,7 @@ components:
           type: string
           description: >
             Description of the reference.
-    
+
     Procedure:
       type: object
       description: >

@@ -22,7 +22,7 @@ import watchdog.events
 from candigv2_logging.logging import CanDIGLogger, initialize
 from watchdog.observers import Observer
 
-from src.api.helpers import calculate_status, ingest_data, ingest_samples, write_results
+from src.api.ingest_helpers import calculate_status, ingest_data, ingest_samples, ingest_genomic, write_results
 from src.config import settings
 
 initialize()
@@ -38,6 +38,9 @@ def detect_data_type(data: dict) -> str:
     # Check for MoH schema (samples/donors data)
     if data.get("schema_class") == "MoHSchemaV3":
         return "samples"
+
+    elif data.get("genomic") is not None:
+        return "genomic"
 
     # Default to OMOP for all other cases
     return "omop"
@@ -62,7 +65,7 @@ async def process_queued_file(file_path: str):
     except Exception as e:
         logger.warning(f"Could not read existing metadata for {queue_id}: {e}")
 
-    prefix = result_data.get("prefix")
+    site_id = result_data.get("site_id")
 
     logger.info(f"PROCESSING JOB: {queue_id}")
 
@@ -75,12 +78,14 @@ async def process_queued_file(file_path: str):
         data_type = detect_data_type(data)
         logger.info(f"Detected data type: {data_type} for job {queue_id}")
 
-        if data_type == "samples" and prefix:
+        if data_type == "samples" and site_id:
             ingested_items, error_logs, fail_count = await ingest_samples(
-                data, queue_id, prefix=prefix
+                data, queue_id, site_id=site_id
             )
         elif data_type == "omop":
             ingested_items, error_logs, fail_count = await ingest_data(data, queue_id)
+        elif data_type == "genomic":
+            ingested_items, error_logs, fail_count = await ingest_genomic(data["genomic"], queue_id)
         else:
             raise ValueError(f"Unknown data type: {data_type}")
 

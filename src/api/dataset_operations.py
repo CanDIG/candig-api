@@ -814,7 +814,7 @@ async def list_samples(dataset_id: str):
 
                 samples.append(
                     {
-                        "sample_id": record.sample_id,
+                        "sample_id": record.sample_id.replace(f"{dataset_id}~", ""),
                         "dataset_id": dataset_id,
                         "person_id": record.person_id,
                         "specimen_id": record.specimen_id,
