@@ -129,6 +129,19 @@ paths:
                 $ref: '#/components/schemas/BeaconEntryTypesResponse'
         default:
           $ref: '#/components/responses/BeaconErrorResponse'
+  /g_variants:
+    post:
+      description: Search for variants
+      operationId: beacon_operations.variants_search
+      requestBody:
+        $ref: '#/components/requestBodies/BeaconRequestBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/VariantsOKResponse'
+        default:
+          $ref: '#/components/responses/BeaconErrorResponse'
+      tags:
+        - POST Endpoints
 components:
   parameters:
     requestedSchema:
@@ -175,6 +188,15 @@ components:
               - $ref: '#/components/schemas/BeaconBooleanResponse'
               - $ref: '#/components/schemas/BeaconCountResponse'
               - $ref: '#/components/schemas/BeaconResultsetsResponse'
+    VariantsOKResponse:
+      description: Successful variant search operation.
+      content:
+        application/json:
+          schema:
+            anyOf:
+              - $ref: '#/components/schemas/BeaconBooleanResponseBody'
+              - $ref: '#/components/schemas/BeaconCountResponseBody'
+              - $ref: '#/components/schemas/BeaconSearchResponseBody'
     BeaconErrorResponse:
       description: An unsuccessful operation.
       content:
@@ -207,6 +229,75 @@ components:
             description: Response of a request for information about a Beacon
             $ref: '#/components/schemas/BeaconInfoResponse'
   schemas:
+    BeaconBooleanResponseBody:
+      description: Complete definition for a minimal response that provides *only* a `Boolean` exists true|false answer.
+      properties:
+        beaconHandovers:
+          $ref: '#/components/schemas/ListOfHandovers'
+        info:
+          $ref: '#/components/schemas/Info'
+        meta:
+          $ref: '#/components/schemas/BeaconResponseMeta'
+        responseSummary:
+          description: Boolean (true/false) response section.
+          properties:
+            exists:
+              $ref: '#/components/schemas/Exists'
+          required:
+            - exists
+          type: object
+      required:
+        - meta
+        - responseSummary
+      type: object
+    BeaconCountResponseBody:
+      description: Complete definition for a response that does not include record level details but provides `Boolean` and `count` information.
+      properties:
+        beaconHandovers:
+          $ref: '#/components/schemas/ListOfHandovers'
+        info:
+          $ref: '#/components/schemas/Info'
+        meta:
+          $ref: '#/components/schemas/BeaconResponseMeta'
+        responseSummary:
+          $ref: '#/components/schemas/BeaconCountResponseSection'
+      required:
+        - meta
+        - responseSummary
+      type: object
+    BeaconSearchResponseBody:
+      description: Beacon quick search result
+      properties:
+        info:
+          $ref: '#/components/schemas/Info'
+        meta:
+          $ref: '#/components/schemas/BeaconResponseMeta'
+        response:
+          $ref: '#/components/schemas/QuickSearchResult'
+        responseSummary:
+          $ref: '#/components/schemas/BeaconSummaryResponseSection'
+      required:
+        - meta
+        - responseSummary
+        - response
+      type: object
+    QuickSearchResult:
+      description: Result with initial estimated data and a link to full Beacon result
+      type: object
+      properties:
+        beaconResultUrl:
+          type: string
+        estimatedResults:
+          type: array
+          items:
+            type: object
+            properties:
+              analysisId:
+                type: string
+              programId:
+                type: string
+              variantCount:
+                type: integer
     BeaconConfigurationResponse:
       type: object
       description: >-
