@@ -197,6 +197,7 @@ components:
               - $ref: '#/components/schemas/BeaconBooleanResponseBody'
               - $ref: '#/components/schemas/BeaconCountResponseBody'
               - $ref: '#/components/schemas/BeaconSearchResponseBody'
+              - $ref: '#/components/schemas/QuickSearchResult'
     BeaconErrorResponse:
       description: An unsuccessful operation.
       content:
@@ -285,19 +286,16 @@ components:
       description: Result with initial estimated data and a link to full Beacon result
       type: object
       properties:
-        beaconResultUrl:
-          type: string
         estimatedResults:
-          type: array
-          items:
-            type: object
-            properties:
-              analysisId:
-                type: string
-              programId:
-                type: string
-              variantCount:
-                type: integer
+          type: object
+        estimatedSearchParameters:
+          type: object
+        meta:
+          $ref: '#/components/schemas/BeaconResponseMeta'
+      required:
+        - estimatedResults
+        - estimatedSearchParameters
+        - meta
     BeaconConfigurationResponse:
       type: object
       description: >-

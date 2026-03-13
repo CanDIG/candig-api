@@ -23,10 +23,10 @@ CANDIG_URL = os.getenv("CANDIG_URL", "")
 HTSGET_URL = os.getenv("HTSGET_URL", f"{CANDIG_URL}/genomics")
 
 
-def create_sample_query(filter, offset, limit):
+def create_sample_query(filter):
     return  f""" select d.sample_id
         from omop.person p
-        left join candig.sample d
+        left join candig.sample d ON p.person_id = d.person_id
         where true
         {filter['demographic_filters']}
         {filter['condition_filters']}
@@ -81,15 +81,15 @@ async def get_variants(qparams: dict):
         if not isinstance(results, list):
             continue
         items_to_remove = []
-        for index, item in enumerate(results):
+        for item in results:
             if f"{program}~{item['submitter_sample_id']}" not in found_samples:
-                items_to_remove.append(index)
+                items_to_remove.append(item)
         for item in items_to_remove:
-            results.pop(index)
+            results.remove(item)
         if len(results) == 0:
             programs_to_remove.append(program)
     for program in programs_to_remove:
-        htsget['estimatedResults'].remove(program)
+        del htsget['estimatedResults'][program]
 
     # Return the HTSGet
     return htsget
