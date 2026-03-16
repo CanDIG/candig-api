@@ -12,3 +12,4 @@ clinical_etl@git+https://github.com/CanDIG/clinical_ETL_code.git@v3.1.2
 phenopackets
 pytest~=9.0.2
 pytest-asyncio~=1.3.0
+testcontainers[postgres]~=4.10
