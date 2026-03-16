@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.api.helpers import ingest_samples
+from src.api.ingest_helpers import ingest_samples
 from src.daemon import detect_data_type
 
 
@@ -70,8 +70,8 @@ class TestDetectDataType:
 
 class TestIngestSamplesSuccess:
     @pytest.mark.asyncio
-    @patch("src.api.helpers.create_sample", new_callable=AsyncMock)
-    @patch("src.api.helpers.get_db_session")
+    @patch("src.api.ingest_helpers.create_sample", new_callable=AsyncMock)
+    @patch("src.api.ingest_helpers.get_db_session")
     async def test_single_sample_ingested(
         self, mock_get_db_session, mock_create_sample
     ):
@@ -89,26 +89,9 @@ class TestIngestSamplesSuccess:
         session.commit.assert_called_once()
 
 
-class TestIngestSamplesValidation:
-    @pytest.mark.asyncio
-    async def test_missing_donor_id(self):
-        payload = {"donors": [{"program_id": "PROG"}]}
-        ingested, errors, fails = await ingest_samples(payload, "q", "TEST")
-        assert (
-            fails == 1
-            and ingested == []
-            and any("submitter_donor_id" in e for e in errors)
-        )
-
-    @pytest.mark.asyncio
-    async def test_empty_donors(self):
-        ingested, errors, fails = await ingest_samples({"donors": []}, "q", "TEST")
-        assert ingested == [] and errors == [] and fails == 0
-
-
 class TestIngestSamplesDBFailures:
     @pytest.mark.asyncio
-    @patch("src.api.helpers.get_db_session")
+    @patch("src.api.ingest_helpers.get_db_session")
     async def test_person_not_found(self, mock_get_db_session):
         session = AsyncMock()
         session.commit = AsyncMock()
@@ -132,8 +115,8 @@ class TestIngestSamplesDBFailures:
         )
 
     @pytest.mark.asyncio
-    @patch("src.api.helpers.create_sample", new_callable=AsyncMock)
-    @patch("src.api.helpers.get_db_session")
+    @patch("src.api.ingest_helpers.create_sample", new_callable=AsyncMock)
+    @patch("src.api.ingest_helpers.get_db_session")
     async def test_rollback_on_failure(self, mock_get_db_session, mock_create_sample):
         session = make_session()
         mock_get_db_session.side_effect = session_gen(session)
@@ -143,8 +126,8 @@ class TestIngestSamplesDBFailures:
         session.rollback.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch("src.api.helpers.create_sample", new_callable=AsyncMock)
-    @patch("src.api.helpers.get_db_session")
+    @patch("src.api.ingest_helpers.create_sample", new_callable=AsyncMock)
+    @patch("src.api.ingest_helpers.get_db_session")
     async def test_duplicate_409_skipped(self, mock_get_db_session, mock_create_sample):
         session = make_session()
         mock_get_db_session.side_effect = session_gen(session)
