@@ -1,16 +1,23 @@
-from typing import Dict
-
-from sqlalchemy import text
-from ...beacon.omop import engine
 import aiosql
 import itertools
+import os
+import requests
+from connexion import request
+from sqlalchemy import text
+from typing import List
 
+import authx.auth
+from ...beacon.omop import engine
+from ...beacon.request.model import RequestParams
 from candigv2_logging.logging import CanDIGLogger
 
 logger = CanDIGLogger(__file__)
 
 CDM_SCHEMA='cdm'
 VOCABULARIES_SCHEMA='vocabularies'
+
+CANDIG_URL = os.getenv("CANDIG_URL", "")
+HTSGET_URL = os.getenv("HTSGET_URL", f"{CANDIG_URL}/genomics")
 
 from pathlib import Path
 queries_file = Path(__file__).parent / "sql" / "individuals.sql"
@@ -141,3 +148,50 @@ async def get_documents(listVariables: list, query: str, skip: int, limit: int):
         recordsFinal = records.fetchmany(limit) # format_query(listVariables, records)
         # Switch the SQLAlchemy result to a dict for the response
         return [record._asdict() for record in recordsFinal]
+
+def search_htsget(qparams: RequestParams=RequestParams()):
+    # We basically need to form a request to HTSGet and pass all of our qparams.requestParameters.g_variant to them
+    headers = {
+        "X-Service-Token": authx.auth.create_service_token(),
+        "Authorization": request.headers["Authorization"]
+    }
+
+    payload = {
+        'query': {
+            'requestParameters': qparams.query.request_parameters["g_variant"]
+        },
+        'meta': {
+            'apiVersion': 'v2'
+        }
+    }
+
+    response = requests.post(url=f"{HTSGET_URL}/beacon/v2/g_variants", headers=headers, json=payload)
+    if not response.ok:
+        logger.error(f"Received error {response.status_code} while searching HTSGet: {response.reason} {response.text}")
+    return response.json()
+
+
+def get_samples_from_htsget_response(htsget: dict):
+    found_samples = []
+    for program, results in htsget.get('estimatedResults', {}).items():
+        if not isinstance(results, list):
+            continue
+        for item in results:
+            found_samples.append(program + "~" + item["submitter_sample_id"])
+    return found_samples
+
+
+def create_samples_filter(samples: List, filters_dict: dict):
+    ret_filter = 'and exists (SELECT 1 FROM candig.sample d where p.person_id = d.person_id and ('
+    first = True
+    for i, sample_id in enumerate(samples):
+        # Expecting sample_id to be of the form: dataset_id~specimen_id e.g. SITE_PM2C~SAMPLE_0001
+        if not first:
+            ret_filter += ' or '
+        first = False
+        ret_filter += f' sample_id = :samples{i}'
+        filters_dict[f'samples{i}'] = sample_id
+    # Close both the exists clause and also the chain of dataset_id conditionals
+    ret_filter += '))'
+    return ret_filter, filters_dict
+

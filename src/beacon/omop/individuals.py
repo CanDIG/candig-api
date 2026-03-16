@@ -1,11 +1,14 @@
+import os
 import re
+import requests
 
 from connexion import request
-from typing import Optional
+from typing import Optional, List
 from ...beacon.omop.utils import  search_ontologies, basic_query, peek
 from ...beacon.omop import engine, mappings
 from ...beacon.request.model import RequestParams
 from ...beacon.omop.schemas import DefaultSchemas
+from .utils import search_htsget, get_samples_from_htsget_response, create_samples_filter
 import aiosql
 from sqlalchemy import text, bindparam
 from ..conf import MAX_LIMIT
@@ -298,6 +301,7 @@ def create_dynamic_filter(filters):
         'procedures_filters': '',
         'exposures_filters': '',
         'treatments_filters': '',
+        'genomics_filters': ''  # Not filled out here
     }
     filters_dict = {}
     request_datasets = []
@@ -537,6 +541,7 @@ def super_query_count(filter):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_filters']}
+        {filter['genomics_filters']}
 
     """
 
@@ -553,6 +558,7 @@ def discovery_query_primary_site(filter):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_discovery_filters']}
+        {filter['genomics_filters']}
         GROUP BY c.concept_name
     """
 
@@ -569,6 +575,7 @@ def discovery_query_treatment_type(filter):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_discovery_filters']}
+        {filter['genomics_filters']}
         GROUP BY c.concept_name
     """
 
@@ -585,6 +592,7 @@ def discovery_query_drug_type(filter):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_discovery_filters']}
+        {filter['genomics_filters']}
         GROUP BY c.concept_name
     """
 
@@ -600,6 +608,7 @@ def discovery_query_program(filter):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_discovery_filters']}
+        {filter['genomics_filters']}
         GROUP BY d.dataset_id
     """
 
@@ -614,6 +623,7 @@ def super_query_get(filter, offset, limit):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_filters']}
+        {filter['genomics_filters']}
 
         limit {limit}
         offset {offset}
@@ -649,8 +659,7 @@ async def get_discovery(base_filter, filters_dict):
     discovery['drug_type_count'] = await format_filtered_discovery(discovery_query_drug_type(base_filter), filters_dict)
     return discovery
 
-async def checkFilters(filtersDict, offset, limit):
-    listOfList = []
+async def parseFilters(filtersDict, extra_filters, extra_filters_dict):
     dictTableMap = []
     typeQuery = request.method
     async with engine.connect() as conn:
@@ -730,8 +739,15 @@ async def checkFilters(filtersDict, offset, limit):
                     # Look in which domains the concept_id belongs
                     tableMap = map_domains(domain_id)
                 dictTableMap.append([tableMap, listConcept_id, operator, value, includeDescendantTerms])
-    # logger.info(dictTableMap)
     base_filter, filters_dict = create_dynamic_filter(dictTableMap)
+    base_filter.update(extra_filters)
+    filters_dict.update(extra_filters_dict)
+    return base_filter, filters_dict
+
+async def checkFilters(filtersDict, offset, limit, extra_filters, extra_filters_dict):
+    base_filter, filters_dict = await parseFilters(filtersDict, extra_filters, extra_filters_dict)
+    
+    # logger.info(dictTableMap)
     query_count = super_query_count(base_filter)
     count_records = (await basic_query(query_count, filters_dict)).fetchone()[0]
 
@@ -746,22 +762,45 @@ async def checkFilters(filtersDict, offset, limit):
     return listOfList, count_records, discovery, filters_dict
 
 # /individuals/?filters=SNOMED:0&filters=OMOP:23
-async def filters(filtersDict, offset, limit):
+async def filters(filtersDict, offset, limit, extra_filters, extra_filters_dict):
     # There used to be a lot of code here, but now that we pass the connexion request it's all unnecessary
-    return await checkFilters(filtersDict, offset, limit)
+    return await checkFilters(filtersDict, offset, limit, extra_filters, extra_filters_dict)
+
 
 async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=RequestParams()):
 
     schema = DefaultSchemas.INDIVIDUALS
     count_ids = 0
     discovery_data = {}
+    
+    # First, we determine if we need to join on any genomics results
+    extra_filters = {}
+    extra_filters_dict = {}
+    if "g_variant" in qparams.query.request_parameters:
+        found_samples = get_samples_from_htsget_response(search_htsget(qparams))
+
+        # If a genomic variant was requested but none was found, exit early
+        if len(found_samples) == 0:
+            return schema, 0, [], {}
+
+        # Otherwise, insert this as a single filter with a bunch of entries
+        genomics_filters, genomic_filters_dict = create_samples_filter(found_samples, {})
+        extra_filters['genomics_filters'] = genomics_filters
+        extra_filters_dict.update(genomic_filters_dict)
+
     if qparams.query.pagination.limit == 0:
         qparams.query.pagination.limit = MAX_LIMIT
+    
+    filter_params = []
     if qparams.query.filters and len(qparams.query.filters) > 0 and len(qparams.query.filters[0]) > 0:
+        filter_params = qparams.query.filters[0]
+    if len(filter_params) > 0 or len(extra_filters) > 0:
         # NB: qparams.query.filters is a list, whereas we need it to be a dict?
-        listIds, count_ids, discovery_data, filters_dict = await filters(qparams.query.filters[0],
+        listIds, count_ids, discovery_data, filters_dict = await filters(filter_params,
                                                                         offset=qparams.query.pagination.skip,
-                                                                        limit=qparams.query.pagination.limit)
+                                                                        limit=qparams.query.pagination.limit,
+                                                                        extra_filters=extra_filters,
+                                                                        extra_filters_dict=extra_filters_dict)
         if count_ids == 0:
             return schema, count_ids, [], discovery_data
     else:

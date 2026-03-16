@@ -1,0 +1,439 @@
+openapi: 3.0.0
+info:
+  version: v1.0.0
+  title: 'CanDIGv3 Ingest Schemas'
+  description: 'Schemas for genomic metadata'
+components:
+  schemas:
+    Statistics:
+      type: object
+      properties:
+        required_but_missing:
+          type: object
+          description: for each schema, a count of required fields that are present vs missing
+        schemas_used:
+          type: array
+          description: a list of schemas used in this dataset
+          items:
+            type: string
+        cases_missing_data:
+          type: array
+          description: a list of cases that have missing data
+          items:
+            type: string
+        schemas_not_used:
+          type: array
+          description: a list of schemas that are never used in this dataset
+          items:
+            type: string
+        summary_cases:
+          type: object
+          description: overall completeness counts
+          properties:
+            complete_cases:
+              type: integer
+              description: how many cases have complete data
+            total_cases:
+              type: integer
+              description: how many cases are in this dataset
+    SequencingIngest:
+      type: object
+      required:
+        - experiments
+        - analyses
+      properties:
+        experiments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Experiment"
+        analyses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Analysis"
+    Experiment:
+      description: Describes the sequencing experiment performed on a specific specimen from a donor
+      type: object
+      required:
+        - dataset_id
+        - experiment_id
+        - submitter_sample_id
+        - metadata
+      properties:
+        dataset_id:
+          type: string
+          description: Name of the dataset this experiment belongs to. The user must be authorized to add data to this dataset.
+        experiment_id:
+          type: string
+          description: Unique identifier given by the sequencing centre
+        submitter_sample_id:
+          type: string
+          description: Unique identifier for the sample submitted for sequencing. Equivalent to MoHCCN's submitter_sample_id in the Sample Registration schema.
+        metadata:
+          type: object
+          description: Additional data that describes the sequencing experiment
+          required:
+            - library_strategy
+          properties:
+            library_description:
+              type: string
+              description: Free text description of the library
+            instrument:
+              type: string
+              description: sequencing instrument used
+              enum:
+                - ABI SOLID Models
+                - AB 5500 Genetic Analyzer
+                - AB 5500xl Genetic Analyzer
+                - AB 5500xl-W Genetic Analysis System
+                - AB SOLiD 3 Plus System
+                - AB SOLiD 4 System
+                - AB SOLiD 4hq System
+                - AB SOLiD PI System
+                - AB SOLiD System
+                - AB SOLiD System 2.0
+                - AB SOLiD System 3.0
+                - AB 310 Genetic Analyzer
+                - CAPILLARY Models
+                - AB 3130 Genetic Analyzer
+                - AB 3130xL Genetic Analyzer
+                - AB 3500 Genetic Analyzer
+                - AB 3500xL Genetic Analyzer
+                - AB 3730 Genetic Analyzer
+                - AB 3730xL Genetic Analyzer
+                - COMPLETE GENOMICS Models
+                - Complete Genomics
+                - HELICOS Models
+                - Helicos HeliScope
+                - ILLUMINA Models
+                - HiSeq X Five
+                - HiSeq X Ten
+                - Illumina Genome Analyzer
+                - Illumina Genome Analyzer II
+                - Illumina Genome Analyzer IIx
+                - Illumina HiScanSQ
+                - Illumina HiSeq 1000
+                - Illumina HiSeq 1500
+                - Illumina HiSeq 2000
+                - Illumina HiSeq 2500
+                - Illumina HiSeq 3000
+                - Illumina HiSeq 4000
+                - Illumina MiSeq
+                - Illumina MiniSeq
+                - Illumina NovaSeq 6000
+                - NextSeq 500
+                - NextSeq 550
+                - ION TORRENT Models
+                - Ion Torrent PGM
+                - Ion Torrent Proton
+                - Ion Torrent S5
+                - Ion Torrent S5 XL
+                - LS454 Models
+                - 454 GS
+                - 454 GS 20
+                - 454 GS FLX
+                - 454 GS FLX Titanium
+                - 454 GS FLX+
+                - 454 GS Junior
+                - OXFORD NANOPORE Models
+                - GridION
+                - MinION
+                - PromethION
+                - PACBIO SMRT Models
+                - PacBio RS
+                - PacBio RS II
+                - Sequel
+            library_selection:
+              type: string
+              description: method used to enrich target
+              enum:
+                - 5-methylcytidine antibody
+                - CAGE
+                - ChIP
+                - ChIP-Seq
+                - DNase
+                - HMPR
+                - Hybrid Selection
+                - Inverse rRNA
+                - Inverse rRNA selection
+                - MBD2 protein methyl-CpG binding domain
+                - MDA
+                - MF
+                - MNase
+                - MSLL
+                - Oligo-dT
+                - PCR
+                - PolyA
+                - RACE
+                - RANDOM
+                - RANDOM PCR
+                - RT-PCR
+                - Reduced Representation
+                - Restriction Digest
+                - cDNA
+                - cDNA_oligo_dT
+                - cDNA_randomPriming
+                - other
+                - padlock probes capture method
+                - repeat fractionation
+                - size fractionation
+                - unspecified
+            protocol:
+              type: string
+              description: optional link to protocol
+            library_source:
+              type: string
+              description: type of material
+              enum:
+                - genomic
+                - genomic single cell
+                - metagenomic
+                - metatranscriptomic
+                - other
+                - synthetic
+                - transcriptomic
+                - transcriptomic single cell
+                - viral RNA
+            library_strategy:
+              type: string
+              description: type of data sequenced (whole genome or whole transcriptome)
+              enum:
+                - AMPLICON
+                - ATAC-seq
+                - Bisulfite-Seq
+                - CLONE
+                - CLONEEND
+                - CTS
+                - ChIA-PET
+                - ChIP-Seq
+                - DNase-Hypersensitivity
+                - EST
+                - FAIRE-seq
+                - FINISHING
+                - FL-cDNA
+                - Hi-C
+                - MBD-Seq
+                - MNase-Seq
+                - MRE-Seq
+                - MeDIP-Seq
+                - OTHER
+                - POOLCLONE
+                - RAD-Seq
+                - RIP-Seq
+                - RNA-Seq
+                - SELEX
+                - Synthetic-Long-Read
+                - Targeted-Capture
+                - Tethered Chromatin Conformation Capture
+                - Tn-Seq
+                - VALIDATION
+                - WCS
+                - WGA
+                - WGS
+                - WTS
+                - WXS
+                - miRNA-Seq
+                - ncRNA-Seq
+                - ssRNA-seq
+            library_layout:
+              type: string
+              description: Single or Paired
+              enum:
+                - paired
+                - single
+    Run:
+      description: A run contains a group of reads generated for a particular experiment.
+      type: object
+      required:
+        - run_id
+        - dataset_id
+        - experiment_id
+        - files
+        - metadata
+      properties:
+        run_id:
+          type: string
+          description: The descriptor for the run files, typically the base filename.
+        dataset_id:
+          type: string
+          description: Name of the dataset this experiment belongs to. The user must be authorized to add data to this dataset.
+        experiment_id:
+          type: string
+          description: Unique identifier for the experiment this run relates to
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/File"
+        metadata:
+          type: object
+          description: Additional data that describes the run
+          required:
+            - run_date
+            - filetype
+          properties:
+            run_date:
+              type: string
+              format: date
+            filetype:
+              type: string
+              enum:
+                - sra
+                - srf
+                - sff
+                - fastq
+                - fasta
+                - tab
+                - 454_native
+                - 454_native_seq
+                - 454_native_qual
+                - Helicos_native
+                - Illumina_native
+                - Illumina_native_seq
+                - Illumina_native_prb
+                - Illumina_native_int
+                - Illumina_native_qseq
+                - Illumina_native_scarf
+                - SOLiD_native
+                - SOLiD_native_csfasta
+                - SOLiD_native_qual
+                - PacBio_HDF5
+                - bam
+                - cram
+                - CompleteGenomics_native
+                - OxfordNanopore_native
+    Analysis:
+      type: object
+      required:
+        - dataset_id
+        - analysis_id
+        - metadata
+        - main
+        - samples
+      properties:
+        dataset_id:
+          type: string
+          description: Name of the dataset this sample belongs to. The user must be authorized to add data to this dataset.
+        analysis_id:
+          type: string
+          description: A unique name for this downstream analysis
+        metadata:
+          type: object
+          description: Additional data that describes the downstream analysis
+          required:
+            - analysis_type
+            - reference
+          properties:
+            analysis_type:
+              type: string
+              description: type of data represented in the Analysis
+              enum:
+                - reference_alignment
+                - sequence_variation
+                - sequence_annotation
+            analysis_date:
+              type: string
+              format: date
+              example: "2024-01-24"
+              description: date analysis was performed in the format YYYY-MM-DD. If not specified, it will be taken either from the fileDate header or derived from another date-containing header.
+            analysis_attribute:
+              type: object
+              properties:
+                subtype:
+                  type: string
+                  description: specific subtype of analysis
+                  enum:
+                    - mutation
+                    - copynumber
+                    - expression_count
+                    - fusion
+                    - structural_variation
+                gene_id_column:
+                  type: string
+                  description: name of column containing gene ids, if subtype is expression_count
+                length_column:
+                  type: string
+                  description: name of column containing gene lengths, if subtype is expression_count
+                count_column:
+                  type: string
+                  description: name of column containing counts, if subtype is expression_count
+                norm_column:
+                  type: string
+                  description: name of column containing normalized values, if subtype is expression_count and a single column contains normalized values but is not named after the normalization method
+                norm_method:
+                  type: string
+                  description: normalization method used to calculate values in norm_column
+                  enum:
+                    - tpm
+                    - fpkm
+                    - getmm
+            reference:
+              type: string
+              description: which reference genome was used for alignment (hg37 or hg38)
+              enum:
+                - hg37
+                - hg38
+              default: hg38
+            reference_sequence_type:
+              type: string
+              enum:
+                - Whole genome sequencing
+                - Whole transcriptome sequencing
+                - Exome sequencing
+                - Genotyping by array
+                - transcriptomics
+                - Curation
+                - Genotyping by sequencing
+                - Target sequencing
+            reference_assembly_id:
+              type: string
+              description: if provided, the name of the exact assembly used for the reference genome
+            analysis_centre:
+              type: string
+              description: name of sequencing centre that performed the analysis
+        main:
+          $ref: "#/components/schemas/File"
+        index:
+          $ref: "#/components/schemas/File"
+        samples:
+          type: array
+          description: An array of links between Experiments and the samples in the analysis
+          items:
+            type: object
+            description: Link between Experiments and the samples in the analysis
+            properties:
+              experiment_id:
+                type: string
+                description: the ID of the sequencing experiment
+              analysis_sample_id:
+                type: string
+                description: the name of the sample as listed in the analysis results
+                example: TUMOUR/NORMAL/PROGRAM_EXPERIMENT_ID_1
+            required:
+              - experiment_id
+              - analysis_sample_id
+    File:
+      type: object
+      description: Object describing a file
+      properties:
+        name:
+          type: string
+          description: name of the file, including all extensions
+        access_method:
+          type: string
+          description: fully-described URI to the file
+          oneOf:
+            - $ref: "#/components/schemas/S3Access"
+            - $ref: "#/components/schemas/FileAccess"
+      required:
+        - name
+        - access_method
+    FileAccess:
+      type: string
+      description: an absolute path to a local file on the HTSGet server itself, expressed as a file URI
+      pattern: file:\/\/\/(.+)
+      example: file:///data/samples/HG00096.vcf.gz
+    S3Access:
+      type: string
+      description: |
+        a description of an S3 URI. NB: even though the s3 prefix is incorrect, we allow it in parsing so that we can give better feedback to the user if a url is provided in that form.
+      pattern: (https*|s3):\/\/(.+)\/(.+)\/(.+)
+      example: http://s3.us-east-1.amazonaws.com/1000genomes/HG00096.vcf.gz

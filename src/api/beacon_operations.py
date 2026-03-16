@@ -1,7 +1,7 @@
 import connexion
 
 #from ..beacon.request.handlers import filtering_terms_handler
-from ..beacon.omop import datasets, filtering_terms, individuals
+from ..beacon.omop import datasets, filtering_terms, individuals, variants
 #from ..beacon.omop.schemas import DefaultSchemas
 from ..beacon.response import framework
 from ..beacon.request import RequestParams
@@ -94,6 +94,9 @@ async def post_person(body: dict):
     # Figure out what kind of search we should be doing (see beacon/request/routes)
     params = RequestParams(**body).from_request(body)
 
+    # Before we continue, we should check to make sure that if a genomic search is attempted, it has all required fields
+    # or wait... is that handled by connexion?
+
     # Pass out the parsed search parameters to SQL (see beacon/omop/)
     schema, count, records, discovery_data = await individuals.get_individuals(None, params)
 
@@ -113,4 +116,9 @@ async def post_person(body: dict):
     else:
         retval = build_beacon_boolean_response(records, count, params, lambda x, y: x, schema, discovery_data)
 
+    return retval, 200
+
+async def variants_search(body: dict):
+    params = RequestParams(**body).from_request(body)
+    retval = await variants.get_variants(params)
     return retval, 200
