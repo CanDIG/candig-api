@@ -1016,14 +1016,17 @@ components:
         location_id:
           description: The location refers to the physical address of the person. This field should capture the last known location of the person.  Put the location_id from the LOCATION table here that represents the most granular location information for the person. For additional information on how to populate this field, please refer to the THEMIS repository.
           type: integer
+          nullable: true
 
         provider_id:
           description: The Provider refers to the last known primary care provider (General Practitioner).  Put the provider_id from the PROVIDER table of the last known general practitioner of the person. If there are multiple providers, it is up to the ETL to decide which to put here.
           type: integer
+          nullable: true
 
         care_site_id:
           description: The Care Site refers to where the Provider typically provides the primary care.
           type: integer
+          nullable: true
 
         person_source_value:
           description: Use this field to link back to persons in the source data. This is typically used for error checking of ETL logic. Some use cases require the ability to link back to persons in the source data. This field allows for the storing of the person value as it appears in the source. This field is not required but strongly recommended.
@@ -1035,6 +1038,7 @@ components:
         gender_source_concept_id:
           description: Due to the small number of options, this tends to be zero. If the source data codes assigned sex at birth in a non-standard vocabulary, store the concept_id here.
           type: integer
+          nullable: true
 
         race_source_value:
           description: This field is used to store the race of the person from the source data. It is not intended for use in standard analytics but for reference only. Put the race of the person as it appears in the source data.
@@ -1043,6 +1047,7 @@ components:
         race_source_concept_id:
           description: Due to the small number of options, this tends to be zero. If the source data codes race in an OMOP supported vocabulary store the concept_id here.
           type: integer
+          nullable: true
 
         ethnicity_source_value:
           description: This field is used to store the ethnicity of the person from the source data. It is not intended for use in standard analytics but for reference only. If the person has an ethnicity other than the OMB standard of "Hispanic" or "Not Hispanic" store that value from the source data here.
@@ -1051,6 +1056,7 @@ components:
         ethnicity_source_concept_id:
           description: Due to the small number of options, this tends to be zero. If the source data codes ethnicity in an OMOP supported vocabulary, store the concept_id here.
           type: integer
+          nullable: true
 
       required:
         - gender_concept_id
