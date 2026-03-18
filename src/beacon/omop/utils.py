@@ -149,12 +149,14 @@ async def get_documents(listVariables: list, query: str, skip: int, limit: int):
         # Switch the SQLAlchemy result to a dict for the response
         return [record._asdict() for record in recordsFinal]
 
-def search_htsget(qparams: RequestParams=RequestParams()):
+def search_htsget(qparams: RequestParams=RequestParams(), useAdminAuth: bool = False):
     # We basically need to form a request to HTSGet and pass all of our qparams.requestParameters.g_variant to them
     headers = {
-        "X-Service-Token": authx.auth.create_service_token(),
         "Authorization": request.headers["Authorization"]
     }
+
+    if useAdminAuth:
+        headers["X-Service-Token"] = authx.auth.create_service_token()
 
     payload = {
         'query': {
@@ -182,6 +184,9 @@ def get_samples_from_htsget_response(htsget: dict):
 
 
 def create_samples_filter(samples: List, filters_dict: dict):
+    # If there are no valid samples to match on, return nothing
+    if len(samples) == 0:
+        return 'and false', filters_dict
     ret_filter = 'and exists (SELECT 1 FROM candig.sample d where p.person_id = d.person_id and ('
     first = True
     for i, sample_id in enumerate(samples):
