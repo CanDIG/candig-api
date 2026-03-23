@@ -301,7 +301,8 @@ def create_dynamic_filter(filters):
         'procedures_filters': '',
         'exposures_filters': '',
         'treatments_filters': '',
-        'genomics_filters': ''  # Not filled out here
+        'genomics_filters': '',  # Not filled out here
+        'genomics_discovery_filters': '' # Not filled out here
     }
     filters_dict = {}
     request_datasets = []
@@ -558,7 +559,7 @@ def discovery_query_primary_site(filter):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_discovery_filters']}
-        {filter['genomics_filters']}
+        {filter['genomics_discovery_filters']}
         GROUP BY c.concept_name
     """
 
@@ -575,7 +576,7 @@ def discovery_query_treatment_type(filter):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_discovery_filters']}
-        {filter['genomics_filters']}
+        {filter['genomics_discovery_filters']}
         GROUP BY c.concept_name
     """
 
@@ -592,7 +593,7 @@ def discovery_query_drug_type(filter):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_discovery_filters']}
-        {filter['genomics_filters']}
+        {filter['genomics_discovery_filters']}
         GROUP BY c.concept_name
     """
 
@@ -608,7 +609,7 @@ def discovery_query_program(filter):
         {filter['exposures_filters']}
         {filter['treatments_filters']}
         {filter['datasets_discovery_filters']}
-        {filter['genomics_filters']}
+        {filter['genomics_discovery_filters']}
         GROUP BY d.dataset_id
     """
 
@@ -779,13 +780,13 @@ async def get_individuals(entry_id: Optional[str]=None, qparams: RequestParams=R
     if "g_variant" in qparams.query.request_parameters:
         found_samples = get_samples_from_htsget_response(search_htsget(qparams))
 
-        # If a genomic variant was requested but none was found, exit early
-        if len(found_samples) == 0:
-            return schema, 0, [], {}
-
-        # Otherwise, insert this as a single filter with a bunch of entries
+        # If a genomic variant was requested but none was found, we cannot exit early
+        # because the discovery counts will be wrong
         genomics_filters, genomic_filters_dict = create_samples_filter(found_samples, {})
         extra_filters['genomics_filters'] = genomics_filters
+        discovery_samples = get_samples_from_htsget_response(search_htsget(qparams, useAdminAuth=True))
+        discovery_filters, genomic_filters_dict = create_samples_filter(discovery_samples, genomic_filters_dict)
+        extra_filters['genomics_discovery_filters'] = discovery_filters
         extra_filters_dict.update(genomic_filters_dict)
 
     if qparams.query.pagination.limit == 0:
